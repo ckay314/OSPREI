@@ -1,0 +1,196 @@
+import numpy as np
+import math
+import sys
+
+global rsun, dtor, radeg, kmRs
+rsun  =  7e10		 # convert to cm, 0.34 V374Peg
+dtor  = 0.0174532925  # degrees to radians
+radeg = 57.29577951    # radians to degrees
+kmRs  = 1.0e5 / rsun # km (/s) divided by rsun (in cm)
+
+
+#-----------geometry functions ------------------------------------
+
+def SPH2CART(sph_in):
+    r = sph_in[0]
+    colat = (90. - sph_in[1]) * dtor
+    lon = sph_in[2] * dtor
+    x = r * np.sin(colat) * np.cos(lon)
+    y = r * np.sin(colat) * np.sin(lon)
+    z = r * np.cos(colat)
+    return [x, y, z]
+
+def CART2SPH(x_in):
+# calcuate spherical coords from 3D cartesian
+# output lat not colat
+    r_out = np.sqrt(x_in[0]**2 + x_in[1]**2 + x_in[2]**2)
+    colat = np.arccos(x_in[2] / r_out) * 57.29577951
+    lon_out = np.arctan(x_in[1] / x_in[0]) * 57.29577951
+    if lon_out < 0:
+        if x_in[0] < 0:
+            lon_out += 180.
+        elif x_in[0] > 0:
+            lon_out += 360. 
+    elif lon_out > 0.:
+	    if x_in[0] < 0:  lon_out += 180. 
+    return [r_out, 90. - colat, lon_out]
+
+def rotx(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the x-axis
+    ang *= dtor
+    yout = np.cos(ang) * vec[1] - np.sin(ang) * vec[2]
+    zout = np.sin(ang) * vec[1] + np.cos(ang) * vec[2]
+    return [vec[0], yout, zout]
+
+def roty(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the y-axis
+    ang *= dtor
+    xout = np.cos(ang) * vec[0] + np.sin(ang) * vec[2]
+    zout =-np.sin(ang) * vec[0] + np.cos(ang) * vec[2]
+    return [xout, vec[1], zout]
+
+def rotz(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the y-axis
+	ang *= dtor
+	xout = np.cos(ang) * vec[0] - np.sin(ang) * vec[1]
+	yout = np.sin(ang) * vec[0] + np.cos(ang) * vec[1]
+	return [xout, yout, vec[2]]
+    
+# Pull in inputs from text file
+def getANTinputs(inputs):
+    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW']
+    # if matches add to dictionary
+    input_values = {}
+    for i in range(len(inputs)):
+        temp = inputs[i]
+        if temp[0][:-1] in possible_vars:
+            input_values[temp[0][:-1]] = temp[1]
+    return input_values
+
+def processANTinputs(input_values):
+    Epos = [0.,0.,213.,360/365.256/24./60.] # sat_lat, sat_lon, sat_rad, sat_rod
+    try: 
+        Epos[0] = float(input_values['Sat_lat'])
+    except:
+        print('Assuming satellite at 0 lat')
+    try: 
+        Epos[1] = float(input_values['Sat_lon'])
+    except:
+        print('Assuming satellite at 0 lon')
+    try: 
+        Epos[2] = float(input_values['Sat_rad'])
+    except:
+        print('Assuming satellite at 213 Rs (L1)')
+    try: 
+        Epos[3] = float(input_values['Sat_rot'])
+    except:
+        print('Assuming satellite orbits at Earth orbital speed')
+    try: 
+        Cd = float(input_values['Cd'])
+    except:
+        print('Assuming radial Cd = 1')
+        Cd = 1.
+    try: 
+        nSW = float(input_values['nSW'])
+    except:
+        nSW = -9999
+    try: 
+        vSW = float(input_values['vSW'])
+    except:
+        vSW = -9999
+    
+    return Epos, Cd, [nSW, vSW]    
+    
+        
+    
+
+# -------------- main function ------------------
+def getAT(invec, rCME, Epos, silent=False):
+    
+    Elat      = Epos[0]
+    Elon0     = Epos[1]
+    Er        = Epos[2]
+    Erotrate  = Epos[3]
+    CMElat    = invec[0]
+    CMElon    = invec[1]
+    CMEtilt   = invec[2]    
+    CMEvel0   = invec[3] * 1e5
+    CMEmass   = invec[4] * 1e15
+    CMEAW     = invec[5] * dtor
+    CMEA      = invec[6]
+    CMEB      = invec[7]
+    vSW       = invec[8] * 1e5
+    SWrho0    = invec[9] * 1.67e-24
+    Cd        = invec[10]    
+
+    CdivR = np.tan(CMEAW) / (1. + CMEB + np.tan(CMEAW) * (CMEA + CMEB))
+
+    #Erotrate = 360/365./24/60. # deg per min
+    # start w/o Earth rot so not considering changes in Elon due to diff in transit time
+    #Erotrate = 0.
+    
+    # calculate any E rot between the time given and the start of the ANTEATR simulation
+    #dElon1 = (t20-tGCS) * Erotrate
+
+    vCME = CMEvel0
+    Elon = Elon0
+    
+    dt = 1
+    t  = 0
+    # run CME nose to 1 AU
+    while rCME <= Er:
+        t += dt
+        rCME += vCME*dt*60/7e10 
+        CtimesR = CdivR * rCME
+        rcent = rCME - (CMEA+CMEB) * CtimesR
+        CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
+        SWrho = SWrho0 * (Er/rcent)**2
+        dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+        vCME += dV
+        Elon += Erotrate * dt
+    ElonEr = Elon # Earth lon CME reaches the Earth distance, will use to start FIDO
+    inCME = False
+    prevmin = 9999.
+    while not inCME:
+        t += dt
+        rCME += vCME*dt*60/7e10 
+        CtimesR = CdivR * rCME
+        rcent = rCME - (CMEA+CMEB) * CtimesR
+        CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
+        SWrho = SWrho0 * (Er/rcent)**2
+        dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+        vCME += dV
+        Elon += Erotrate * dt
+
+        thetas = np.linspace(-math.pi/2, math.pi/2,1001)
+        Epos1 = SPH2CART([Er,Elat,Elon])
+        temp = rotz(Epos1, -CMElon)
+        temp2 = roty(temp, CMElat)
+        Epos2 = rotx(temp2, 90.-CMEtilt)
+        xFR = rcent + CMEA*CtimesR*np.cos(thetas)
+        zFR = CtimesR * np.sin(thetas) 
+        dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMEB*CtimesR)**2
+        CAang = thetas[np.where(dists2 == np.min(dists2))]
+        thismin = np.min(dists2)
+        #print rCME, thismin, Er,Elat,Elon
+        #print thismin, rCME, CMEA*CtimesR, CMEB*CtimesR
+        if thismin < 1:
+            TT = t/60./24.
+            if not silent:
+                print 'Transit Time:     ', TT
+                print 'Final Velocity:   ', vCME/1e5
+                print 'CME nose dist:    ', rCME
+                print 'Earth longitude:  ', Elon
+            #print Elon, rCME, vCME/1e5#,CAang[0]/dtor, np.tan(Epos2[1]/(CMEB*CtimesR))/dtor
+            #print CAang[0]/dtor
+            inCME = True
+            return [TT, vCME/1e5, rCME, Elon, ElonEr]       
+        elif thismin < prevmin:
+            prevmin = thismin
+        else:
+            return 9999
+
+#invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
+# Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
+#invec = [-5.,3.,30.,262.,0.56, 17., 0.75, 0.35, 450., 5.0, 1.]               
+#print getAT(invec, 21.5,[4.763,0,213.])
