@@ -46,12 +46,15 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     # Set up empty arrays if output path
     if path:
         outts, outRs, outlats, outlons, outtilts, outvrs, outAWs, outvdefs = [], [], [], [], [], [], [], []
-        
+    
     # Run until nose hits rmax
     while CME.points[CC.idcent][1,0] <= rmax:
-        
+        if CME.points[CC.idcent][1,0] < 2.:
+            critT = tprint/2.
+        else:
+            critT = tprint
         # Check if time to print to screen and/or path
-        if (dtprint > tprint) or (CME.t==0):
+        if (dtprint > critT) or (CME.t==0):
             if not silent:           
                 FC.printstep(CME)
             if path:

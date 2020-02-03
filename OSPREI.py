@@ -56,7 +56,7 @@ def setupOSPREI():
     # I save things in individual folders, but you can dump it whereever
     # by changing Dir
     global Dir
-    Dir = mainpath+thisName
+    Dir = mainpath+date
     if not os.path.exists(Dir):
         os.mkdir(Dir)
     
@@ -123,21 +123,21 @@ def setupEns():
 def genEnsMem(runnum=0):
     # Pass it CME params? ipos?
     # Vary parameters for all models at the same time
-    new_pos = ipos
     outstr = str(runnum)
     outstr = outstr.zfill(4) + '   '
     flagAccel = False
+    new_pos = np.empty(3)
     for item in EnsInputs.keys():
         # Sort out what variable we adjust for each param
         # The lambda functions will auto adjust to new global values in them
         if item == 'ilat':
-            new_pos[0] = np.random.normal(loc=ipos[0], scale=EnsInputs['ilat'])
+            new_pos[0] = np.random.normal(loc=float(input_values['ilat']), scale=EnsInputs['ilat'])
             outstr += '{:4.2f}'.format(new_pos[0]) + ' '
         if item == 'ilon':
-            new_pos[1] = np.random.normal(loc=ipos[1], scale=EnsInputs['ilon'])
+            new_pos[1] = np.random.normal(loc=float(input_values['ilon']), scale=EnsInputs['ilon'])
             outstr += '{:4.2f}'.format(new_pos[1]) + ' '
         if item == 'tilt':
-            new_pos[2] = np.random.normal(loc=ipos[2], scale=EnsInputs['tilt'])
+            new_pos[2] = np.random.normal(loc=float(input_values['tilt']), scale=EnsInputs['tilt'])
             outstr += '{:4.2f}'.format(new_pos[2]) + ' '
         if item == 'Cdperp':
             FC.Cd = np.random.normal(loc=float(input_values['Cdperp']), scale=EnsInputs['Cdperp'])
@@ -340,9 +340,9 @@ def goANTEATR():
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
     global ANTvrs, ANTts, ANTsatLons, impactIDs
-    ANTvrs = []
-    ANTts  = []
-    ANTsatLons = []
+    ANTvrs = {}
+    ANTts  = {}
+    ANTsatLons = {}
     impactIDs = []
     
     # Check if we were give SW values or if using background from ForeCAT
@@ -392,9 +392,9 @@ def goANTEATR():
             CMEvr = ATresults[1]
             rCME = ATresults[2]
             # Store things to pass to FIDO ensembles
-            ANTsatLons.append(ATresults[4])
-            ANTvrs.append(ATresults[1])
-            ANTts.append(TotTime)
+            ANTsatLons[i] = ATresults[4]
+            ANTvrs[i] = ATresults[1] 
+            ANTts[i] = TotTime
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with velocity '+"{:.2f}".format(ATresults[1])+' km/s when nose reaches '+"{:.2f}".format(rCME) + ' Rsun')
     
@@ -429,7 +429,7 @@ def goFIDO():
     global SatVars0
     if not doANT:
         ANTinputs = getANTinputs(allinputs)
-        SatVars0, Cd = processANTinputs(ANTinputs)
+        SatVars0, Cd, swnv = processANTinputs(ANTinputs)
         try:
             CMEstart = float(input_values['CME_start'])
         except:
@@ -503,23 +503,25 @@ def goFIDO():
     
 
 
+def runOSPREI():
+    setupOSPREI()
 
-setupOSPREI()
+    if nRuns > 1: setupEns()
 
-if nRuns > 1: setupEns()
-
-global CMEarray
-CMEarray = []
+    global CMEarray
+    CMEarray = []
 
 
-if doFC:
-    goForeCAT()        
-else:
-    # Fill in CME array for ANTEATR or FIDO
-    makeCMEarray()
+    if doFC:
+        goForeCAT()        
+    else:
+        # Fill in CME array for ANTEATR or FIDO
+        makeCMEarray()
         
-if doANT: goANTEATR()
+    if doANT: goANTEATR()
     
-if doFIDO: goFIDO()
+    if doFIDO: goFIDO()
 
-if nRuns > 1: ensembleFile.close()
+    if nRuns > 1: ensembleFile.close()
+
+#runOSPREI()
