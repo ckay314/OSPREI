@@ -30,7 +30,7 @@ def readinputfile():
     return input_values, inputs
 
 def get_inputs(inputs):
-    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'useGPU', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', ]
+    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'useGPU', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time']
     # Other var names which can ignore since OSPREI/ANTEATR/FIDO use
     other_vars = ['suffix', 'nRuns', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'models', 'nSW', 'vSW']
     # if matches add to dictionary
@@ -354,23 +354,15 @@ def SPH2CART(sph_in):
 	x = r * np.sin(colat) * np.cos(lon)
 	y = r * np.sin(colat) * np.sin(lon)
 	z = r * np.cos(colat)
-	return [x, y, z]
+	return np.array([x, y, z])
 
 def CART2SPH(x_in):
 # calcuate spherical coords from 3D cartesian
 # output lat not colat
 	r_out = np.sqrt(x_in[0]**2 + x_in[1]**2 + x_in[2]**2)
 	colat = np.arccos(x_in[2] / r_out) * 57.29577951
-	lon_out = np.arctan(x_in[1] / x_in[0]) * 57.29577951
-	if lon_out < 0:
-		if x_in[0] < 0:
-			lon_out += 180.
-		elif x_in[0] > 0:
-			lon_out += 360. 
-	elif lon_out > 0.:
-		if x_in[0] < 0:
-			lon_out += 180. 
-	return [r_out, 90. - colat, lon_out]
+	lon_out = np.arctan2(x_in[1] , x_in[0]) * 57.29577951
+	return np.array([r_out, 90. - colat, lon_out])
 
 def rotx(vec, ang):
 # Rotate a 3D vector by ang (input in degrees) about the x-axis

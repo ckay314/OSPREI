@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import sys
 import os
 from scipy.interpolate import CubicSpline
@@ -19,7 +20,8 @@ mainpath = '/Users/ckay/OSPREI/' #MTMYS
 # but you do you (and update this to match whatever you do)
 sys.path.append(os.path.abspath(mainpath+'codes/')) #MTMYS
 import OSPREI  as OSP
-from ForeCAT_functions import rotx, roty, rotz
+from ForeCAT_functions import rotx, roty, rotz, SPH2CART, CART2SPH
+from CME_class import cart2cart
 
 
 # object that will hold all the results for an individual ensemble member
@@ -71,9 +73,15 @@ def txt2obj():
     yr  = int(OSP.date[0:4])
     mon = int(OSP.date[4:6])
     day = int(OSP.date[6:])
-    dObj = datetime.date(yr, mon, day)
-    dNewYear = datetime.date(yr, 1, 1)
-    DoY = (dObj - dNewYear).days + 1
+    # Check if we were given a time
+    try:
+        hrs, mins = int(OSP.time[:2]), int(OSP.time[3:])
+    except:
+        hrs, mins = 0, 0
+    dObj = datetime.datetime(yr, mon, day,hrs,mins)
+    dNewYear = datetime.datetime(yr, 1, 1, 0,0)
+    DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
+    
 
     if OSP.doFC:
         FCfile = OSP.Dir+'/ForeCATresults'+OSP.thisName+'.dat'
@@ -103,7 +111,12 @@ def txt2obj():
         ANTdata = np.genfromtxt(ANTfile, dtype=float)
         # get the unique ANTEATR ideas (only one row per id here)
         # might have some missing if it misses
-        unANTids = ANTdata[:,0].astype(int)
+        unANTids = [0] # single run case
+        #print len(ANTdata.shape)
+        if len(ANTdata.shape) > 1:
+            unANTids = ANTdata[:,0].astype(int)
+        else:
+            ANTdata = ANTdata.reshape([1,-1])
         counter = 0
         for i in unANTids:
             # Check if we already have set up the objects
@@ -142,7 +155,7 @@ def txt2obj():
             thisRes.FIDOBs    = FIDOdata[myidxs,5]
             thisRes.FIDOvs    = FIDOdata[myidxs,6]  
             Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
-            Kp, BoutGSM   = makeKp(Bvec, DoY, thisRes.FIDOvs) 
+            Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
             thisRes.FIDOKps   = Kp
     
     # if we ran an ensemble load up the initial parameters for each member        
@@ -155,11 +168,14 @@ def txt2obj():
         for i in range(len(ENSdata)-1):
             for j in range(nvar):
                 row = ENSdata[i+1].astype(float)
-                ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]                    
+                ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
+        # sort varied according to a nice order
+        myOrder = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']   
+        varied = sorted(varied, key=lambda x: myOrder.index(x))   
         
     return ResArr
 
-def makeKp(Bout, CMEstart, CMEv):
+def calcKp(Bout, CMEstart, CMEv):
     fracyear = CMEstart / 365.
     rotang = 23.856 * np.sin(6.289 * fracyear + 0.181) + 8.848
     GSMBx = []
@@ -254,21 +270,23 @@ def makeAThisto(ResArr):
         if ResArr[key].ANTtime != None:
             all_times.append(ResArr[key].ANTtime)
             all_vels.append(ResArr[key].ANTvr)
-    axes[0].hist(all_times, bins=10)
-    axes[1].hist(all_vels, bins=10)
     
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
-    n1, bins, patches = axes[0].hist(all_times, bins=10)
-    n2, bins, patches = axes[1].hist(all_vels, bins=10)
+    n1, bins, patches = axes[0].hist(all_times, bins=10, color='#882255')
+    n2, bins, patches = axes[1].hist(all_vels, bins=10, color='#882255')
     maxcount = np.max(np.maximum(n1, n2))
     axes[0].set_ylim(0, maxcount*1.1)
     
     # Add the mean and sigma from a normal fit
     fitTime = norm.fit(all_times)
     fitVels = norm.fit(all_vels)
-    axes[0].text(0.97, 0.95, '{:4.2f}'.format(fitTime[0])+'$\pm$'+'{:4.2f}'.format(fitTime[1])+' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+    axes[0].text(0.97, 0.89, '{:4.2f}'.format(fitTime[0])+'$\pm$'+'{:4.2f}'.format(fitTime[1])+' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
     axes[1].text(0.97, 0.95, str(int(fitVels[0]))+'$\pm$'+str(int(fitVels[1]))+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+    base = datetime.datetime(yr, 1, 1, 0, 0)
+    date = base + datetime.timedelta(days=(DoY+fitTime[0]))   
+    dateLabel = date.strftime('%Y %b %d %H:%M ')
+    axes[0].text(0.97, 0.95, dateLabel+'$\pm$'+'{:3.1f}'.format(fitTime[1]*24)+' hrs', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
     
     
     # Take out half the ticks for readability
@@ -315,10 +333,9 @@ def makeISplot(ResArr):
     axes[2].plot(dates, ResArr[0].FIDOBzs, linewidth=4, color='b')
     axes[3].plot(dates, ResArr[0].FIDOBs, linewidth=4, color='b')
     axes[4].plot(dates, ResArr[0].FIDOKps, linewidth=4, color='b')
-    
     # Make Kps integers only
     Kpmin, Kpmax = int(np.min(ResArr[0].FIDOKps)), int(np.max(ResArr[0].FIDOKps))+1
-    axes[4].set_yticks(range(Kpmin, Kpmax+1))
+    axes[4].set_yticks(range(Kpmin, Kpmax+2))
     
     
     axes[0].set_ylabel('B (nT)')
@@ -329,13 +346,25 @@ def makeISplot(ResArr):
     
     # Set up date format
     maxduration = (maxdate - mindate).days+(maxdate - mindate).seconds/3600./24.
+    startplot = mindate -datetime.timedelta(hours=3)
+    endplot = maxdate +datetime.timedelta(hours=3)
     hr0 = 0
-    if mindate.hour > 12: hr0 = 12
-    pltday0 = datetime.datetime(mindate.year, mindate.month, mindate.day, hr0, 0)
-    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i+1)*12)) for i in range(int(maxduration)*2+1)])
-    axes[4].set_xticks(pltdays)
+    if startplot.hour > 12: hr0=12
+    pltday0 = datetime.datetime(startplot.year, startplot.month, startplot.day, hr0, 0)
+    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration+1)*2)])
+    axes[4].set_xticks(pltdays[2:])
     myFmt = mdates.DateFormatter('%Y %b %d %H:%M ')
     axes[4].xaxis.set_major_formatter(myFmt)
+    axes[4].set_xlim([startplot, endplot])
+    
+    # take out ticks if too many
+    for i in range(5):
+        yticks = axes[i].yaxis.get_major_ticks()
+        if len(yticks) > 6:
+            ticks2hide = np.array(range(len(yticks)-1))[::2]
+            for j in ticks2hide:
+                yticks[j].label1.set_visible(False)
+    
     
     fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
@@ -358,9 +387,9 @@ def makeFIDOhistos(ResArr):
             
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
-    n1, bins, patches = axes[0].hist(all_dur, bins=10)
-    n2, bins, patches = axes[1].hist(all_Bz, bins=10)
-    n3, bins, patches = axes[2].hist(all_Kp, bins=10)
+    n1, bins, patches = axes[0].hist(all_dur, bins=10, color='#882255')
+    n2, bins, patches = axes[1].hist(all_Bz, bins=10, color='#882255')
+    n3, bins, patches = axes[2].hist(all_Kp, bins=10, color='#882255')
     maxcount = np.max(np.maximum(n1, n2, n3))
     axes[0].set_ylim(0, maxcount*1.1)
     
@@ -471,6 +500,203 @@ def makeEnsplot(ResArr):
     plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.png')
     
+def makeKpprob(ResArr):
+    # get the time range for full set
+    mindate = None
+    maxdate = None    
+    for key in ResArr.keys():
+        if ResArr[key].FIDOtimes is not None:
+            dates = ResArr[key].FIDOtimes
+            # save the extreme times to know plot range
+            if mindate is None: 
+                mindate = np.min(dates)
+                maxdate = np.max(dates)
+            if np.min(dates) < mindate: mindate = np.min(dates)
+            if np.max(dates) > maxdate: maxdate = np.max(dates)
+    plotlen = (maxdate - mindate)*24
+    nx = int(plotlen/3.)+1
+    KpArr = np.zeros([9, nx])
+    # Calculate the values at cell midpoints
+    Kptimes = np.array([mindate + 1.5/24 + i*3./24. for i in range(nx)]) 
+    
+    # fill in KpArr
+    counter = 0
+    for key in ResArr.keys():
+        if ResArr[key].FIDOtimes is not None:
+            counter += 1
+            tBounds = [ResArr[key].FIDOtimes[0], ResArr[key].FIDOtimes[-1]]
+            thefit = CubicSpline(ResArr[key].FIDOtimes,ResArr[key].FIDOKps,bc_type='natural')
+            tidx = np.where((Kptimes >= tBounds[0]) & (Kptimes <= tBounds[1]))[0]
+            KpRes = thefit(Kptimes[tidx]).astype(int)
+            for i in range(len(KpRes)):
+                KpArr[KpRes[i],tidx[i]] += 1
+    
+    ys = np.array(range(10))
+    xs = np.array([mindate + i*3./24. for i in range(nx+1)])
+    # convert x axis to dates
+    label_day_range = [int((mindate+DoY)*2)/2.+0.5, int((maxdate+DoY)*2)/2.]
+    nLabs = int(2*(label_day_range[1]-label_day_range[0]))
+    labelDays = [label_day_range[0] + 0.5 * i for i in range(nLabs+1)]
+    xvals = np.array(labelDays)-DoY
+    base = datetime.datetime(yr, 1, 1, 0, 0)
+    dates = np.array([base + datetime.timedelta(days=i) for i in labelDays])    
+    dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in dates]    
+        
+    # Set up date format
+    maxduration = (dates[-1] - dates[0]).days+(dates[-1] - dates[0]).seconds/3600./24.
+    hr0 = 0
+    if dates[0].hour > 12: hr0 = 12
+    pltday0 = datetime.datetime(dates[0].year, dates[0].month, dates[0].day, hr0, 0)
+    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration)*2+1)])
+    dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in pltdays]
+    dNewYear = datetime.datetime(yr, 1, 1)
+    startDoY = (pltday0 - dNewYear).days + (pltday0 - dNewYear).seconds/3600./24.
+    labelDoY = (pltdays[0]-dNewYear).days + (pltdays[0] - dNewYear).seconds/3600./24.
+    
+    XX, YY = np.meshgrid(xs,ys)
+    KpPerc = KpArr/float(counter)*100
+    
+    cmap1 = cm.get_cmap("plasma",lut=10)
+    cmap1.set_bad("w")
+    Kpm = np.ma.masked_less(KpPerc,0.01)
+    
+                 
+    fig, axes = plt.subplots(1, 1, figsize=(8,7))
+    # draw a grid because mask away a lot of it
+    for x in xs: axes.plot([x,x],[ys[0],ys[-1]], c='LightGrey')
+    for y in ys: axes.plot([xs[0],xs[-1]],[y,y], c='LightGrey')
+    c = axes.pcolor(XX,YY,Kpm, cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
+    axes.set_xlim(mindate,maxdate)
+    axes.set_ylabel('Kp Index')
+    cbar = fig.colorbar(c, ax=axes)
+    cbar.set_label('Percentage Chance', rotation=270, labelpad=15)
+    plt.xticks(xvals[1:], dateLabels[1:])
+    fig.autofmt_xdate()
+    plt.subplots_adjust(left=0.15,right=0.95,top=0.95,bottom=0.2)
+    
+    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Kp.png')    
+                               
+def makeImpContours(ResArr):
+    # While I would like this to be on a globe, there is not an easy
+    # way that doesn't require non-basic libraries so just look +/- X deg
+    # away from disk center for now and plot flat
+    dtor = 3.14159/180.
+    plotwid = 30
+    ngrid = 2*plotwid+1
+    impCounter = np.zeros([ngrid, ngrid])
+    lats = np.linspace(-plotwid, plotwid,ngrid).astype(int)
+    lons = np.linspace(-plotwid, plotwid,ngrid).astype(int)
+    
+    
+    for key in ResArr.keys():
+        thisLat = ResArr[key].FClats[-1]
+        thisLon = ResArr[key].FClons[-1]-OSP.satPos[1]
+        thisTilt = ResArr[key].FCtilts[-1]
+        thisAW   = ResArr[key].FCangs[-1]
+        thisR    = ResArr[key].FCrs[-1]
+        # Calculate shape parameters
+        thisA = OSP.shape[0]  # check if these are in ensembles!!!!
+        thisB = OSP.shape[1]
+        CdivR = np.tan(thisAW*dtor) / (1. + thisB + np.tan(thisAW*dtor) * (thisA + thisB))
+        BdivR = thisB *CdivR
+        AdivR = thisA * CdivR
+        fullWid = (BdivR + CdivR) * thisR
+        crossWid = BdivR * thisR
+        
+        
+        # find max and min lat for each CME
+        nosePoint = cart2cart([thisR,0.,0.], thisLat, thisLon, thisTilt)
+        topPoint  = cart2cart([thisR,0.,fullWid], thisLat, thisLon, thisTilt)
+        botPoint  = cart2cart([thisR,0,-fullWid], thisLat, thisLon, thisTilt)
+        topPoint  = CART2SPH(topPoint)
+        botPoint  = CART2SPH(botPoint)
+        minY, maxY = int(botPoint[1]), int(topPoint[1])
+        
+        # find how many cells up and down we can go within plot
+        if minY < lats[0]: minY = lats[0]
+        if maxY > lats[-1]: maxY = lats[-1]
+        toCheck = np.array(range(minY, maxY+1))
+        
+        # Find the location of the axis
+        # Calculate the center line first
+        nFR = 11
+        mid = int(nFR/2)
+        thetas = np.linspace(-math.pi/2, math.pi/2, nFR)
+        rcent = thisR - (thisA+thisB) * CdivR*thisR
+        
+        xFR = rcent + thisA*CdivR*thisR*np.cos(thetas)
+        zFR = CdivR*thisR * np.sin(thetas) 
+       
+        #zs = np.linspace(-fullWid,fullWid, 20)
+        
+        points =  CART2SPH(cart2cart([xFR,0.,zFR], thisLat, thisLon, thisTilt))
+        
+        # Fit a spline to lon as function of lat and r as function of lat
+        theLonfit = CubicSpline(points[1],points[2],bc_type='natural')
+        theRfit = CubicSpline(points[1],points[0],bc_type='natural')
+        # calculate center lons for each lat
+        myXs = theLonfit(toCheck)
+        myRs = theRfit(toCheck)
+
+        # Fill in the impact points
+        # calc width based on tilt
+        xWid = crossWid / np.sin(thisTilt*dtor)
+        for i in range(len(myXs)):
+            thisPoint = SPH2CART([myRs[i],toCheck[i], myXs[i]])
+            unitLon = np.array([-np.sin(myXs[i]*dtor), np.cos(myXs[i]*dtor), 0.])
+            # technically, the lat changes a bit because R increases doing it this
+            # way but this is more accurate than just tan(ang) = wid / R and much
+            # quicker than fully accurate model
+            edgePoint = thisPoint + xWid*unitLon
+            lonWid = int(CART2SPH(edgePoint)[2] - myXs[i])+1
+             
+            for j in range(-lonWid,lonWid):
+                x = int(myXs[i])+j
+                y = toCheck[i]
+                if (x >= lons[0]) & (x <= lons[-1]):
+                    impCounter[y+plotwid,x+plotwid]+=1
+                
+    cmap1 = cm.get_cmap("plasma",lut=10)
+    cmap1.set_bad("w")
+    impPerc = impCounter/nEns*100
+    impPercM = np.ma.masked_less(impPerc,0.01)
+    
+    fig, axes = plt.subplots(1, 1, figsize=(8,7))   
+    XX, YY = np.meshgrid(lons,lats)
+    
+    for x in range(-plotwid,plotwid): 
+        axes.plot([x,x],[-plotwid,plotwid], c='k', linewidth=0.25)
+        axes.plot([-plotwid,plotwid], [x,x], c='k', linewidth=0.25)
+    
+    
+    # normalize by nEns, shouldn't have ForeCAT misses
+    c = axes.pcolor(XX,YY,impPercM, cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
+    
+    
+    # Get mean arrival time -> plot Earth shifted
+    all_times = []
+    for key in ResArr.keys():
+        if ResArr[key].ANTtime != None:
+            all_times.append(ResArr[key].ANTtime)
+    # satellite position at time of impact
+    #axes.plot(0,OSP.satPos[0],'o', ms=15, mfc='#98F5FF')
+    dlon = np.mean(all_times) * OSP.Sat_rot
+    axes.plot(dlon,OSP.satPos[0],'o', ms=15, mfc='#98F5FF')
+    
+    satImp = int(impCounter[int(OSP.satPos[0]+plotwid), int(dlon+plotwid)])
+    axes.text(0.97, 0.95, str(satImp) + '% chance of impact' , horizontalalignment='right', verticalalignment='center', transform=axes.transAxes, color='r')
+        
+    cbar = fig.colorbar(c, ax=axes)
+    cbar.set_label('Chance of Impact', rotation=270, labelpad=15)
+    
+    axes.set_xlim([-plotwid,plotwid])
+    axes.set_ylim([-plotwid,plotwid])
+    
+    axes.set_ylabel('Latitude ('+unichr(176)+')')
+    axes.set_xlabel('Longitude ('+unichr(176)+')')
+    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Imp.png')    
     
 # Get all the parameters from text files and sort out 
 # what we actually ran
@@ -481,24 +707,28 @@ global nEns
 nEns = len(ResArr.keys())
     
 # Make CPA plot
-#makeCPAplot(ResArr)  
-
-# Make arrival time hisogram if more than run one
-#if nEns > 1:
-#   makeAThisto(ResArr)
+makeCPAplot(ResArr)  
 
 # Make in situ plot
-#makeISplot(ResArr)
-
-# FIDO histos? duration, minBz
-#if nEns > 1:
-#    makeFIDOhistos(ResArr)
-
-# Make location contour plot
-
-# Make Kp probability as function of t?
+makeISplot(ResArr)
 
 # Ensemble plots
 if nEns > 1:
+    # Make arrival time hisogram 
+    makeAThisto(ResArr)
+    
+    # FIDO histos- duration, minBz
+    makeFIDOhistos(ResArr)
+    
+    # Ensemble input-output plot
     makeEnsplot(ResArr)
+    
+    # Kp probability timeline
+    makeKpprob(ResArr)
+
+    # Make location contour plot
+    makeImpContours(ResArr)
+
+
+
         

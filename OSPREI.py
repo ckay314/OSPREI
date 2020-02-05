@@ -3,6 +3,7 @@ import math
 import matplotlib.pyplot as plt
 import sys
 import os
+import datetime
 
 # Import all the OSPREI files, make this match your system
 mainpath = '/Users/ckay/OSPREI/' #MTMYS
@@ -29,15 +30,20 @@ def setupOSPREI():
     try:
         date = input_values['date']
     except:
-        sys.exit('Need name of magnetogram/date to run!!!')
-    
+        sys.exit('Need name of magnetogram/date to run!!!')    
+            
     # Pull in other values from allinputs
     # possible_vars = ['suffix', 'nRuns']   
     # Set defaults for these values
     global suffix, nRuns
+    # these are values its convenient to read early for processOSPREI
+    global time, satPos, shape, Sat_rot
     suffix = ''
     nRuns  = 1
     models = 'ALL'
+    satPos = [0,0]
+    shape  = [1,0.15] 
+    Sat_rot = 360./365.25
     # Read in values from the text file
     for i in range(len(allinputs)):
         temp = allinputs[i]
@@ -47,6 +53,35 @@ def setupOSPREI():
             nRuns = int(temp[1])
         elif temp[0][:-1] == 'models':
             models = temp[1]
+        elif temp[0][:-1] == 'time':
+            time = temp[1]
+        elif temp[0][:-1] == 'Sat_lat':
+            satPos[0] = float(temp[1])
+        elif temp[0][:-1] == 'Sat_lon':
+            satPos[1] = float(temp[1])
+        elif temp[0][:-1] == 'shapeA':
+            shape[0] = float(temp[1])
+        elif temp[0][:-1] == 'shapeB':
+            shape[1] = float(temp[1])
+        elif temp[0][:-1] == 'Sat_rot':
+            Sat_rot = float(temp[1])
+            
+    # get the actual time for the given string
+    yr  = int(date[0:4])
+    mon = int(date[4:6])
+    day = int(date[6:])
+    # Check if we were given a time
+    try:
+        hrs, mins = int(time[:2]), int(time[3:])
+    except:
+        hrs, mins = 0, 0
+    global dObj, Doy
+    dObj = datetime.datetime(yr, mon, day,hrs,mins)
+    dNewYear = datetime.datetime(yr, 1, 1, 0,0)
+    DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
+    print 'Simulation starts at '+dObj.strftime('%Y %b %d %H:%M ')
+            
+        
 
     global thisName
     thisName = date+suffix
@@ -313,8 +348,6 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
-    
-
 def goANTEATR():
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -387,8 +420,10 @@ def goANTEATR():
         if ATresults != 9999:
             impactIDs.append(i)
         
-            # Add in ForeCAT time to ANTEATR time
-            TotTime = ATresults[0]+CME.t/60./24
+            # Can add in ForeCAT time to ANTEATR time
+            # but usually don't because assume have time stamp of
+            # when in outer corona=start of ANTEATR
+            TotTime = ATresults[0]#+CME.t/60./24
             CMEvr = ATresults[1]
             rCME = ATresults[2]
             # Store things to pass to FIDO ensembles
@@ -397,6 +432,9 @@ def goANTEATR():
             ANTts[i] = TotTime
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with velocity '+"{:.2f}".format(ATresults[1])+' km/s when nose reaches '+"{:.2f}".format(rCME) + ' Rsun')
+            dImp = dObj + datetime.timedelta(days=TotTime)
+            print '   Impact at '+dImp.strftime('%Y %b %d %H:%M ')
+            
     
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
@@ -501,8 +539,6 @@ def goFIDO():
         print i, 'min Bz ', np.min(BvecDS[2]), ' (nT)'
     FIDOfile.close()
     
-
-
 def runOSPREI():
     setupOSPREI()
 
