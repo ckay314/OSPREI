@@ -105,7 +105,7 @@ def processANTinputs(input_values):
     
 
 # -------------- main function ------------------
-def getAT(invec, rCME, Epos, silent=False):
+def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
     
     Elat      = Epos[0]
     Elon0     = Epos[1]
@@ -134,34 +134,62 @@ def getAT(invec, rCME, Epos, silent=False):
 
     vCME = CMEvel0
     Elon = Elon0
+    vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
+    bCME = CdivR * rCME * CMEB
     
     dt = 1
     t  = 0
     # run CME nose to 1 AU
+    printR = rCME
+    # arrays for saving profiles
+    outTs     = []
+    outRs     = []
+    outvTots  = []
+    outvBulks = []
+    outvExps  = []
+    outAWs    = []
     while rCME <= Er:
         t += dt
         rCME += vCME*dt*60/7e10 
-        CtimesR = CdivR * rCME
+        bCME += vExp*dt*60/7e10
+        CtimesR = bCME / CMEB
+        #CtimesR = CdivR * rCME
         rcent = rCME - (CMEA+CMEB) * CtimesR
+        CMEAW = np.arctan(CtimesR*(1+CMEB)/rcent)
         CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
         SWrho = SWrho0 * (Er/rcent)**2
-        dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+        dV = -Cd * CMEarea * SWrho * (vCME-vExp-vSW) * np.abs(vCME-vExp-vSW) * dt * 60 / CMEmass
         vCME += dV
         Elon += Erotrate * dt
+        vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
+        if (rCME>printR): 
+            printR += 5
+            outTs.append(t/60./24.)
+            outRs.append(rCME)
+            outvTots.append(vCME/1e5)
+            outvBulks.append((vCME-vExp)/1e5)
+            outvExps.append(vExp/1e5)
+            outAWs.append(CMEAW*180./3.14159)
+        #print vCME/1e5, vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)))/1e5
     ElonEr = Elon # Earth lon CME reaches the Earth distance, will use to start FIDO
     inCME = False
     prevmin = 9999.
     while not inCME:
         t += dt
         rCME += vCME*dt*60/7e10 
-        CtimesR = CdivR * rCME
+        bCME += vExp*dt*60/7e10
+        CtimesR = bCME / CMEB
+        #CtimesR = CdivR * rCME
         rcent = rCME - (CMEA+CMEB) * CtimesR
+        CMEAW = np.arctan(CtimesR*(1+CMEB)/rcent)
+        #print t, rCME, vCME/1e5, vExp/1e5, CMEAW*180./3.14159
+        #if rCME > 220: print asf
         CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
         SWrho = SWrho0 * (Er/rcent)**2
-        dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+        dV = -Cd * CMEarea * SWrho * (vCME-vExp-vSW) * np.abs(vCME-vExp-vSW) * dt * 60 / CMEmass
         vCME += dV
         Elon += Erotrate * dt
-
+        vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
         thetas = np.linspace(-math.pi/2, math.pi/2,1001)
         Epos1 = SPH2CART([Er,Elat,Elon])
         temp = rotz(Epos1, -CMElon)
@@ -172,10 +200,24 @@ def getAT(invec, rCME, Epos, silent=False):
         dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMEB*CtimesR)**2
         CAang = thetas[np.where(dists2 == np.min(dists2))]
         thismin = np.min(dists2)
+        if (rCME>printR): 
+            printR += 5
+            outTs.append(t/60./24.)
+            outRs.append(rCME)
+            outvTots.append(vCME/1e5)
+            outvBulks.append((vCME-vExp)/1e5)
+            outvExps.append(vExp/1e5)
+            outAWs.append(CMEAW*180./3.14159)
         #print rCME, thismin, Er,Elat,Elon
         #print thismin, rCME, CMEA*CtimesR, CMEB*CtimesR
         if thismin < 1:
             TT = t/60./24.
+            outTs.append(t/60./24.)
+            outRs.append(rCME)
+            outvTots.append(vCME/1e5)
+            outvBulks.append((vCME-vExp)/1e5)
+            outvExps.append(vExp/1e5)
+            outAWs.append(CMEAW*180./3.14159)
             if not silent:
                 print 'Transit Time:     ', TT
                 print 'Final Velocity:   ', vCME/1e5
@@ -184,11 +226,11 @@ def getAT(invec, rCME, Epos, silent=False):
             #print Elon, rCME, vCME/1e5#,CAang[0]/dtor, np.tan(Epos2[1]/(CMEB*CtimesR))/dtor
             #print CAang[0]/dtor
             inCME = True
-            return [TT, vCME/1e5, rCME, Elon, ElonEr]       
+            return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs]), Elon, ElonEr       
         elif thismin < prevmin:
             prevmin = thismin
         else:
-            return 9999
+            return np.array([[9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999 
 
 #invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
 # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!

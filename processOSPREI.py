@@ -46,7 +46,10 @@ class EnsRes:
             
             # ANTEATR things
             self.ANTtime    = None
-            self.ANTvr      = None
+            self.ANTvtot    = None
+            self.ANTvbulk   = None
+            self.ANTvexp    = None
+            self.ANTAW      = None
             self.ANTr       = None
             self.ANTlonF    = None # sat lon at end
             self.ANTlonS    = None # sat lon when CME at sat r
@@ -61,6 +64,9 @@ class EnsRes:
             self.FIDOBs     = None
             self.FIDOvs     = None
             self.FIDOKps    = None
+            
+            # flags for misses -> no ANT/FIDOdata
+            self.miss = True
             
             # Dictionary for ensemble things
             self.EnsVal = {}
@@ -111,14 +117,8 @@ def txt2obj():
         ANTdata = np.genfromtxt(ANTfile, dtype=float)
         # get the unique ANTEATR ideas (only one row per id here)
         # might have some missing if it misses
-        unANTids = [0] # single run case
-        #print len(ANTdata.shape)
-        if len(ANTdata.shape) > 1:
-            unANTids = ANTdata[:,0].astype(int)
-        else:
-            ANTdata = ANTdata.reshape([1,-1])
-        counter = 0
-        for i in unANTids:
+        ANTids = ANTdata[:,0].astype(int)
+        for i in ANTids:
             # Check if we already have set up the objects
             # If not do now
             if not OSP.doFC:  
@@ -126,16 +126,20 @@ def txt2obj():
                 thisRes.myID = i
             else:
                 thisRes = ResArr[i]
-            
-            thisRes.ANTtime = ANTdata[counter,1]
-            thisRes.ANTvr   = ANTdata[counter,2]
-            thisRes.ANTr    = ANTdata[counter,3]
-            thisRes.ANTlonF = ANTdata[counter,4]
-            thisRes.ANTlonS = ANTdata[counter,5]
-            thisRes.ANTnsw  = ANTdata[counter,6]
-            thisRes.ANTvsw  = ANTdata[counter,7]
+            # Set as an impact not a miss
+            thisRes.miss = False
+            myidxs = np.where(ANTids==i)[0]            
+            thisRes.ANTtime  = ANTdata[myidxs,1]
+            thisRes.ANTr     = ANTdata[myidxs,2]
+            thisRes.ANTvtot  = ANTdata[myidxs,3]
+            thisRes.ANTvbulk = ANTdata[myidxs,4]
+            thisRes.ANTvexp  = ANTdata[myidxs,5]
+            thisRes.ANTAW    = ANTdata[myidxs,6]
+            #thisRes.ANTlonF  = ANTdata[counter,7]
+            #thisRes.ANTlonS  = ANTdata[counter,8]
+            #thisRes.ANTnsw   = ANTdata[counter,9]
+            #thisRes.ANTvsw   = ANTdata[counter,10]
             ResArr[thisRes.myID] = thisRes
-            counter += 1
 
     if OSP.doFIDO:
         FIDOfile = OSP.Dir+'/FIDOresults'+OSP.thisName+'.dat'
@@ -147,12 +151,14 @@ def txt2obj():
                 thisRes = ResArr[i]
             else:
                 thisRes = EnsRes(OSP.thisNam)
+            # Set as an impact not a miss (might not have run ANTEATR)
+            thisRes.miss = False
             myidxs = np.where(ids==i)[0]
             thisRes.FIDOtimes = FIDOdata[myidxs,1]
-            thisRes.FIDOBxs   = FIDOdata[myidxs,2]
-            thisRes.FIDOBys   = FIDOdata[myidxs,3]
-            thisRes.FIDOBzs   = FIDOdata[myidxs,4]
-            thisRes.FIDOBs    = FIDOdata[myidxs,5]
+            thisRes.FIDOBs    = FIDOdata[myidxs,2]
+            thisRes.FIDOBxs   = FIDOdata[myidxs,3]
+            thisRes.FIDOBys   = FIDOdata[myidxs,4]
+            thisRes.FIDOBzs   = FIDOdata[myidxs,5]
             thisRes.FIDOvs    = FIDOdata[myidxs,6]  
             Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
             Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
@@ -170,7 +176,7 @@ def txt2obj():
                 row = ENSdata[i+1].astype(float)
                 ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
-        myOrder = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']   
+        myOrder = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']   
         varied = sorted(varied, key=lambda x: myOrder.index(x))   
         
     return ResArr
@@ -261,15 +267,116 @@ def makeCPAplot(ResArr):
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.png')
 
+def makeDragplot(ResArr):
+    # This it makes more sense to plot this versus distance instead of time
+    # Make more physical sense and numbers from histo more relevant for forecasting
+    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(12,8))
+    
+    # this isn't the exact end for all cases but don't really care in this figure
+    # since more showing trend with distance and it flattens
+    rStart = ResArr[0].FCrs[-1]
+    rEnd = ResArr[0].ANTr[-1]
+    
+    # get number of impacts, may be less than nEns
+    nImp = 0
+    for i in range(nEns):
+        if not ResArr[i].miss:
+            nImp += 1
+    
+    # Arrays to hold spline results
+    fakers = np.linspace(rStart,rEnd-5,100, endpoint=True)
+    splineVals = np.zeros([nImp, 100, 4])
+    means = np.zeros([100, 4])
+    stds  = np.zeros([100, 4])
+    lims  = np.zeros([100, 2, 4])
+    
+    if nEns > 1:
+        i = 0
+        for key in ResArr.keys():
+            if not ResArr[key].miss:
+                thisArr = ResArr[key]
+                # fit splines to each profile
+                thisR = thisArr.ANTr
+                # check to make sure the last point isnt the same as second to last
+                # which happens if hits at a printstep time
+                # if so add negligible amount to make it happy
+                if thisR[-1] == thisR[-2]:
+                    thisR[-1] += 0.01
+                thefit = CubicSpline(thisR, thisArr.ANTvtot,bc_type='natural')
+                splineVals[i,:, 0] = thefit(fakers)
+                thefit = CubicSpline(thisR, thisArr.ANTvbulk,bc_type='natural')
+                splineVals[i,:, 1] = thefit(fakers)
+                thefit = CubicSpline(thisR, thisArr.ANTvexp,bc_type='natural')
+                splineVals[i,:, 2] = thefit(fakers)
+                thefit = CubicSpline(thisR, thisArr.ANTAW,bc_type='natural')
+                splineVals[i,:, 3] = thefit(fakers)
+                i+=1
+        for i in range(4):
+            means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
+            stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
+            lims[:,0,i] = np.max(splineVals[:,:,i], axis=0) 
+            lims[:,1,i] = np.min(splineVals[:,:,i], axis=0)
+            axes[i].fill_between(fakers, lims[:,0,i], lims[:,1,i], color='LightGray') 
+            axes[i].fill_between(fakers, means[:,i]+stds[:,i], means[:,i]-stds[:,i], color='DarkGray') 
+            
+    thisArr = ResArr[0]
+    axes[0].plot(thisArr.ANTr, thisArr.ANTvtot, 'b', linewidth=3)
+    axes[1].plot(thisArr.ANTr, thisArr.ANTvbulk, 'b', linewidth=3)
+    axes[2].plot(thisArr.ANTr, thisArr.ANTvexp, 'b', linewidth=3)
+    axes[3].plot(thisArr.ANTr, thisArr.ANTAW, 'b', linewidth=3)
+    
+    # Add the final position as text
+    if nEns > 1:
+        all_vt, all_vb, all_ve, all_aw = [], [], [], []
+        for key in ResArr.keys():
+            if not ResArr[key].miss:
+                all_vt.append(ResArr[key].ANTvtot[-1])
+                all_vb.append(ResArr[key].ANTvbulk[-1])
+                all_ve.append(ResArr[key].ANTvexp[-1])
+                all_aw.append(ResArr[key].ANTAW[-1])
+        fitvt = norm.fit(all_vt)
+        fitvb = norm.fit(all_vb)
+        fitve = norm.fit(all_ve)
+        fitaw = norm.fit(all_aw)
+    if nEns > 1:
+        axes[0].text(0.97, 0.85, '{:4.1f}'.format(fitvt[0])+'$\pm$'+'{:4.1f}'.format(fitvt[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.85, '{:4.1f}'.format(fitvb[0])+'$\pm$'+'{:4.1f}'.format(fitvb[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+        axes[2].text(0.97, 0.85, '{:4.1f}'.format(fitve[0])+'$\pm$'+'{:4.1f}'.format(fitve[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.85, '{:4.1f}'.format(fitaw[0])+'$\pm$'+'{:4.1f}'.format(fitaw[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+    else:
+        axes[0].text(0.97, 0.85, '{:4.1f}'.format(ResArr[0].ANTvtot[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.85, '{:4.1f}'.format(ResArr[0].ANTvbulk[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+        axes[2].text(0.97, 0.85, '{:4.1f}'.format(ResArr[0].ANTvexp[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.85, '{:4.1f}'.format(ResArr[0].ANTAW[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+        
+                
+    axes[3].set_xlim([rStart,rEnd])   
+    for i in range(4):
+        yticks = axes[i].yaxis.get_major_ticks()
+        if len(yticks) > 5:
+            ticks2hide = np.array(range(len(yticks)))[::2]
+            for j in ticks2hide:
+                yticks[j].label1.set_visible(False)
+    
+    axes[0].set_ylabel('Front Velocity\n(km/s)')         
+    axes[1].set_ylabel('Bulk Velocity\n(km/s)')         
+    axes[2].set_ylabel('Exp. Velocity\n(km/s)') 
+    axes[3].set_ylabel('Angular Width\n('+unichr(176)+')') 
+    axes[3].set_xlabel('Radial Distance (R$_S$)')        
+            
+    plt.subplots_adjust(hspace=0.1,left=0.1,right=0.95,top=0.95,bottom=0.1)
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.png')
+    
+
 def makeAThisto(ResArr):
     fig, axes = plt.subplots(1, 2, figsize=(8,5))
     all_times = []
     all_vels  = []
     # Collect the ensemble results
     for key in ResArr.keys(): 
-        if ResArr[key].ANTtime != None:
-            all_times.append(ResArr[key].ANTtime)
-            all_vels.append(ResArr[key].ANTvr)
+        if not ResArr[key].miss:
+            all_times.append(ResArr[key].ANTtime[-1])
+            all_vels.append(ResArr[key].ANTvtot[-1])
     
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
@@ -309,7 +416,7 @@ def makeISplot(ResArr):
     mindate = None
     maxdate = None
     for key in ResArr.keys():
-        if ResArr[key].FIDOtimes is not None:
+        if not ResArr[key].miss:
             #datesNUM = ResArr[key].FIDOtimes+DoY   
             #dates = datetime.datetime(yr, 1, 1) + datetime.timedelta(datesNUM - 1)
             base = datetime.datetime(yr, 1, 1, 1, 0)
@@ -318,20 +425,20 @@ def makeISplot(ResArr):
             if mindate is None: 
                 mindate = np.min(dates)
                 maxdate = np.max(dates)
-            axes[0].plot(dates, ResArr[key].FIDOBxs, linewidth=2, color='DarkGray')
-            axes[1].plot(dates, ResArr[key].FIDOBys, linewidth=2, color='DarkGray')
-            axes[2].plot(dates, ResArr[key].FIDOBzs, linewidth=2, color='DarkGray')
-            axes[3].plot(dates, ResArr[key].FIDOBs, linewidth=2, color='DarkGray')
+            axes[0].plot(dates, ResArr[key].FIDOBs, linewidth=2, color='DarkGray')
+            axes[1].plot(dates, ResArr[key].FIDOBxs, linewidth=2, color='DarkGray')
+            axes[2].plot(dates, ResArr[key].FIDOBys, linewidth=2, color='DarkGray')
+            axes[3].plot(dates, ResArr[key].FIDOBzs, linewidth=2, color='DarkGray')
             axes[4].plot(dates, ResArr[key].FIDOKps, linewidth=2, color='DarkGray')
             if np.min(dates) < mindate: mindate = np.min(dates)
             if np.max(dates) > maxdate: maxdate = np.max(dates)        
     
     # Plot the ensemble seed
     dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
-    axes[0].plot(dates, ResArr[0].FIDOBxs, linewidth=4, color='b')
-    axes[1].plot(dates, ResArr[0].FIDOBys, linewidth=4, color='b')
-    axes[2].plot(dates, ResArr[0].FIDOBzs, linewidth=4, color='b')
-    axes[3].plot(dates, ResArr[0].FIDOBs, linewidth=4, color='b')
+    axes[0].plot(dates, ResArr[0].FIDOBs, linewidth=4, color='b')
+    axes[1].plot(dates, ResArr[0].FIDOBxs, linewidth=4, color='b')
+    axes[2].plot(dates, ResArr[0].FIDOBys, linewidth=4, color='b')
+    axes[3].plot(dates, ResArr[0].FIDOBzs, linewidth=4, color='b')
     axes[4].plot(dates, ResArr[0].FIDOKps, linewidth=4, color='b')
     # Make Kps integers only
     Kpmin, Kpmax = int(np.min(ResArr[0].FIDOKps)), int(np.max(ResArr[0].FIDOKps))+1
@@ -351,8 +458,8 @@ def makeISplot(ResArr):
     hr0 = 0
     if startplot.hour > 12: hr0=12
     pltday0 = datetime.datetime(startplot.year, startplot.month, startplot.day, hr0, 0)
-    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration+1)*2)])
-    axes[4].set_xticks(pltdays[2:])
+    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration+1)*2+1)])
+    axes[4].set_xticks(pltdays[1:])
     myFmt = mdates.DateFormatter('%Y %b %d %H:%M ')
     axes[4].xaxis.set_major_formatter(myFmt)
     axes[4].set_xlim([startplot, endplot])
@@ -380,7 +487,7 @@ def makeFIDOhistos(ResArr):
     
     # Collect the ensemble results
     for key in ResArr.keys(): 
-        if ResArr[key].ANTtime != None:
+        if not ResArr[key].miss:
             all_dur.append(ResArr[key].FIDOtimes[-1]-ResArr[key].FIDOtimes[0])
             all_Bz.append(np.min(ResArr[key].FIDOBzs))
             all_Kp.append(np.max(ResArr[key].FIDOKps))
@@ -445,15 +552,17 @@ def makeEnsplot(ResArr):
             OSPres[i,2] = ResArr[key].FCtilts[-1]
             counter += 2
         if OSP.doANT:
-            if ResArr[key].ANTtime is None:
-                OSPres[i,counter+1] = ResArr[0].ANTtime
-                OSPres[i,counter+2] = ResArr[0].ANTvr
+            # set to seed if missing that point -> lets code run and 
+            # won't be visible since already plotting seed
+            if ResArr[key].miss:
+                OSPres[i,counter+1] = ResArr[0].ANTtime[-1]
+                OSPres[i,counter+2] = ResArr[0].ANTvtot[-1]
             else:     
-                OSPres[i,counter+1] = ResArr[key].ANTtime
-                OSPres[i,counter+2] = ResArr[key].ANTvr
+                OSPres[i,counter+1] = ResArr[key].ANTtime[-1]
+                OSPres[i,counter+2] = ResArr[key].ANTvtot[-1]
             counter += 2
         if OSP.doFIDO:
-            if ResArr[key].FIDOtimes is None:
+            if ResArr[key].miss:
                 OSPres[i,counter+1] = (ResArr[0].FIDOtimes[-1]-ResArr[0].FIDOtimes[0])
                 OSPres[i,counter+2] = np.min(ResArr[0].FIDOBzs)
                 OSPres[i,counter+3] = np.max(ResArr[0].FIDOKps)
@@ -522,7 +631,7 @@ def makeKpprob(ResArr):
     # fill in KpArr
     counter = 0
     for key in ResArr.keys():
-        if ResArr[key].FIDOtimes is not None:
+        if not ResArr[key].miss:
             counter += 1
             tBounds = [ResArr[key].FIDOtimes[0], ResArr[key].FIDOtimes[-1]]
             thefit = CubicSpline(ResArr[key].FIDOtimes,ResArr[key].FIDOKps,bc_type='natural')
@@ -677,14 +786,14 @@ def makeImpContours(ResArr):
     # Get mean arrival time -> plot Earth shifted
     all_times = []
     for key in ResArr.keys():
-        if ResArr[key].ANTtime != None:
-            all_times.append(ResArr[key].ANTtime)
+        if not ResArr[key].miss:
+            all_times.append(ResArr[key].ANTtime[-1])
     # satellite position at time of impact
     #axes.plot(0,OSP.satPos[0],'o', ms=15, mfc='#98F5FF')
     dlon = np.mean(all_times) * OSP.Sat_rot
     axes.plot(dlon,OSP.satPos[0],'o', ms=15, mfc='#98F5FF')
     
-    satImp = int(impCounter[int(OSP.satPos[0]+plotwid), int(dlon+plotwid)])
+    satImp = int(impPerc[int(OSP.satPos[0]+plotwid), int(dlon+plotwid)])
     axes.text(0.97, 0.95, str(satImp) + '% chance of impact' , horizontalalignment='right', verticalalignment='center', transform=axes.transAxes, color='r')
         
     cbar = fig.colorbar(c, ax=axes)
@@ -708,6 +817,9 @@ nEns = len(ResArr.keys())
     
 # Make CPA plot
 makeCPAplot(ResArr)  
+
+# Make drag profile
+makeDragplot(ResArr)
 
 # Make in situ plot
 makeISplot(ResArr)

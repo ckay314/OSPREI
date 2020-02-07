@@ -132,6 +132,7 @@ class CME:
 		self.FR_B0 = 20.
 		self.vExp  = 0.
 		self.v1AU  = 400. * 1e5
+		self.SSscale = 1.
 
 
 	# Programs typically called only within this class

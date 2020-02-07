@@ -113,7 +113,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']
+    possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale','FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']
     print 'Determining parameters varied in ensemble...'
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str)
     # Make a dictionary containing the variables and their uncertainty
@@ -145,11 +145,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['Cd', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']:
+        if item not in ['Cd', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['Cd', 'FR_B0', 'CME_vExp', 'CME_v1AU']:
+        if item in ['Cd', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -249,6 +249,11 @@ def genEnsMem(runnum=0):
         if item == 'CME_v1AU':
             CME.v1AU = np.random.normal(loc=float(input_values['CME_v1AU']), scale=EnsInputs['CME_v1AU'])
             outstr += '{:6.2f}'.format(CME.v1AU) + ' '
+        if item == 'SSscale':
+            newScale = np.random.normal(loc=float(input_values['SSscale']), scale=EnsInputs['SSscale'])
+            if newScale > 1.: newScale = 1.
+            CME.SSscale = newScale
+            outstr += '{:6.3f}'.format(CME.SSscale) + ' '
 
     ensembleFile.write(outstr+'\n')       
         
@@ -274,6 +279,7 @@ def goForeCAT():
     if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
     if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
     if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
+    if 'SSscale'  in input_values: CME.SSscale = float(input_values['SSscale'])
     
     for i in range(nRuns):
         print('Running ForeCAT simulation '+str(i+1)+' of '+str(nRuns))
@@ -311,6 +317,7 @@ def makeCMEarray():
     if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
     if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
     if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
+    if 'SSscale'  in input_values: CME.SSscale = float(input_values['SSscale'])
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
     
@@ -372,10 +379,12 @@ def goANTEATR():
     SatRotRate = SatVars0[3]
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
-    global ANTvrs, ANTts, ANTsatLons, impactIDs
-    ANTvrs = {}
+    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs
+    ANTvBulks = {}
+    ANTvExps = {}
     ANTts  = {}
     ANTsatLons = {}
+    ANTAWs  = {}
     impactIDs = []
     
     # Check if we were give SW values or if using background from ForeCAT
@@ -414,36 +423,50 @@ def goANTEATR():
         
         # Package up invec, run ANTEATR
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeA, cmeB, vSW, nSW, Cd]
-        ATresults = getAT(invec,CMEr,myParams, silent=True)
+        ATresults, Elon, ElonEr = getAT(invec,CMEr,myParams, silent=True, SSscale=CME.SSscale)
         
         # Check if miss or hit  
-        if ATresults != 9999:
+        if ATresults[0][0] != 9999:
             impactIDs.append(i)
         
             # Can add in ForeCAT time to ANTEATR time
             # but usually don't because assume have time stamp of
             # when in outer corona=start of ANTEATR
-            TotTime = ATresults[0]#+CME.t/60./24
-            CMEvr = ATresults[1]
-            rCME = ATresults[2]
-            # Store things to pass to FIDO ensembles
-            ANTsatLons[i] = ATresults[4]
-            ANTvrs[i] = ATresults[1] 
-            ANTts[i] = TotTime
+            TotTime = ATresults[0][-1]#+CME.t/60./24
+            rCME = ATresults[1][-1]
+            CMEvtot = ATresults[2][-1]
+            CMEvbulk = ATresults[3][-1]
+            CMEvexp  = ATresults[4][-1]
+            CMEAW = ATresults[5][-1]
             
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with velocity '+"{:.2f}".format(ATresults[1])+' km/s when nose reaches '+"{:.2f}".format(rCME) + ' Rsun')
+            # Store things to pass to FIDO ensembles
+            ANTsatLons[i] = ElonEr # lon at time CME nose is at Earth/sat radius
+            ANTvBulks[i] = CMEvbulk#ATresults[1] 
+            ANTvExps[i]  = CMEvexp
+            ANTAWs[i] = CMEAW
+            ANTts[i] = TotTime
+                        
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
             dImp = dObj + datetime.timedelta(days=TotTime)
             print '   Impact at '+dImp.strftime('%Y %b %d %H:%M ')
             
     
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
-            outprint = str(i)
-            outprint = outprint.zfill(4) + '   '
-            for iii in ATresults:
+            for j in range(len(ATresults[0])):
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[2,j], ATresults[3,j], ATresults[4,j], ATresults[5,j]]
+                for iii in outstuff:
                     outprint = outprint +'{:4.2f}'.format(iii) + ' '
-            outprint = outprint + '{:4.2f}'.format(nSW) + ' ' + '{:4.2f}'.format(vSW)
-            ANTEATRfile.write(outprint+'\n')
+                ANTEATRfile.write(outprint+'\n')
+            #outprint = str(i)
+            #outprint = outprint.zfill(4) + '   '
+            #for iii in ATresults:
+            #        outprint = outprint +'{:4.2f}'.format(iii) + ' '
+            
+            #outprint = outprint + '{:4.2f}'.format(nSW) + ' ' + '{:4.2f}'.format(vSW)
+            #ANTEATRfile.write(outprint+'\n')
     ANTEATRfile.close()    
     
 def goFIDO():
@@ -487,26 +510,29 @@ def goFIDO():
 
     for i in toRun:    
         # set up input array   
+        # start with parameters that either come from ANTEATR
+        # or the input file
         if doANT: 
             SatLon = ANTsatLons[i]
             CMEstart = ANTts[i]
-            CME_v1AU = ANTvrs[i]
+            CME_v1AU = ANTvBulks[i]
+            vexp = ANTvExps[i]
+            cmeAW = ANTAWs[i]
         else:
             SatLon = SatVars0[1]
             CME_v1AU = float(input_valuesFIDO['CME_v1AU'])
-            
-        # CME parameters from CME object
+            vexp  = CME.vExp      
+            cmeAW = CME.ang_width*radeg
+
+        # other CME parameters from CME object
         CME = CMEarray[i]
         CMEr, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
         tilt = CME.tilt
         # Mass
         mass = CME.M/1e15
         # CME shape
-        cmeAW = CME.ang_width*radeg
         cmeA, cmeB = CME.shape_ratios[0], CME.shape_ratios[1]
-        # things thant can change from ensembles
         CMEB0 = CME.FR_B0
-        vexp  = CME.vExp
        
         # order is Sat_lat [0], Sat_lon0 [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
         # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12], end [13], vexp[14], 
@@ -524,7 +550,7 @@ def goFIDO():
         for j in range(len(BvecDS[0])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = [tARRDS[j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], BvecDS[3][j], vProfDS[j]]
+            outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
             for iii in outstuff:
                 outprint = outprint +'{:6.3f}'.format(iii) + ' '
             FIDOfile.write(outprint+'\n')    
