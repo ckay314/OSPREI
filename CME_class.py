@@ -160,7 +160,7 @@ class CME:
 		else:
 			FF.calc_posCPU(self)
 		# Update the unit vector giving radial direction
- 		colat = (90. - self.cone[1,1]) * dtor
+		colat = (90. - self.cone[1,1]) * dtor
 		lon   = self.cone[1,2] * dtor
 		nx = np.sin(colat) * np.cos(lon)
 		ny = np.sin(colat) * np.sin(lon)
@@ -323,8 +323,8 @@ class CME:
 		# check if abs(lat) greater than 89.5 since ForeCAT gets wonky at poles
 		if np.abs(self.cone[1,1]) > 89.5:
 			self.points[idcent][1,0] = 999999 # stop simulation
-			print "Hit pole, stopped simulation"
-			print self.cone[1,:]
+			print ("Hit pole, stopped simulation")
+			print (self.cone[1,:])
 
 
 

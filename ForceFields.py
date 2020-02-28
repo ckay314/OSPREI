@@ -420,12 +420,12 @@ def init_GPU(CR, Ntor, Npol):
 
 	# load the pickles which hold the mag field data
 	#f1 = open('/gevalt4/PickleJar/CR' + str(FC.CR) +'a.pkl', 'rb') 
-	f1 = open(FC.picklejar+'CR'+str(FC.CR)+'a.pkl', 'rb')
+	f1 = open(FC.picklejar+'CR'+str(FC.CR)+'a3.pkl', 'rb')
 	#print "loading low pickle ..."
 	B_low = pickle.load(f1)
 	f1.close()
 	#f1 = open('/gevalt4/PickleJar/CR' + str(FC.CR) +'b.pkl', 'rb')
-	f1 = open(FC.picklejar+'CR'+str(FC.CR)+'b.pkl', 'rb')
+	f1 = open(FC.picklejar+'CR'+str(FC.CR)+'b3.pkl', 'rb')
 	#print "loading high pickle ..."
 	B_high = pickle.load(f1)
 	f1.close() 
@@ -515,11 +515,11 @@ def init_CPU(CR, Ntor, Npol):
 
 	global B_low, B_high, B_mid
 	# load the pickles which hold the mag field data
-	f1 = open(FC.picklejar+'PFSS'+str(FC.CR)+'a.pkl', 'rb')
+	f1 = open(FC.picklejar+'PFSS'+str(FC.CR)+'a3.pkl', 'rb')
 	#print "loading low pickle ..."
 	B_low = pickle.load(f1)
 	f1.close()
-	f1 = open(FC.picklejar+'PFSS'+str(FC.CR)+'b.pkl', 'rb')
+	f1 = open(FC.picklejar+'PFSS'+str(FC.CR)+'b3.pkl', 'rb')
 	#print "loading high pickle ..."
 	B_high = pickle.load(f1)
 	f1.close() 

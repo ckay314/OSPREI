@@ -9,7 +9,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
-from Tkinter import *
+#from Tkinter import *
 from pylab import setp
 import random 
 
@@ -632,7 +632,7 @@ def run_case(inps, shinps):
             # add tshift to sheath
             tsheath += inps[11]/24.
             sheath_scores = calc_score([sheathB[1],sheathB[2],sheathB[3]], tsheath, CMEstart-shinps[1]/24.,CMEstart)  
-            print sheath_scores
+            print (sheath_scores)
         # Calculate Kp
         if show_indices:
             if hasSheath:
@@ -740,7 +740,7 @@ def measure_DiP(Btot):
     while sumB <= critB:
         sumB += Btot[counter]
         counter += 1
-    print 'DiP: ', float(counter)/mylen
+    print ('DiP: ', float(counter)/mylen)
 
 def get_inputs(inputs):
     # take a file with unsorted input values and return a dictionary.
@@ -886,7 +886,7 @@ def getInps(input_values):
     # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12], end [13], vexp[14]
     # Sat_rad [15], Sat_rot[16]
     inps = [0.,0.,0.,0.,0.,45.,0.75,0.35,440.,25.,1,0.,0.,0, 0, 213, 360/365/24./3600.]
-    print inps
+    print (inps)
     if 'Sat_lat' in input_values: inps[0] = float(input_values['Sat_lat'])
     if 'Sat_lon' in input_values: inps[1] = float(input_values['Sat_lon'])
     if 'CME_lat' in input_values: inps[2] = float(input_values['CME_lat']) 

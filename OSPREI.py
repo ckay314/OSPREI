@@ -79,7 +79,7 @@ def setupOSPREI():
     dObj = datetime.datetime(yr, mon, day,hrs,mins)
     dNewYear = datetime.datetime(yr, 1, 1, 0,0)
     DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
-    print 'Simulation starts at '+dObj.strftime('%Y %b %d %H:%M ')
+    print('Simulation starts at '+dObj.strftime('%Y %b %d %H:%M '))
             
         
 
@@ -106,15 +106,15 @@ def setupOSPREI():
     if models == 'FIDO': doANT = False
     if models == 'FC': doANT, doFIDO, = False, False
 
-    print 'Running: '
-    print 'ForeCAT: ', doFC
-    print 'ANTEATR: ', doANT
-    print 'FIDO:    ', doFIDO
+    print( 'Running: ')
+    print( 'ForeCAT: ', doFC)
+    print( 'ANTEATR: ', doANT)
+    print( 'FIDO:    ', doFIDO)
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
     possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale','FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']
-    print 'Determining parameters varied in ensemble...'
+    print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str)
     # Make a dictionary containing the variables and their uncertainty
     global EnsInputs
@@ -131,7 +131,7 @@ def setupEns():
     EnsVarStr = ''
     for item in EnsInputs.keys():
         EnsVarStr += item +', '
-    print 'Ensembles will vary '+EnsVarStr[:-2] 
+    print( 'Ensembles will vary '+EnsVarStr[:-2] )
     # Convert the uncertainties into sigmas for Gaussian distributions
     # 3 sigma = 99.7 percent of distribution
     for item in EnsInputs.keys(): EnsInputs[item] = EnsInputs[item]/3.
@@ -448,7 +448,7 @@ def goANTEATR():
                         
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
             dImp = dObj + datetime.timedelta(days=TotTime)
-            print '   Impact at '+dImp.strftime('%Y %b %d %H:%M ')
+            print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
             
     
             # For ANTEATR, save CME id number (necessary? matches other file formats)
@@ -562,7 +562,7 @@ def goFIDO():
         #for i2 in range(len(Bout)):
         #    plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
         #plt.show()
-        print i, 'min Bz ', np.min(BvecDS[2]), ' (nT)'
+        print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
     FIDOfile.close()
     
 def runOSPREI():
@@ -586,4 +586,4 @@ def runOSPREI():
 
     if nRuns > 1: ensembleFile.close()
 
-#runOSPREI()
+runOSPREI()

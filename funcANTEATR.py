@@ -219,10 +219,10 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
             outvExps.append(vExp/1e5)
             outAWs.append(CMEAW*180./3.14159)
             if not silent:
-                print 'Transit Time:     ', TT
-                print 'Final Velocity:   ', vCME/1e5
-                print 'CME nose dist:    ', rCME
-                print 'Earth longitude:  ', Elon
+                print ('Transit Time:     ', TT)
+                print ('Final Velocity:   ', vCME/1e5)
+                print ('CME nose dist:    ', rCME)
+                print ('Earth longitude:  ', Elon)
             #print Elon, rCME, vCME/1e5#,CAang[0]/dtor, np.tan(Epos2[1]/(CMEB*CtimesR))/dtor
             #print CAang[0]/dtor
             inCME = True

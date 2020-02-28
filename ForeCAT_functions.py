@@ -42,7 +42,8 @@ def get_inputs(inputs):
     input_values['Cdperp'] = 1.   
     input_values['rstart'] = 1.1
     input_values['shapeA'] = 1.   
-    input_values['shapeB'] = 0.15   
+    input_values['shapeB'] = 0.15  
+    input_values['shapeB0'] = 0.05    
     input_values['raccel1'] = 1.3
     input_values['raccel2'] = 4.0
     input_values['vrmin'] = 70*1.e5
@@ -56,7 +57,7 @@ def get_inputs(inputs):
         if temp[0][:-1] in possible_vars:
             input_values[temp[0][:-1]] = temp[1]
         elif temp[0][:-1] not in other_vars:
-            print temp[0][:-1], ' not a valid input '
+            print (temp[0][:-1], ' not a valid input ')
             
     return input_values
 
@@ -164,7 +165,7 @@ def getInps(input_values):
     
     # check if given a B0, if so let shape B evolve at same rate as full AW
     global shapeB0
-    shapeB0 = shapeB # set default to no change in shape if not specified
+    shapeB0 = 0.2*shapeB # set default to final shape/50 if not specified, random but reasonable
     if 'shapeB0' in input_values:  shapeB0 = float(input_values['shapeB0'])
     global user_Bexp
     user_Bexp = lambda R_nose: shapeB0 + (shapeB-shapeB0)*(1. - np.exp(-(R_nose-1.)/awR))
@@ -202,7 +203,7 @@ def initdefpickle(CR):
 	# get pickle name
 	fname = 'PFSS' + str(CR) 
 	# distance pickle [inCH, fromHCS, fromCH, fromPS(calc later maybe)]
-	f1 = open(picklejar+fname+'dists.pkl', 'rb')
+	f1 = open(picklejar+fname+'dists3.pkl', 'rb')
 
 	#print "loading distance pickle ..."
 	dists = pickle.load(f1)
@@ -237,7 +238,7 @@ def printstep(CME):
     outprint = ''
     for i in outdata:
         outprint = outprint +'{:7.3f}'.format(i) + ' '  
-    if printData: print outprint  
+    if printData: print (outprint)  
     if saveData: outfile.write(outprint+'\n')
 
 def calc_drag(CME):
