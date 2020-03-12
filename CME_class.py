@@ -133,6 +133,11 @@ class CME:
 		self.vExp  = 0.
 		self.v1AU  = 400. * 1e5
 		self.SSscale = 1.
+		self.vSW = 400
+		self.nSW = 5.
+		self.BSW = 5
+		self.cs  = 49.5
+		self.vA  = 55.4 
 
 
 	# Programs typically called only within this class

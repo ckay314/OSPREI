@@ -150,14 +150,14 @@ def makedapickle(date,nHarmonics, Rss):
         Thetas2D[:,i] = Thetas
     
     # Set up output arrays
-    dataa = np.empty([nR/2+1, nTheta, nPhi, 4])
-    datab = np.empty([nR/2+1, nTheta, nPhi, 4])
+    dataa = np.empty([int(nR/2+1), nTheta, nPhi, 4])
+    datab = np.empty([int(nR/2+1), nTheta, nPhi, 4])
     Brmap = np.zeros([nR,nTheta,nPhi,3])
 
     # Loop over theta and phi and simulataneously calculate the B
     # vector for all R values
     for i in range(nTheta):
-        print i, ' of ', nTheta
+        print( i, ' of ', nTheta)
         for j in range(nPhi):
             outs = calcB(Thetas[i], Phis[j], np.reshape(rs, [-1,1]), nHarmonics, gml, hml,Rss)
             Brmap[:,i,j,0] = outs[0]
@@ -176,29 +176,29 @@ def makedapickle(date,nHarmonics, Rss):
             dataa[iR,:,:,3] = np.sqrt(Bxyz[0]**2 + Bxyz[1]**2 + Bxyz[2]**2)
         # Higher half
         if iR >= nR/2:
-            newiR = iR - nR/2
+            newiR = int(iR - nR/2)
             datab[newiR,:,:,0] = Bxyz[0]
             datab[newiR,:,:,1] = Bxyz[1]
             datab[newiR,:,:,2] = Bxyz[2]
             datab[newiR,:,:,3] = np.sqrt(Bxyz[0]**2 + Bxyz[1]**2 + Bxyz[2]**2)
     
-    fig = plt.figure()
-    plt.imshow(dataa[0,:,:,0], origin='lower')
-    plt.show()
+    #fig = plt.figure()
+    #plt.imshow(dataa[0,:,:,0], origin='lower')
+    #plt.show()
     
     
     # Open up files for output and dump the pickles #MTMYS
     pickle_path = '/Users/ckay/PickleJar/'
     # Lower half pickle
-    fa = open(pickle_path+'PFSS'+str(date)+'a.pkl', 'wb')
+    fa = open(pickle_path+'PFSS'+str(date)+'a3.pkl', 'wb')
     pickle.dump(dataa,fa,-1)
     fa.close()
     # Upper half pickle
-    fb = open(pickle_path+'PFSS'+str(date)+'b.pkl', 'wb')
+    fb = open(pickle_path+'PFSS'+str(date)+'b3.pkl', 'wb')
     pickle.dump(datab,fb,-1)
     fb.close()
     # Br at source surface pickle (useful for calcHCSdist)
-    fc = open(pickle_path+'PFSS'+str(date)+'SS.pkl', 'wb')
+    fc = open(pickle_path+'PFSS'+str(date)+'SS3.pkl', 'wb')
     pickle.dump(Brmap[-1,:,:,0],fc,-1)
     fc.close()
     
@@ -212,9 +212,9 @@ def calcHCSdist(date):
     # only one deg resolution, should be sufficient since only used for ForeCAT
     # density function
     
-    print 'Finding HCS location...'
+    print ('Finding HCS location...')
     pickle_path = '/Users/ckay/PickleJar/' #MTMYS
-    fa = open(pickle_path+'PFSS'+str(date)+'SS.pkl', 'rb')
+    fa = open(pickle_path+'PFSS'+str(date)+'SS3.pkl', 'rb')
     Bss = pickle.load(fa)
     fa.close()
     
@@ -242,7 +242,7 @@ def calcHCSdist(date):
             bounds[j,i2] = -10
             
     # Part 2 - Calculate distances from the HCS
-    print 'Calculating distances from HCS'
+    print( 'Calculating distances from HCS')
     dists = np.zeros([181,360])
     HCSlats = []
     HCSlons = []
@@ -267,18 +267,18 @@ def calcHCSdist(date):
             
     
     # Save the HCS distance to a file
-    f1 = open(pickle_path+'PFSS'+str(date)+'dists.pkl', 'wb') #MTMYS
+    f1 = open(pickle_path+'PFSS'+str(date)+'dists3.pkl', 'wb') #MTMYS
     pickle.dump(dists,f1,-1)
     f1.close()
     
     # Useful option for quick plots to check things
-    fig = plt.figure()
-    plt.imshow(dists, origin='lower')
-    plt.show()
+    #fig = plt.figure()
+    #plt.imshow(dists, origin='lower')
+    #plt.show()
 
 # Read in the date ID from command line
 date = str(sys.argv[1])    
 # Make the PFSS pickles
-#makedapickle(date,90, 2.5)
+makedapickle(date,90, 2.5)
 # Calculate the distance from the HCS
 calcHCSdist(date)

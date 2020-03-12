@@ -91,7 +91,7 @@ def txt2obj():
 
     if OSP.doFC:
         FCfile = OSP.Dir+'/ForeCATresults'+OSP.thisName+'.dat'
-        FCdata = np.genfromtxt(FCfile, dtype=float)
+        FCdata = np.genfromtxt(FCfile, dtype=float, encoding='utf8')
         ids = FCdata[:,0].astype(int)
         unFCids = np.unique(ids)
         nRuns = np.max(ids)
@@ -114,7 +114,7 @@ def txt2obj():
         
     if OSP.doANT:
         ANTfile = OSP.Dir+'/ANTEATRresults'+OSP.thisName+'.dat'
-        ANTdata = np.genfromtxt(ANTfile, dtype=float)
+        ANTdata = np.genfromtxt(ANTfile, dtype=float, encoding='utf8')
         # get the unique ANTEATR ideas (only one row per id here)
         # might have some missing if it misses
         ANTids = ANTdata[:,0].astype(int)
@@ -122,7 +122,7 @@ def txt2obj():
             # Check if we already have set up the objects
             # If not do now
             if not OSP.doFC:  
-                thisRes = EnsRes(OSP.thisNam)
+                thisRes = EnsRes(OSP.thisName)
                 thisRes.myID = i
             else:
                 thisRes = ResArr[i]
@@ -143,7 +143,7 @@ def txt2obj():
 
     if OSP.doFIDO:
         FIDOfile = OSP.Dir+'/FIDOresults'+OSP.thisName+'.dat'
-        FIDOdata = np.genfromtxt(FIDOfile, dtype=float)
+        FIDOdata = np.genfromtxt(FIDOfile, dtype=float, encoding='utf8')
         ids = FIDOdata[:,0].astype(int)
         unFIDOids = np.unique(ids)
         for i in unFIDOids:
@@ -167,7 +167,7 @@ def txt2obj():
     # if we ran an ensemble load up the initial parameters for each member        
     if len(ResArr.keys()) > 1:
         ENSfile = OSP.Dir+'/EnsembleParams'+OSP.thisName+'.dat' 
-        ENSdata = np.genfromtxt(ENSfile, dtype=None)
+        ENSdata = np.genfromtxt(ENSfile, dtype=None, encoding='utf8')
         global varied
         varied = ENSdata[0][1:] 
         nvar = len(varied) 
@@ -180,6 +180,15 @@ def txt2obj():
         varied = sorted(varied, key=lambda x: myOrder.index(x))   
         
     return ResArr
+
+def readInData():
+    dataIn = np.genfromtxt(OSP.ObsDataFile, dtype=float, encoding='utf8', skip_header=10)
+    # Need to check if goes over into new year...
+    base = datetime.datetime(int(dataIn[0,0]), 1, 1, 1, 0)
+    obsDTs = np.array([base + datetime.timedelta(days=int(dataIn[i,1])-1, seconds=int(dataIn[i,2]*3600)) for i in range(len(dataIn[:,0]))])
+            
+    dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]/10.])
+    return dataOut
 
 def calcKp(Bout, CMEstart, CMEv):
     fracyear = CMEstart / 365.
@@ -237,7 +246,7 @@ def makeCPAplot(ResArr):
     axes[1].plot(ResArr[0].FCrs, ResArr[0].FClons, linewidth=4, color='b')
     axes[2].plot(ResArr[0].FCrs, ResArr[0].FCtilts, linewidth=4, color='b')
     
-    degree = unichr(176)
+    degree = '$^\circ$'
     
     # Add the final position as text
     if nEns > 1:
@@ -270,11 +279,11 @@ def makeCPAplot(ResArr):
 def makeDragplot(ResArr):
     # This it makes more sense to plot this versus distance instead of time
     # Make more physical sense and numbers from histo more relevant for forecasting
-    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(12,8))
+    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(9,8))
     
     # this isn't the exact end for all cases but don't really care in this figure
     # since more showing trend with distance and it flattens
-    rStart = ResArr[0].FCrs[-1]
+    rStart = ResArr[0].ANTr[0]
     rEnd = ResArr[0].ANTr[-1]
     
     # get number of impacts, may be less than nEns
@@ -361,15 +370,15 @@ def makeDragplot(ResArr):
     axes[0].set_ylabel('Front Velocity\n(km/s)')         
     axes[1].set_ylabel('Bulk Velocity\n(km/s)')         
     axes[2].set_ylabel('Exp. Velocity\n(km/s)') 
-    axes[3].set_ylabel('Angular Width\n('+unichr(176)+')') 
+    axes[3].set_ylabel('Angular Width\n('+'$^\circ$'+')') 
     axes[3].set_xlabel('Radial Distance (R$_S$)')        
             
-    plt.subplots_adjust(hspace=0.1,left=0.1,right=0.95,top=0.95,bottom=0.1)
+    plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.1)
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.png')
     
 
 def makeAThisto(ResArr):
-    fig, axes = plt.subplots(1, 2, figsize=(8,5))
+    fig, axes = plt.subplots(1, 2, figsize=(8,5), sharey=True)
     all_times = []
     all_vels  = []
     # Collect the ensemble results
@@ -383,7 +392,7 @@ def makeAThisto(ResArr):
     n1, bins, patches = axes[0].hist(all_times, bins=10, color='#882255')
     n2, bins, patches = axes[1].hist(all_vels, bins=10, color='#882255')
     maxcount = np.max(np.maximum(n1, n2))
-    axes[0].set_ylim(0, maxcount*1.1)
+    axes[0].set_ylim(0, maxcount*1.2)
     
     # Add the mean and sigma from a normal fit
     fitTime = norm.fit(all_times)
@@ -394,6 +403,7 @@ def makeAThisto(ResArr):
     date = base + datetime.timedelta(days=(DoY+fitTime[0]))   
     dateLabel = date.strftime('%Y %b %d %H:%M ')
     axes[0].text(0.97, 0.95, dateLabel+'$\pm$'+'{:3.1f}'.format(fitTime[1]*24)+' hrs', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+    
     
     
     # Take out half the ticks for readability
@@ -471,7 +481,15 @@ def makeISplot(ResArr):
             ticks2hide = np.array(range(len(yticks)-1))[::2]
             for j in ticks2hide:
                 yticks[j].label1.set_visible(False)
-    
+                
+    if ObsData is not None:
+        axes[0].plot(ObsData[0,:], ObsData[1,:], linewidth=4, color='m')
+        axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=4, color='m')
+        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='m')
+        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='m')
+        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')
+        
+
     
     fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
@@ -520,7 +538,7 @@ def makeFIDOhistos(ResArr):
 def makeEnsplot(ResArr):
     # At max want to show variation with lat, lon, tilt, AT, v1AU
     # duration, Bz, Kp (8 vals) but depends on what we ran
-    deg = '('+unichr(176)+')'
+    deg = '('+'$^\circ$'+')'
     allNames = ['Lat\n'+deg, 'Lon\n'+deg, 'Tilt\n'+deg, 'Transit\nTime\n(days)', 'v$_{1AU}$\n(km/s)', 'Dur\n(days)', 'min Bz\n(nT)', 'max Kp']
     
     nVert = 0
@@ -643,7 +661,7 @@ def makeKpprob(ResArr):
     ys = np.array(range(10))
     xs = np.array([mindate + i*3./24. for i in range(nx+1)])
     # convert x axis to dates
-    label_day_range = [int((mindate+DoY)*2)/2.+0.5, int((maxdate+DoY)*2)/2.]
+    label_day_range = [int((mindate+DoY)*2)/2., int((maxdate+DoY)*2+1)/2.]
     nLabs = int(2*(label_day_range[1]-label_day_range[0]))
     labelDays = [label_day_range[0] + 0.5 * i for i in range(nLabs+1)]
     xvals = np.array(labelDays)-DoY
@@ -802,8 +820,8 @@ def makeImpContours(ResArr):
     axes.set_xlim([-plotwid,plotwid])
     axes.set_ylim([-plotwid,plotwid])
     
-    axes.set_ylabel('Latitude ('+unichr(176)+')')
-    axes.set_xlabel('Longitude ('+unichr(176)+')')
+    axes.set_ylabel('Latitude ('+'$^\circ$'+')')
+    axes.set_xlabel('Longitude ('+'$^\circ$'+')')
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Imp.png')    
     
@@ -811,6 +829,12 @@ def makeImpContours(ResArr):
 # what we actually ran
 OSP.setupOSPREI()
 ResArr = txt2obj()
+
+global ObsData
+ObsData = None
+if OSP.ObsDataFile is not None:
+    ObsData = readInData()
+    
 
 global nEns
 nEns = len(ResArr.keys())

@@ -13,6 +13,7 @@ sys.path.append(os.path.abspath(mainpath+'codes/')) #MTMYS
 from ForeCAT import *
 import CME_class as CC
 from ForeCAT_functions import readinputfile, calc_dist, calc_SW
+import ForceFields 
 from funcANTEATR import *
 from FIDO import *
 
@@ -37,13 +38,15 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, shape, Sat_rot
+    global time, satPos, shape, Sat_rot, ObsDataFile, includeSIT
     suffix = ''
     nRuns  = 1
     models = 'ALL'
     satPos = [0,0]
     shape  = [1,0.15] 
     Sat_rot = 360./365.25
+    ObsDataFile = None
+    includeSIT = False
     # Read in values from the text file
     for i in range(len(allinputs)):
         temp = allinputs[i]
@@ -65,6 +68,12 @@ def setupOSPREI():
             shape[1] = float(temp[1])
         elif temp[0][:-1] == 'Sat_rot':
             Sat_rot = float(temp[1])
+        elif temp[0][:-1] == 'ObsDataFile':
+            ObsDataFile = temp[1]
+        elif temp[0][:-1] == 'includeSIT':
+            if temp[1] == 'True':
+                includeSIT = True
+            
             
     # get the actual time for the given string
     yr  = int(date[0:4])
@@ -113,9 +122,9 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale','FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']
+    possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale','FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW', 'BSW', 'cs', 'vA']
     print( 'Determining parameters varied in ensemble...')
-    EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str)
+    EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
     global EnsInputs
     EnsInputs = {}
@@ -145,11 +154,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['Cd', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']:
+        if item not in ['Cd', 'nSW', 'vSW', 'BSW', 'cs', 'vA', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['Cd', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU']:
+        if item in ['Cd', 'nSW', 'vSW', 'BSW', 'cs', 'vA', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -231,6 +240,11 @@ def genEnsMem(runnum=0):
     CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], new_pos)
     # add non ForeCAT vars
     if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
+    if 'nSW' in input_values: CME.nSW = float(input_values['nSW'])    
+    if 'vSW' in input_values: CME.vSW = float(input_values['vSW'])
+    if 'BSW' in input_values: CME.BSW = float(input_values['BSW'])    
+    if 'cs' in input_values: CME.cs = float(input_values['cs'])
+    if 'vA' in input_values: CME.vA = float(input_values['vA'])
     if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
     if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
     if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
@@ -240,6 +254,21 @@ def genEnsMem(runnum=0):
             CME.Cd = np.random.normal(loc=float(input_values['Cd']), scale=EnsInputs['Cd'])
             if CME.Cd <0: CME.Cd = 0
             outstr += '{:5.3f}'.format(CME.Cd) + ' '
+        if item == 'nSW':
+            CME.nSW = np.random.normal(loc=float(input_values['nSW']), scale=EnsInputs['nSW'])
+            outstr += '{:6.2f}'.format(CME.nSW) + ' '
+        if item == 'vSW':
+            CME.vSW = np.random.normal(loc=float(input_values['vSW']), scale=EnsInputs['vSW'])
+            outstr += '{:6.2f}'.format(CME.vSW) + ' '
+        if item == 'BSW':
+            CME.BSW = np.random.normal(loc=float(input_values['BSW']), scale=EnsInputs['BSW'])
+            outstr += '{:6.2f}'.format(CME.BSW) + ' '
+        if item == 'cs':
+            CME.cs = np.random.normal(loc=float(input_values['cs']), scale=EnsInputs['cs'])
+            outstr += '{:6.2f}'.format(CME.cs) + ' '
+        if item == 'vA':
+            CME.vA = np.random.normal(loc=float(input_values['vA']), scale=EnsInputs['vA'])
+            outstr += '{:6.2f}'.format(CME.vA) + ' '
         if item == 'FR_B0':
             CME.FR_B0 = np.random.normal(loc=float(input_values['FR_B0']), scale=EnsInputs['FR_B0'])
             outstr += '{:5.2f}'.format(CME.FR_B0) + ' '
@@ -291,6 +320,21 @@ def goForeCAT():
         # Run ForeCAT
         CME, path = runForeCAT(CME, rmax, path=True)
         
+        # add a few useful 1 AU SW parameters to the CME object
+        HCSdist = calc_dist(CME.cone[1,1],CME.cone[1,2])
+        SWnv = calc_SW(213,HCSdist)
+        nSW, vSW = SWnv[0]/1.6727e-24, SWnv[1]/1e5
+        CME.nSW = nSW 
+        CME.vSW = vSW 
+        # get B
+        # will repeatedly need sin/cos of lon/colat -> calc once here
+        latID = int(CME.cone[1,1]*2 + 179)
+        lonID = int(CME.cone[1,2]*2)
+        fullBvec = ForceFields.B_high[-2,latID,lonID]
+        inorout = np.sign (np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
+        CME.BSW = inorout*fullBvec[3] * (rmax/213)**2 *1e5
+        # calc alfven speed
+        CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
         # Save the CME in the array
         CMEarray.append(CME)
 
@@ -379,16 +423,20 @@ def goANTEATR():
     SatRotRate = SatVars0[3]
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
-    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs
+    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs, ANTvTrans, SWv, SWn
     ANTvBulks = {}
     ANTvExps = {}
     ANTts  = {}
     ANTsatLons = {}
     ANTAWs  = {}
     impactIDs = []
+    ANTvTrans = {}
     
     # Check if we were give SW values or if using background from ForeCAT
-    if -9999 not in mySW:  nSW, vSW = mySW[0], mySW[1]
+    givenSW = False
+    if -9999 not in mySW:  
+        givenSW = True
+        nSW, vSW = mySW[0], mySW[1]
     
     for i in range(nRuns):
         myParams = SatVars0
@@ -396,7 +444,7 @@ def goANTEATR():
         # CME parameters from CME object
         CME = CMEarray[i]
         # CME position
-        CMEr, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
+        CMEr0, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
         # Tilt 
         tilt = CME.tilt
         # Calculate vr
@@ -409,21 +457,19 @@ def goANTEATR():
 
         # Check if passed SW variables
         if -9999 in mySW:
-            # Get solar wind values using the ForeCAT model
-            HCSdist = calc_dist(CME.cone[1,1],CME.cone[1,2])
-            SWnv = calc_SW(myParams[2],HCSdist)
-            nSW, vSW = SWnv[0]/1.6727e-24, SWnv[1]/1e5
+            nSW, vSW = CME.nSW, CME.vSW
         else:
             # reset back to defaults before ensembling again
             nSW, vSW = mySW[0], mySW[1]
-        # Add in ensemble variation if desired
-        if i > 0:
-            if 'nSW' in EnsInputs: nSW = np.random.normal(loc=nSW, scale=EnsInputs['nSW'])
-            if 'vSW' in EnsInputs: vSW = np.random.normal(loc=vSW, scale=EnsInputs['vSW'])
+            # Add in ensemble variation if desired
+            if i > 0:
+                if 'nSW' in EnsInputs: nSW = np.random.normal(loc=nSW, scale=EnsInputs['nSW'])
+                if 'vSW' in EnsInputs: vSW = np.random.normal(loc=vSW, scale=EnsInputs['vSW'])
+                CME.nSW, CME.vSW = nSW, vSW
         
         # Package up invec, run ANTEATR
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeA, cmeB, vSW, nSW, Cd]
-        ATresults, Elon, ElonEr = getAT(invec,CMEr,myParams, silent=True, SSscale=CME.SSscale)
+        ATresults, Elon, ElonEr = getAT(invec,CMEr0,myParams, silent=True, SSscale=CME.SSscale)
         
         # Check if miss or hit  
         if ATresults[0][0] != 9999:
@@ -445,6 +491,7 @@ def goANTEATR():
             ANTvExps[i]  = CMEvexp
             ANTAWs[i] = CMEAW
             ANTts[i] = TotTime
+            ANTvTrans[i] = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
                         
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
             dImp = dObj + datetime.timedelta(days=TotTime)
@@ -482,9 +529,13 @@ def goFIDO():
     input_valuesFIDO = read_more_inputs(allinputs, input_values)
     input_valuesFIDO['Launch_GUI'] = 'False'
     input_valuesFIDO['No_Plot'] = 'True' # will do our own
+    # Check if adding a sheath or not
+    if includeSIT:
+        input_valuesFIDO['Add_Sheath'] = 'True'
     setupOptions(input_valuesFIDO, silent=True)
     #CMEB0 = float(input_valuesFIDO['FR_B0'])
     CMEH  = float(input_valuesFIDO['FR_pol'])
+
     # Need to sort out switching between ANTEATR t or given t
     # check if ant ran, if not def take input from file
     global SatVars0
@@ -507,8 +558,9 @@ def goFIDO():
     # Figure out which cases to run - either all or non-misses from ANTEATR
     toRun = range(nRuns)
     if doANT: toRun = impactIDs
+    
 
-    for i in toRun:    
+    for i in toRun:   
         # set up input array   
         # start with parameters that either come from ANTEATR
         # or the input file
@@ -518,6 +570,7 @@ def goFIDO():
             CME_v1AU = ANTvBulks[i]
             vexp = ANTvExps[i]
             cmeAW = ANTAWs[i]
+            vtrans = ANTvTrans[i]
         else:
             SatLon = SatVars0[1]
             CME_v1AU = float(input_valuesFIDO['CME_v1AU'])
@@ -533,13 +586,19 @@ def goFIDO():
         # CME shape
         cmeA, cmeB = CME.shape_ratios[0], CME.shape_ratios[1]
         CMEB0 = CME.FR_B0
-       
+        
+        # Sheath stuff
+        if includeSIT:
+            vels = [CME_v1AU,vexp, vtrans, CME.vSW]
+            sheathParams = calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[0], SatLon, SatVars0[2], CME.cs, CME.vA)
+        else:
+            sheathParams = []
+        
         # order is Sat_lat [0], Sat_lon0 [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
         # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12], end [13], vexp[14], 
         # Sat_rad [15], Sat_rot [16]
         inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, 0., vexp, SatVars0[2], SatVars0[3]/60.]
-        # sheath params are empty array, not using for now
-        Bout, tARR, radfrac = run_case(inps, [])
+        Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, sheathParams)
         vProf = radfrac2vprofile(radfrac, CME_v1AU, vexp)
         
         # Down sample B resolution
@@ -547,6 +606,17 @@ def goFIDO():
         tARRDS = hourify(t_res*tARR, tARR)
         BvecDS = [hourify(t_res*tARR,Bout[0][:]), hourify(t_res*tARR,Bout[1][:]), hourify(t_res*tARR,Bout[2][:]), hourify(t_res*tARR,Bout[3][:])]
         vProfDS = hourify(t_res*tARR, vProf)
+        # write sheath stuff first if needed
+        if includeSIT:
+            tsheathDS = hourify(t_res*tsheath, tsheath)
+            BsheathDS = [hourify(t_res*tsheath,Bsheath[0][:]), hourify(t_res*tsheath,Bsheath[1][:]), hourify(t_res*tsheath,Bsheath[2][:]), hourify(t_res*tsheath,Bsheath[3][:])]
+            for j in range(len(BsheathDS[0])):
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]]
+                for iii in outstuff:
+                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                FIDOfile.write(outprint+'\n')
         for j in range(len(BvecDS[0])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
@@ -557,11 +627,12 @@ def goFIDO():
             
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        #cols = ['k', 'b','r', 'k']  
-        #fig = plt.figure()
-        #for i2 in range(len(Bout)):
-        #    plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
-        #plt.show()
+        '''cols = ['k', 'b','r', 'k']  
+        fig = plt.figure()
+        for i2 in range(len(Bout)):
+            plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
+            plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
+        plt.show() '''
         print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
     FIDOfile.close()
     
@@ -586,4 +657,5 @@ def runOSPREI():
 
     if nRuns > 1: ensembleFile.close()
 
-runOSPREI()
+if __name__ == '__main__':
+    runOSPREI()

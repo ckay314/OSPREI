@@ -1,6 +1,6 @@
 from scipy.special import lpmn
 from scipy.misc import factorial
-import pyfits as pf
+from astropy.io import fits
 import numpy as np
 import math
 import sys
@@ -31,7 +31,7 @@ nHarmonics = 90  # default is 90
 # read in the magnetogram using the date provided
 date = str(sys.argv[1])
 # location of the magnetogram, make this match your system
-myfits = pf.open('/Users/ckay/PickleJar/HMI'+date+'.fits')  #MTMYS
+myfits = fits.open('/Users/ckay/PickleJar/HMI'+date+'.fits')  #MTMYS
 orig_data = myfits[0].data
 
 
@@ -44,8 +44,8 @@ orig_data = myfits[0].data
 # Determine the size of the magnetogram
 ny = orig_data.shape[0]
 nx = orig_data.shape[1]
-print 'Magnetogram size = ', ny, '(y) x', nx, ' (x)'
-print ''
+print('Magnetogram size = ', ny, '(y) x', nx, ' (x)')
+print( '')
 
 
 # Check for various bad data flags, either NaNs/infs.  The flags change 
@@ -117,7 +117,7 @@ f1 = open('/Users/ckay/PickleJar/HMI'+str(date)+'coeffs.dat', 'w') #MTMYS
 # Calculate the harmonic coefficients using the arrays we have and the
 # magnetogram data and save to file
 for l in range(nHarmonics+1):
-    print l, '/'+str(nHarmonics)
+    print (l, '/'+str(nHarmonics))
     for m in range(l+1):
         BrPlm = data * PmlTheta[:,m,l].reshape([nTheta,-1])
         sumforG = BrPlm*CosMphi[:,m] 

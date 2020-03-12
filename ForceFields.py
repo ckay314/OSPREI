@@ -733,7 +733,7 @@ def calc_forcesCPU(CME):
 	CME.Fpgrad = Fpgrad
 
 
-def getBCPU(Rin, lat, lon, scangs):
+def getBCPU(Rin, lat, lon, scangs, printit=False):
 	# relvant globals FC.SW_v, FC.rotrate, RsR, RSS
 	# doing all vec at once? is wise?
 	R = np.copy(Rin)

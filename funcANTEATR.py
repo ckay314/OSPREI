@@ -58,7 +58,7 @@ def rotz(vec, ang):
     
 # Pull in inputs from text file
 def getANTinputs(inputs):
-    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW']
+    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW', 'BSW', 'cs', 'vA']
     # if matches add to dictionary
     input_values = {}
     for i in range(len(inputs)):
@@ -98,8 +98,20 @@ def processANTinputs(input_values):
         vSW = float(input_values['vSW'])
     except:
         vSW = -9999
+    try: 
+        BSW = float(input_values['BSW'])
+    except:
+        BSW = -9999
+    try: 
+        cs = float(input_values['cs'])
+    except:
+        cs = -9999
+    try: 
+        vA = float(input_values['vA'])
+    except:
+        vA = -9999
     
-    return Epos, Cd, [nSW, vSW]    
+    return Epos, Cd, [nSW, vSW, BSW, cs, vA]    
     
         
     

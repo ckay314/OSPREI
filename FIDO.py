@@ -495,7 +495,17 @@ def finish_plot():
     plt.subplots_adjust(top=0.94)
     plt.gcf().canvas.draw()
     
-def calc_jump(CMEstart, shinps):
+def getUpBfromObs(shinps):
+    tobs = shinps[0]
+    tSh = tobs#CMEstart-shinps[1]/24.
+    global upDur
+    upDur = 2/24. # how long upstream to used to determine B?
+    sheathidxs = np.where(np.abs(d_tUN - tSh+upDur/2)<upDur/2.)
+    upB = np.array([np.mean(d_Btot[sheathidxs]), np.mean(d_Bx[sheathidxs]), np.mean(d_By[sheathidxs]), np.mean(d_Bz[sheathidxs])])
+    return upB
+
+
+'''def calc_jumpFromObs(CMEstart, shinps):
     tobs = shinps[0]
     tSh = tobs#CMEstart-shinps[1]/24.
     # determine the upstream magnitude
@@ -507,7 +517,15 @@ def calc_jump(CMEstart, shinps):
     #compB[1] = upB[1] # set Bx to no increase
     # reset full mag b/c get slight diffs from using means
     compB[0] = np.sqrt(compB[1]**2 + compB[2]**2 + compB[3]**2)
-    return [[upB[i],compB[i]] for i in range(4)]
+    return [[upB[i],compB[i]] for i in range(4)]'''
+    
+def calc_jump(upB, shinps):
+    # upB is Btot, Bx, By, Bz
+    # shinps is sheathStart, sheathTime, compression, sheathv, sheathBr
+    comp = shinps[2]
+    compB = comp*upB
+    return [[upB[i],compB[i]] for i in range(4)]     
+    
 
 def make_sheathOLD(jumpvec, Bout, CMEstart, shinps):
     # determine initial flux rope vector
@@ -526,10 +544,11 @@ def make_sheath(jumpvec, Bout, CMEstart, shinps):
     tSheath = np.linspace(CMEstart-shinps[1]/24.,CMEstart,20)
     BUsheath = [[],[],[],[]]
     iFRvec = [Bout[3][0], Bout[0][0], Bout[1][0], Bout[2][0]]
-    iShvec = np.array([jumpvec[0][1],jumpvec[1][1],jumpvec[2][1],jumpvec[3][1]])
+    iShvec = np.array([jumpvec[0][1],jumpvec[1][1],jumpvec[2][1],jumpvec[3][1]])    
     # calculate unit vectors
     iShUvec = iShvec / iShvec[0]
     iFRUvec = iFRvec / iFRvec[0]
+    
     for i in range(4):
         slope = (iFRUvec[i]-iShUvec[i])/(tSheath[-1]-tSheath[0])
         BUsheath[i] = iShUvec[i]+slope*(tSheath-tSheath[0]) 
@@ -627,12 +646,18 @@ def run_case(inps, shinps):
             measure_DiP(Bout[3])
         # add sheath if desired
         if hasSheath:
-            jumpvec = calc_jump(CMEstart, shinps)
+            if ISfilename != False:
+                # calc upstream vec from given data
+                upB = getUpBfromObs(shinps)
+            else:
+                upB = np.array([np.sqrt(shinps[4]**2+shinps[5]**2),-shinps[4],-shinps[5], 0.])                
+            jumpvec = calc_jump(upB, shinps)
             tsheath, sheathB = make_sheath(jumpvec, Bout, CMEstart, shinps)  
             # add tshift to sheath
             tsheath += inps[11]/24.
-            sheath_scores = calc_score([sheathB[1],sheathB[2],sheathB[3]], tsheath, CMEstart-shinps[1]/24.,CMEstart)  
-            print (sheath_scores)
+            if ISfilename !=False:
+                 sheath_scores = calc_score([sheathB[1],sheathB[2],sheathB[3]], tsheath, CMEstart-shinps[1]/24.,CMEstart)  
+                 if canprint: print (sheath_scores)
         # Calculate Kp
         if show_indices:
             if hasSheath:
@@ -655,7 +680,10 @@ def run_case(inps, shinps):
                 plot_sheath(shinps, tsheath, sheathB, axes, sheath_scores) 
         finish_plot()  
         
-    return Bout, tARR, radfrac
+    # reorder Bsheath to match Bout
+    Bsheath = np.array([sheathB[1], sheathB[2], sheathB[3], sheathB[0]])
+    
+    return Bout, tARR, Bsheath, tsheath, radfrac 
 
 def save_plot(inps, Bout, tARR, shinps, tsheath, Bsheath, sheathKp):
     # unpack the params
@@ -922,6 +950,83 @@ def getSheathInps(input_values):
     if 'Sheath_v' in input_values:
         sheathv = float(input_values['Sheath_v'])
     return [sheathStart, sheathTime, compression, sheathv]
+    
+def calcSheathInps(CMEstart, vels, nSW, BSW, satlat, satlon, satr, cs=49.5, vA=55.4):
+    # calc v using MLR from paper
+    # vels should be vCME at FIDO, vtransit (avg), vSW
+    # assume B in is Br, was calc at 213 so scale if need be
+    Br = BSW * (213./satr)**2
+    Bphi = -Br * (2.7e-6) * satr * 7e5 / vels[3]
+    BSW = np.sqrt(Br**2+Bphi**2)
+    vA = BSW *1e-5 / np.sqrt(4*3.14159 * nSW * 1.67e-24) / 1e5
+    vfront = vels[0]+vels[1]
+    sheathv = 0.297*(vfront)+0.112*vels[2]+0.779*vels[3]-37.6
+    compression, vs =getPerpSheath(vfront, vels[3], nSW, BSW, cs, vA)
+    sheathTime = (-16.1*(vfront) + 11.9*(vs- vfront) + 6.8*vels[2] +7776)/sheathv
+    return [CMEstart-sheathTime/24., sheathTime, compression, sheathv, Br, Bphi]
+    
+def getPerpSheath(vCME, vSW, nSW, BSW, csin=49.5, vAin=55.4):
+    # avg SW T of 1.5e5 at 1AU -> cs =49.5 if not given
+    # avg SW B and n -> vA = 1e-5 B (nT) / sqrt(4pi n (cm-3) * mp) / 1e5 km/s
+    vA = vAin
+    cs = csin
+    ms = np.sqrt(vA**2 + cs**2)
+    
+    delta = 0    
+    vS = vCME + delta
+    r = determineR(vS, vCME, vSW, cs, vA)
+    vu = vSW - vS
+    vd1 = vCME - vS
+    vd2 = vu/r
+    diff = vd1 - vd2
+    olddiff = vd1 - vd2
+    counter = 0
+    while diff*olddiff > 0:
+        olddiff = diff
+        delta+=1.
+        counter+=1
+        vS = vCME + delta
+        r = determineR(vS, vCME, vSW, cs, vA)
+        vu = vSW - vS
+        vd1 = vCME - vS
+        vd2 = vu/r
+        diff = vd1 - vd2
+        if counter > 5000: break
+    delta -= 1.
+    diff = olddiff
+    if counter <4999:
+        while diff*olddiff > 0:
+            olddiff = diff
+            delta+=0.1
+            vS = vCME + delta
+            r = determineR(vS, vCME, vSW, cs, vA)
+            vu = vSW - vS
+            vd1 = vCME - vS
+            vd2 = vu/r
+            diff = vd1 - vd2
+            #print vS, r, diff, vu/r
+        nd = nSW*r
+        Bd = BSW*r
+        return r, vS
+    #else:
+    # Need some sort of flag here
+
+def determineR(vS, vCME, vSW, cs, vA): 
+    gam = 5/3.
+    vu = vSW - vS
+    vd = vCME - vS
+    beta = (2./gam) * (cs/vA)**2
+    Ma2 = (vu/vA)**2
+    # from utex perp shock page with math (their M is sonic only)
+    coeffs = [2-gam, gam*(1+beta)+(gam-1)*Ma2, -(gam+1)*Ma2]
+    roots = np.roots(coeffs)
+    goodroots = roots[np.where((roots>=1))]
+    roots = goodroots[np.where((goodroots<=4))]
+    if len(roots) == 1:
+        return roots[0]   
+    else:
+        return 1.
+
 
 def setupFigure():
     fig2 = plt.figure()
@@ -1210,11 +1315,13 @@ def runFIDO():
         setupGUI(root, fig, axes, inps, shinps)
     
     # run the initial conditions
-    Bout, tARR = run_case(inps, shinps)
+    Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, shinps)
 
     if Launch_GUI != False:
     	root.mainloop()
     	root.quit()
     else:
     	save_plot(inps, Bout, tARR, 0, 0, 0, 0)
-#runFIDO()
+
+if __name__ == '__main__':
+    runFIDO()

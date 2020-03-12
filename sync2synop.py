@@ -1,4 +1,4 @@
-import pyfits
+from astropy.io import fits
 import numpy as np
 
 # This script simply shifts the fits file from the synchronic
@@ -10,7 +10,7 @@ import numpy as np
 # pull in the magnetogram, set for my naming convention but can adjust
 # as desired and make this match your system
 date = 20120712
-myfits = pyfits.open('/Users/ckay/PickleJar/HMI' + str(date) + 'sync.fits')  #MTMYS
+myfits = fits.open('/Users/ckay/PickleJar/HMI' + str(date) + 'sync.fits')  #MTMYS
 
 # determine Carrington lon of Earth at time of observation
 Elon = myfits[0].header['CRLN_OBS']
