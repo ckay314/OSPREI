@@ -15,7 +15,7 @@ import CME_class as CC
 from ForeCAT_functions import readinputfile, calc_dist, calc_SW
 import ForceFields 
 from funcANTEATR import *
-from FIDO import *
+import FIDO as FIDO
 
 # Useful constant
 global dtor, radeg
@@ -119,6 +119,16 @@ def setupOSPREI():
     print( 'ForeCAT: ', doFC)
     print( 'ANTEATR: ', doANT)
     print( 'FIDO:    ', doFIDO)
+
+def readMoreInputs():
+    global input_values
+    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW', 'BSW', 'cs', 'vA','FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'vTrans']
+    # if matches add to dictionary
+    for i in range(len(allinputs)):
+        temp = allinputs[i]
+        if temp[0][:-1] in possible_vars:
+            input_values[temp[0][:-1]] = temp[1]
+    return input_values
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
@@ -414,9 +424,8 @@ def goANTEATR():
     # which we can generate from the ForeCAT data
 
     # Pull in ANTEATR values from the input file
-    global ANTinputs, SatVars0
-    ANTinputs = getANTinputs(allinputs)
-    SatVars0, Cd, mySW = processANTinputs(ANTinputs)
+    global SatVars0
+    SatVars0, Cd, mySW = processANTinputs(input_values)
 
     # Assume that the given lon is the time of eruption, need to add in
     # the orbit during the ForeCAT run
@@ -520,50 +529,41 @@ def goFIDO():
     # FIDO portion -----------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
-    # Open a file to save the ANTEATR output
+    # Open a file to save the FIDO output
     FIDOfile = open(Dir+'/FIDOresults'+thisName+'.dat', 'w')
 
-    # Essentially just copying the relevant parts of runFIDO()
-    # First set up additional parameters and set to not launch GUI
-    # take allinputs and add relevant to input_values
-    input_valuesFIDO = read_more_inputs(allinputs, input_values)
-    input_valuesFIDO['Launch_GUI'] = 'False'
-    input_valuesFIDO['No_Plot'] = 'True' # will do our own
     # Check if adding a sheath or not
     if includeSIT:
-        input_valuesFIDO['Add_Sheath'] = 'True'
-    setupOptions(input_valuesFIDO, silent=True)
-    #CMEB0 = float(input_valuesFIDO['FR_B0'])
-    CMEH  = float(input_valuesFIDO['FR_pol'])
+        input_values['Add_Sheath'] = 'True'
+        FIDO.hasSheath = True
+    if 'Expansion_Model' in input_values:
+        FIDO.expansion_model = input_values['Expansion_Model']
+    # Flux rope properties
+    CMEB0 = 15. # completely arbitrary number in case not given one
+    CMEH  = 1.
+    if 'FR_B0' in input_values: CMEB0 = float(input_values['FR_B0'])
+    if 'CMEH' in input_values: CMEH  = float(input_values['FR_pol'])
 
-    # Need to sort out switching between ANTEATR t or given t
-    # check if ant ran, if not def take input from file
+    # Check if ANT ran, if not take input from file
     global SatVars0
     if not doANT:
-        ANTinputs = getANTinputs(allinputs)
-        SatVars0, Cd, swnv = processANTinputs(ANTinputs)
+        SatVars0, Cd, swnv = processANTinputs(input_values)
+        # For FIDO only, if CMEstart = DOY at arrival then need to not add to date when
+        # plotting but in most ensemble cases want to keep wrt time since ForeCAT start
         try:
             CMEstart = float(input_values['CME_start'])
         except:
-            CMEstart = 0.            
-    try:
-        CMEstop = float(input_valuesFIDO['CME_stop'])
-    except:
-        CMEstop = 0. # it will ignore this value, but needs to be passed something
-    #try:
-    #    vexp = float(input_valuesFIDO['CME_vExp'])
-    #except:
-    #    vexp = 0.  # set to zero if not given, will ignore if not using vexp expansion
+            CMEstart = 0.           
         
     # Figure out which cases to run - either all or non-misses from ANTEATR
     toRun = range(nRuns)
     if doANT: toRun = impactIDs
     
-
+    # Loop through the CMEs
     for i in toRun:   
+        CME = CMEarray[i]
         # set up input array   
-        # start with parameters that either come from ANTEATR
-        # or the input file
+        # start with parameters that either come from ANTEATR or the input file
         if doANT: 
             SatLon = ANTsatLons[i]
             CMEstart = ANTts[i]
@@ -573,12 +573,13 @@ def goFIDO():
             vtrans = ANTvTrans[i]
         else:
             SatLon = SatVars0[1]
-            CME_v1AU = float(input_valuesFIDO['CME_v1AU'])
+            CME_v1AU = float(input_values['CME_v1AU'])
             vexp  = CME.vExp      
             cmeAW = CME.ang_width*radeg
+            if includeSIT:
+                vtrans = float(input_values['vTrans'])
 
-        # other CME parameters from CME object
-        CME = CMEarray[i]
+        # Other CME parameters from CME object
         CMEr, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
         tilt = CME.tilt
         # Mass
@@ -590,26 +591,27 @@ def goFIDO():
         # Sheath stuff
         if includeSIT:
             vels = [CME_v1AU,vexp, vtrans, CME.vSW]
-            sheathParams = calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[0], SatLon, SatVars0[2], CME.cs, CME.vA)
+            sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], CME.cs, CME.vA)
         else:
             sheathParams = []
         
         # order is Sat_lat [0], Sat_lon0 [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
-        # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12], end [13], vexp[14], 
-        # Sat_rad [15], Sat_rot [16]
-        inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, 0., vexp, SatVars0[2], SatVars0[3]/60.]
-        Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, sheathParams)
-        vProf = radfrac2vprofile(radfrac, CME_v1AU, vexp)
+        # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
+        # Sat_rad [14], Sat_rot [15]
+        inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, vexp, SatVars0[2], SatVars0[3]/60.]
+        Bout, tARR, Bsheath, tsheath, radfrac = FIDO.run_case(inps, sheathParams)
+        vProf = FIDO.radfrac2vprofile(radfrac, CME_v1AU, vexp)
         
         # Down sample B resolution
         t_res = 1 # resolution = 60 mins/ t_res
-        tARRDS = hourify(t_res*tARR, tARR)
-        BvecDS = [hourify(t_res*tARR,Bout[0][:]), hourify(t_res*tARR,Bout[1][:]), hourify(t_res*tARR,Bout[2][:]), hourify(t_res*tARR,Bout[3][:])]
-        vProfDS = hourify(t_res*tARR, vProf)
-        # write sheath stuff first if needed
+        tARRDS = FIDO.hourify(t_res*tARR, tARR)
+        BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
+        vProfDS = FIDO.hourify(t_res*tARR, vProf)
+        
+        # Write sheath stuff first if needed
         if includeSIT:
-            tsheathDS = hourify(t_res*tsheath, tsheath)
-            BsheathDS = [hourify(t_res*tsheath,Bsheath[0][:]), hourify(t_res*tsheath,Bsheath[1][:]), hourify(t_res*tsheath,Bsheath[2][:]), hourify(t_res*tsheath,Bsheath[3][:])]
+            tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
+            BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
             for j in range(len(BsheathDS[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
@@ -617,6 +619,7 @@ def goFIDO():
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 FIDOfile.write(outprint+'\n')
+        # Print the flux rope field        
         for j in range(len(BvecDS[0])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
@@ -650,6 +653,8 @@ def runOSPREI():
     else:
         # Fill in CME array for ANTEATR or FIDO
         makeCMEarray()
+    
+    readMoreInputs()
         
     if doANT: goANTEATR()
     

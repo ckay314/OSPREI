@@ -150,7 +150,7 @@ def txt2obj():
             if OSP.doFC or OSP.doANT:
                 thisRes = ResArr[i]
             else:
-                thisRes = EnsRes(OSP.thisNam)
+                thisRes = EnsRes(OSP.thisName)
             # Set as an impact not a miss (might not have run ANTEATR)
             thisRes.miss = False
             myidxs = np.where(ids==i)[0]
@@ -163,7 +163,8 @@ def txt2obj():
             Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
             Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
             thisRes.FIDOKps   = Kp
-    
+            ResArr[i] = thisRes
+            
     # if we ran an ensemble load up the initial parameters for each member        
     if len(ResArr.keys()) > 1:
         ENSfile = OSP.Dir+'/EnsembleParams'+OSP.thisName+'.dat' 
@@ -431,7 +432,10 @@ def makeISplot(ResArr):
             #dates = datetime.datetime(yr, 1, 1) + datetime.timedelta(datesNUM - 1)
             base = datetime.datetime(yr, 1, 1, 1, 0)
             #dates = ResArr[key].FIDOtimes
-            dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes])
+            if not OSP.doANT:
+                dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes])
+            else:
+                dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes])
             if mindate is None: 
                 mindate = np.min(dates)
                 maxdate = np.max(dates)
@@ -840,16 +844,16 @@ global nEns
 nEns = len(ResArr.keys())
     
 # Make CPA plot
-makeCPAplot(ResArr)  
+#makeCPAplot(ResArr)  
 
 # Make drag profile
-makeDragplot(ResArr)
+#makeDragplot(ResArr)
 
 # Make in situ plot
 makeISplot(ResArr)
 
 # Ensemble plots
-if nEns > 1:
+'''if nEns > 1:
     # Make arrival time hisogram 
     makeAThisto(ResArr)
     
@@ -863,7 +867,7 @@ if nEns > 1:
     makeKpprob(ResArr)
 
     # Make location contour plot
-    makeImpContours(ResArr)
+    makeImpContours(ResArr)'''
 
 
 

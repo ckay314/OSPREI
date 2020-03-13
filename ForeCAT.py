@@ -126,9 +126,8 @@ def runForeCAT(CME, rmax, silent=False, path=False):
 
 
 
-# uncomment these if just running a single simulation i.e. python ForeCAT.py input.txt
-# not from the OSPREI wrapper
-#input_values, allinputs = FC.readinputfile()
-#ipos, rmax = initForeCAT(input_values)
-#CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], ipos)
-#CME = runForeCAT(CME, rmax)
+if __name__ == '__main__':
+    input_values, allinputs = FC.readinputfile()
+    ipos, rmax = initForeCAT(input_values)
+    CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], ipos)
+    CME = runForeCAT(CME, rmax)

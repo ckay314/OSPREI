@@ -56,17 +56,6 @@ def rotz(vec, ang):
 	yout = np.sin(ang) * vec[0] + np.cos(ang) * vec[1]
 	return [xout, yout, vec[2]]
     
-# Pull in inputs from text file
-def getANTinputs(inputs):
-    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW', 'BSW', 'cs', 'vA']
-    # if matches add to dictionary
-    input_values = {}
-    for i in range(len(inputs)):
-        temp = inputs[i]
-        if temp[0][:-1] in possible_vars:
-            input_values[temp[0][:-1]] = temp[1]
-    return input_values
-
 def processANTinputs(input_values):
     Epos = [0.,0.,213.,360/365.256/24./60.] # sat_lat, sat_lon, sat_rad, sat_rod
     try: 
