@@ -19,14 +19,41 @@ kmRs  = 1.0e5 / rsun # km (/s) divided by rsun (in cm)
 
 
 # variables that carry all the simulation params
-global inps, shinps
+global inps, shinps, calcSheathParams
+# set up with default values that will get replaced when 
+# set by user
+inps = np.zeros(16)
+inps[0]  = 0.       # Satellite Latitude
+inps[1]  = 0.       # Satellite Longitude
+inps[2]  = 0.       # CME Latitude
+inps[3]  = 0.       # CME Longitude
+inps[4]  = 0.       # CME Tilt
+inps[5]  = 45.      # Angular Width
+inps[6]  = 0.75     # CME Shape Ratio A
+inps[7]  = 0.35     # CME Shape Ratio B
+inps[8]  = 440.     # CME bulk/radial velocity
+inps[9]  = 25.      # CME B0
+inps[10] = 1.       # CME Polarity (+ = RH, - = LH)
+inps[11] = 0.       # t Shift (rel. to CME start)
+inps[12] = 0.       # CME start
+inps[13] = 0.       # CME expansion velocity
+inps[14] = 213.     # Satellite radius
+inps[15] = 1.141e-5 # Satellite orbital rate
+shinps = np.zeros(6)
+shinps[0] =  -12    # Sheath Start Time
+shinps[1] =  12     # Sheath Duration
+shinps[2] =  2.0    # Compression
+shinps[3] =  500.   # Sheath Velocity
+shinps[4] =  4.     # SW Br
+shinps[5] =  -4.    # SW Bphi
 
 # settings for the model and their defaults
-global expansion_model, ISfilename, hasSheath, canPrint
+global expansion_model, ISfilename, hasSheath, calcSheath, canPrint
 expansion_model = 'None'
 ISfilename = False
-hasSheath = False
-canPrint = False
+hasSheath  = False
+calcSheath = False
+canPrint   = False
 
 
 # -------------------------------------------------------------------------------------- #
@@ -290,6 +317,8 @@ def run_case(inpsIn, shinpsIn):
     # run the simulation    
     Bout, tARR, isHit, ImpParam, radfrac = getFRprofile()
     # execute extra functions as needed
+    Bsheath = []
+    tsheath = []
     if isHit:
         # Add sheath if desired
         if hasSheath:
@@ -300,9 +329,6 @@ def run_case(inpsIn, shinpsIn):
             # Create a sheath by connecting jumpvec to front of flux rope
             tsheath, sheathB = make_sheath(jumpvec, Bout, CMEstart, shinps)  
             Bsheath = np.array([sheathB[1], sheathB[2], sheathB[3], sheathB[0]])
-        else:
-            Bsheath = []
-            tsheath = []
     # No impact case
     else:
         if canPrint: print ('No impact expected')
@@ -378,7 +404,7 @@ def make_sheath(jumpvec, Bout, CMEstart, shinps):
 def calcSheathInps(CMEstart, vels, nSW, BSW, satr, cs=49.5, vA=55.4):
     # Given basic SW and CME properties calculate the sheath parameters using the
     # methods from the 2020 FIDO-SIT paper
-    # vels should be [vCME at FIDO, vtransit (avg), vSW]
+    # vels should be [vbulk, vexp, vtransit (avg), vSW]
     # Assume B in is Br, was calc at 213 so scale if need be
     # Use a simple Parker model for mag field
     Br = BSW * (213./satr)**2
@@ -472,16 +498,132 @@ def determineR(vS, vSheath, vSW, cs, vA):
     
 # -------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------- #
-def read_more_inputs(inputs, input_values):
-    possible_vars = ['FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'vTrans']
-    # if matches add to dictionary
+
+def startFromText():
+    input_values = readInputFile()
+    assignInps(input_values)
+    
+def readInputFile():
+    # Takes in a file from the command line and puts parameters in a dictionary if
+    # they are given with keyword from the list
+    # Don't simulation if no file is passed but warn (will use defaults)
+    if len(sys.argv) < 2: 
+        #sys.exit("Need an input file")
+        print('No input file given!')
+        sys.exit()
+    # Read in the file    
+    input_file = sys.argv[1]
+    inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
+    # Include some duplicates between OSPREI names and more natural FIDO only names
+    # (ie CME_lat and ilat both work to set CME lat) so can reuse OSPREI .txt files
+    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA']
+    # Check if name is in list and add to dictionary if so
+    input_values = {}
     for i in range(len(inputs)):
         temp = inputs[i]
         if temp[0][:-1] in possible_vars:
             input_values[temp[0][:-1]] = temp[1]
     return input_values
+        
+def assignInps(input_values):
+    global inps, shinps, hasSheath, calcSheath
+    input_names = input_values.keys()
+    if 'Sat_lat' in input_names:
+        inps[0] = float(input_values['Sat_lat'])
+    if 'Sat_lon' in input_names:
+        inps[1] = float(input_values['Sat_lon'])
+    if 'ilat' in input_names:
+        inps[2] = float(input_values['ilat'])
+    elif 'CMElat' in input_names:
+        inps[2] = float(input_values['CMElat'])
+    if 'ilon' in input_names:
+        inps[3] = float(input_values['ilon'])
+    elif 'CMElon' in input_names:
+        inps[3] = float(input_values['CMElon'])
+    if 'tilt' in input_names:
+        inps[4] = float(input_values['tilt'])
+    if 'CMEAW' in input_names:
+        inps[5] = float(input_values['CMEAW'])
+    elif 'AWmax' in input_names:
+        inps[5] = float(input_values['AWmax'])
+    if 'shapeA' in input_names:
+        inps[6] = float(input_values['shapeA'])
+    if 'shapeB' in input_names:
+        inps[7] = float(input_values['shapeB'])
+    if 'CME_vr' in input_names:
+        inps[8] = float(input_values['CME_vr'])
+    elif 'CME_v1AU' in input_names:
+        inps[8] = float(input_values['CME_v1AU'])        
+    if 'FR_B0' in input_names:
+        inps[9] = float(input_values['FR_B0'])
+    if 'FR_pol' in input_names:
+        inps[10] = float(input_values['FR_pol'])
+    if 'tshift' in input_names:
+        inps[11] = float(input_values['tshift'])
+    if 'CME_start' in input_names:
+        inps[12] = float(input_values['CME_start'])
+    if 'CME_vExp' in input_names:
+        inps[13] = float(input_values['CME_vExp'])
+    if 'Sat_rad' in input_names:
+        inps[14] = float(input_values['Sat_rad'])
+    if 'Sat_rot' in input_names:
+        inps[15] = float(input_values['Sat_rot'])  
+    # Can either take sheath inputs from file or calculate from 
+    # given parameters
+    if 'hasSheath' in input_names:
+        if input_values['hasSheath'] == 'True':
+            hasSheath = True
+    if 'includeSIT' in input_names:
+        if input_values['includeSIT'] == 'True':
+            hasSheath = True
+    if 'sheathTime' in input_names:
+        shinps[1] = float(input_values['sheathTime'])  
+    if 'Compression' in input_names:
+        shinps[2] = float(input_values['Compression'])  
+    if 'vSheath' in input_names:
+        shinps[3] = float(input_values['vSheath']) 
+    if 'SWBr' in input_names:
+        shinps[4] = float(input_values['SWBr'])  
+    if 'SWBphi' in input_names:
+        shinps[5] = float(input_values['SWBphi'])  
+    if 'calcSheath' in input_names:
+        if input_values['calcSheath'] == 'True':
+            calcSheath = True
+    # set start of sheath based on CME_start and sheathTime        
+    shinps[0] = inps[12]-shinps[1]/24.
+    # Pull in parameters needed to calculate the sheath if needed
+    if calcSheath:
+        BSW = np.sqrt(shinps[4]**2 + shinps[5]**2) # use other values if given
+        nSW = 5.   # Solar wind number density
+        vSW = 400. # Solar wind velocity
+        vTransit = 600. # Average transit velocity
+        cs = 49.5  # Sound speed
+        vA = 55.4  # Alfven speed
+        if 'BSW' in input_names:
+            BSW = float(input_values['BSW'])
+        if 'nSW' in input_names:
+            nSW = float(input_values['nSW'])
+        if 'vSW' in input_names:
+            vSW = float(input_values['vSW'])
+        if 'vTransit' in input_names:
+            vTransit = float(input_values['vTransit'])
+        if 'cs' in input_names:
+            cs = float(input_values['cs'])
+        if 'vA' in input_names:
+            vA = float(input_values['vA'])
+            
+        vels =  [inps[8], inps[13], vTransit, vSW]
+        shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
 
 
 if __name__ == '__main__':
-    inps = [4.131, 80.83, -12.280000102840006, 90.99999979431998, 38.37, 64.99999992222988, 0.7, 0.6, 500.0, -70.0, 1.0, 0.0, 2.45, 0.0, 213.0, 1.1407524220455427e-05]    
-    Bout, tARR, isHit, ImpParam, radfrac = run_case(inps, [])
+    # order is Sat_lat [0], Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
+    # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
+    # Sat_rad [14], Sat_rot [15]
+    
+    startFromText()
+    #inps = [4.131, 80.83, -12.280000102840006, 90.99999979431998, 38.37, 64.99999992222988, 0.7, 0.6, 500.0, -70.0, 1.0, 0.0, 2.45, 0.0, 213.0, 1.1407524220455427e-05]    
+    Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, shinps)
+    print(Bout)
+    print(Bsheath)
+    
