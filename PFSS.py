@@ -175,13 +175,12 @@ def makedapickle(date,nHarmonics, Rss):
             dataa[iR,:,:,2] = Bxyz[2]
             dataa[iR,:,:,3] = np.sqrt(Bxyz[0]**2 + Bxyz[1]**2 + Bxyz[2]**2)
         # Higher half
-        if iR >= nR/2:
-            newiR = int(iR - nR/2)
+        if iR >= nR/2-1:
+            newiR = int(iR - nR/2)+1
             datab[newiR,:,:,0] = Bxyz[0]
             datab[newiR,:,:,1] = Bxyz[1]
             datab[newiR,:,:,2] = Bxyz[2]
             datab[newiR,:,:,3] = np.sqrt(Bxyz[0]**2 + Bxyz[1]**2 + Bxyz[2]**2)
-    
     #fig = plt.figure()
     #plt.imshow(dataa[0,:,:,0], origin='lower')
     #plt.show()

@@ -39,21 +39,23 @@ inps[12] = 0.       # CME start
 inps[13] = 0.       # CME expansion velocity
 inps[14] = 213.     # Satellite radius
 inps[15] = 1.141e-5 # Satellite orbital rate
-shinps = np.zeros(6)
+shinps = np.zeros(7)
 shinps[0] =  -12    # Sheath Start Time
 shinps[1] =  12     # Sheath Duration
 shinps[2] =  2.0    # Compression
 shinps[3] =  500.   # Sheath Velocity
-shinps[4] =  4.     # SW Br
-shinps[5] =  -4.    # SW Bphi
+shinps[4] =  -4.    # SW Bx
+shinps[5] =  4.     # SW By
+shinps[6] =  0.     # SW Bz
 
 # settings for the model and their defaults
-global expansion_model, ISfilename, hasSheath, calcSheath, canPrint
+global expansion_model, ISfilename, hasSheath, calcSheath, canPrint, ObsData
 expansion_model = 'None'
 ISfilename = False
 hasSheath  = False
 calcSheath = False
 canPrint   = False
+ObsData    = None
 
 
 # -------------------------------------------------------------------------------------- #
@@ -312,7 +314,7 @@ def run_case(inpsIn, shinpsIn):
     shinps = shinpsIn
     
     # use to set sheath end
-    CMEstart = inps[12]
+    CMEstart = inps[12] + inps[11]/24.
     
     # run the simulation    
     Bout, tARR, isHit, ImpParam, radfrac = getFRprofile()
@@ -323,7 +325,7 @@ def run_case(inpsIn, shinpsIn):
         # Add sheath if desired
         if hasSheath:
             # Given Br and Bphi in shinps-> change to taking in [B, Bx, By, Bz]?
-            upB = np.array([np.sqrt(shinps[4]**2+shinps[5]**2),-shinps[4],-shinps[5], 0.])   
+            upB = np.array([np.sqrt(shinps[4]**2+shinps[5]**2+shinps[6]**2),shinps[4],shinps[5], shinps[6]])   
             # Calculate compressed magnetic field            
             jumpvec = upB * shinps[2] 
             # Create a sheath by connecting jumpvec to front of flux rope
@@ -332,7 +334,6 @@ def run_case(inpsIn, shinpsIn):
     # No impact case
     else:
         if canPrint: print ('No impact expected')
-      
     return Bout, tARR, Bsheath, tsheath, radfrac 
 
 # -------------------------------------------------------------------------------------- #
@@ -401,15 +402,20 @@ def make_sheath(jumpvec, Bout, CMEstart, shinps):
     return tSheath, Bsheath
 
 # -------------------------------------------------------------------------------------- #
-def calcSheathInps(CMEstart, vels, nSW, BSW, satr, cs=49.5, vA=55.4):
+def calcSheathInps(CMEstart, vels, nSW, BSW, satr, B=None, cs=49.5, vA=55.4):
     # Given basic SW and CME properties calculate the sheath parameters using the
     # methods from the 2020 FIDO-SIT paper
     # vels should be [vbulk, vexp, vtransit (avg), vSW]
     # Assume B in is Br, was calc at 213 so scale if need be
     # Use a simple Parker model for mag field
-    Br = BSW * (213./satr)**2
-    Bphi = -Br * (2.7e-6) * satr * 7e5 / vels[3]
-    BSW = np.sqrt(Br**2+Bphi**2)
+    # BSW can be positive for radial out or neg for radial in
+    if B == None:
+        # scale to sat distance if not 1 AU
+        BphiBr = (2.7e-6) * satr * 7e5 / vels[3]
+        Br = BSW/np.sqrt(1+BphiBr**2) * (213./satr)**2
+        Bphi = -Br * BphiBr 
+        BSW = np.sqrt(Br**2+Bphi**2)
+        B = [-Br, -Bphi, 0.]
     # Calculate Alfven speed
     vA = BSW *1e-5 / np.sqrt(4*3.14159 * nSW * 1.67e-24) / 1e5
     # Velocity at front of flux rope (expansion+bulk)
@@ -420,7 +426,7 @@ def calcSheathInps(CMEstart, vels, nSW, BSW, satr, cs=49.5, vA=55.4):
     compression, vs =getPerpSheath(vfront, vels[3], nSW, BSW, cs, vA)
     # Sheath duration from MLR
     sheathTime = (-16.1*(vfront) + 11.9*(vs- vfront) + 6.8*vels[2] +7776)/sheathv
-    return [CMEstart-sheathTime/24., sheathTime, compression, sheathv, Br, Bphi]
+    return [CMEstart-sheathTime/24., sheathTime, compression, sheathv, B[0], B[1], B[2]]
     
 # -------------------------------------------------------------------------------------- #
 def getPerpSheath(vSheath, vSW, nSW, BSW, csin=49.5, vAin=55.4):
@@ -511,12 +517,13 @@ def readInputFile():
         #sys.exit("Need an input file")
         print('No input file given!')
         sys.exit()
-    # Read in the file    
+    # Read in the file   
+    global input_file 
     input_file = sys.argv[1]
     inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
     # Include some duplicates between OSPREI names and more natural FIDO only names
     # (ie CME_lat and ilat both work to set CME lat) so can reuse OSPREI .txt files
-    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA']
+    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA', 'SWBx', 'SWBy', 'SWBz', 'ObsDataFile']
     # Check if name is in list and add to dictionary if so
     input_values = {}
     for i in range(len(inputs)):
@@ -526,24 +533,28 @@ def readInputFile():
     return input_values
         
 def assignInps(input_values):
-    global inps, shinps, hasSheath, calcSheath
+    global inps, shinps, hasSheath, calcSheath, expansion_model, ObsData
     input_names = input_values.keys()
+    if 'ObsDataFile' in input_names:
+        ObsData = input_values['ObsDataFile']
     if 'Sat_lat' in input_names:
         inps[0] = float(input_values['Sat_lat'])
     if 'Sat_lon' in input_names:
         inps[1] = float(input_values['Sat_lon'])
     if 'ilat' in input_names:
         inps[2] = float(input_values['ilat'])
-    elif 'CMElat' in input_names:
-        inps[2] = float(input_values['CMElat'])
+    elif 'CME_lat' in input_names:
+        inps[2] = float(input_values['CME_lat'])
     if 'ilon' in input_names:
         inps[3] = float(input_values['ilon'])
-    elif 'CMElon' in input_names:
-        inps[3] = float(input_values['CMElon'])
+    elif 'CME_lon' in input_names:
+        inps[3] = float(input_values['CME_lon'])
     if 'tilt' in input_names:
         inps[4] = float(input_values['tilt'])
-    if 'CMEAW' in input_names:
-        inps[5] = float(input_values['CMEAW'])
+    elif 'CME_tilt' in input_names:
+        inps[4] = float(input_values['CME_tilt'])
+    if 'CME_AW' in input_names:
+        inps[5] = float(input_values['CME_AW'])
     elif 'AWmax' in input_names:
         inps[5] = float(input_values['AWmax'])
     if 'shapeA' in input_names:
@@ -568,6 +579,9 @@ def assignInps(input_values):
         inps[14] = float(input_values['Sat_rad'])
     if 'Sat_rot' in input_names:
         inps[15] = float(input_values['Sat_rot'])  
+    if 'Expansion_Model' in input_names:
+        expansion_model = input_values['Expansion_Model']
+        
     # Can either take sheath inputs from file or calculate from 
     # given parameters
     if 'hasSheath' in input_names:
@@ -582,16 +596,25 @@ def assignInps(input_values):
         shinps[2] = float(input_values['Compression'])  
     if 'vSheath' in input_names:
         shinps[3] = float(input_values['vSheath']) 
-    if 'SWBr' in input_names:
-        shinps[4] = float(input_values['SWBr'])  
-    if 'SWBphi' in input_names:
-        shinps[5] = float(input_values['SWBphi'])  
+    countBsIn = 0    
+    if 'SWBx' in input_names:
+        shinps[4] = float(input_values['SWBx'])  
+        countBsIn += 1
+    if 'SWBy' in input_names:
+        shinps[5] = float(input_values['SWBy']) 
+        countBsIn += 1 
+    if 'SWBz' in input_names:
+        shinps[6] = float(input_values['SWBz'])
+        countBsIn += 1
     if 'calcSheath' in input_names:
         if input_values['calcSheath'] == 'True':
             calcSheath = True
     # set start of sheath based on CME_start and sheathTime        
     shinps[0] = inps[12]-shinps[1]/24.
     # Pull in parameters needed to calculate the sheath if needed
+    global moreShinps
+    # put in defaults
+    moreShinps = [5., 400., 49.5, 55.4, 600.]
     if calcSheath:
         BSW = np.sqrt(shinps[4]**2 + shinps[5]**2) # use other values if given
         nSW = 5.   # Solar wind number density
@@ -611,10 +634,84 @@ def assignInps(input_values):
             cs = float(input_values['cs'])
         if 'vA' in input_names:
             vA = float(input_values['vA'])
+        moreShinps = [nSW, vSW, cs, vA, vTransit]
             
         vels =  [inps[8], inps[13], vTransit, vSW]
-        shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
-
+        if countBsIn == 3:
+            Bvec = [shinps[4], shinps[5], shinps[6]]
+            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], B=Bvec, cs=cs, vA=vA)    
+        else:
+            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
+            
+def saveResults(Bout, tARR, Bsheath, tsheath, radfrac, t_res=1):
+    # Save a file with the data
+    FIDOfile = open('FIDOresults'+input_file[:-4]+'.dat', 'w')
+    print ('Saving results in ', 'FIDOresults'+input_file[:-4]+'.dat')
+    # Down sample B resolution
+    # resolution = 60 mins/ t_res -> # of points per hour
+    tARRDS = hourify(t_res*tARR, tARR)
+    BvecDS = [hourify(t_res*tARR,Bout[0][:]), hourify(t_res*tARR,Bout[1][:]), hourify(t_res*tARR,Bout[2][:]), hourify(t_res*tARR,Bout[3][:])]
+    vProf = radfrac2vprofile(radfrac, inps[8], inps[13])
+    vProfDS = hourify(t_res*tARR, vProf)
+    
+    # Write sheath stuff first if needed
+    if hasSheath:
+        tsheathDS = hourify(t_res*tsheath, tsheath)
+        BsheathDS = [hourify(t_res*tsheath,Bsheath[0][:]), hourify(t_res*tsheath,Bsheath[1][:]), hourify(t_res*tsheath,Bsheath[2][:]), hourify(t_res*tsheath,Bsheath[3][:])]
+        for j in range(len(BsheathDS[0])):
+            outprint = ''
+            outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], shinps[3]]
+            for iii in outstuff:
+                outprint = outprint +'{:6.3f}'.format(iii) + ' '
+            FIDOfile.write(outprint+'\n')
+    # Print the flux rope field        
+    for j in range(len(BvecDS[0])):
+        outprint = ''
+        outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
+        for iii in outstuff:
+            outprint = outprint +'{:6.3f}'.format(iii) + ' '
+        FIDOfile.write(outprint+'\n')
+        
+def saveRestartFile():
+    # Save a new file FIDO.inp with the current values of everything
+    print('Saving current parameters in FIDO.inp')
+    FIDOfile = open('FIDO.inp', 'w')
+    if ObsData != None:
+        FIDOfile.write('ObsDataFile: '+ObsData+'\n')
+    FIDOfile.write('Sat_lat: '+str(inps[0])+'\n')
+    FIDOfile.write('Sat_lon: '+str(inps[1])+'\n')
+    FIDOfile.write('CME_lat: '+str(inps[2])+'\n')
+    FIDOfile.write('CME_lon: '+str(inps[3])+'\n')
+    FIDOfile.write('CME_tilt: '+str(inps[4])+'\n')
+    FIDOfile.write('CME_AW: '+str(inps[5])+'\n')
+    FIDOfile.write('shapeA: '+str(inps[6])+'\n')
+    FIDOfile.write('shapeB: '+str(inps[7])+'\n')
+    FIDOfile.write('CME_vr: '+str(inps[8])+'\n')
+    FIDOfile.write('FR_B0: '+str(inps[9])+'\n')
+    FIDOfile.write('FR_pol: '+str(inps[10])+'\n')
+    FIDOfile.write('tshift: '+str(inps[11])+'\n')
+    FIDOfile.write('CME_start: '+str(inps[12])+'\n')
+    FIDOfile.write('CME_vExp: '+str(inps[13])+'\n')
+    FIDOfile.write('Sat_rad: '+str(inps[14])+'\n')
+    FIDOfile.write('Sat_rot: '+str(inps[15])+'\n')
+    FIDOfile.write('Expansion_Model: '+expansion_model+'\n')
+    FIDOfile.write('hasSheath: ' + str(hasSheath)+'\n')
+    if hasSheath:
+        FIDOfile.write('calcSheath: '+str(calcSheath)+'\n')
+        FIDOfile.write('sheathTime: '+'{:6.2f}'.format(shinps[1])+'\n')
+        FIDOfile.write('Compression: ''{:6.2f}'.format(shinps[2])+'\n')
+        FIDOfile.write('vSheath: '+'{:6.2f}'.format(shinps[3])+'\n')
+        FIDOfile.write('SWBx: '+str(shinps[4])+'\n')
+        FIDOfile.write('SWBy: '+str(shinps[5])+'\n')
+        FIDOfile.write('SWBz: '+str(shinps[6])+'\n')
+        if calcSheath:
+            FIDOfile.write('nSW: '+str(moreShinps[0])+'\n')
+            FIDOfile.write('vSW: '+str(moreShinps[1])+'\n')
+            FIDOfile.write('cs: '+str(moreShinps[2])+'\n')
+            FIDOfile.write('vA: '+str(moreShinps[3])+'\n')
+            FIDOfile.write('vTransit: '+str(moreShinps[4])+'\n')            
+            
+    FIDOfile.close()
 
 if __name__ == '__main__':
     # order is Sat_lat [0], Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
