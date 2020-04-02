@@ -123,19 +123,18 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
     vSW       = invec[8] * 1e5
     SWrho0    = invec[9] * 1.67e-24
     Cd        = invec[10]    
-
+    
     CdivR = np.tan(CMEAW) / (1. + CMEB + np.tan(CMEAW) * (CMEA + CMEB))
-
     #Erotrate = 360/365./24/60. # deg per min
     # start w/o Earth rot so not considering changes in Elon due to diff in transit time
     #Erotrate = 0.
-    
+
     # calculate any E rot between the time given and the start of the ANTEATR simulation
     #dElon1 = (t20-tGCS) * Erotrate
 
     vCME = CMEvel0
     Elon = Elon0
-    vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
+    vExp = CMEB * SSscale * vCME * CdivR
     bCME = CdivR * rCME * CMEB
     
     dt = 1
@@ -149,20 +148,26 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
     outvBulks = []
     outvExps  = []
     outAWs    = []
+    inclExp = True
     while rCME <= Er:
         t += dt
         rCME += vCME*dt*60/7e10 
         bCME += vExp*dt*60/7e10
         CtimesR = bCME / CMEB
-        #CtimesR = CdivR * rCME
         rcent = rCME - (CMEA+CMEB) * CtimesR
         CMEAW = np.arctan(CtimesR*(1+CMEB)/rcent)
         CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
         SWrho = SWrho0 * (Er/rcent)**2
-        dV = -Cd * CMEarea * SWrho * (vCME-vExp-vSW) * np.abs(vCME-vExp-vSW) * dt * 60 / CMEmass
+        if inclExp == True:
+            vbulk = vCME - 0.637*(CMEA/CMEB+1)*vExp
+            fSW = np.sin(CMEAW)/CMEAW
+            dV = -Cd * CMEarea * SWrho * (vbulk-fSW*vSW) * np.abs(vbulk-fSW*vSW) * dt * 60 / CMEmass
+        else:
+            dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+            
         vCME += dV
         Elon += Erotrate * dt
-        vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
+        vExp = CMEB * SSscale * vCME * CdivR
         if (rCME>printR): 
             printR += 5
             outTs.append(t/60./24.)
@@ -187,10 +192,16 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
         #if rCME > 220: print asf
         CMEarea = 4*CMEB*CtimesR**2 * (7e10)**2
         SWrho = SWrho0 * (Er/rcent)**2
-        dV = -Cd * CMEarea * SWrho * (vCME-vExp-vSW) * np.abs(vCME-vExp-vSW) * dt * 60 / CMEmass
+        if inclExp == True:
+            vbulk = vCME - 0.637*(CMEA/CMEB+1)*vExp
+            fSW = np.sin(CMEAW)/CMEAW
+            dV = -Cd * CMEarea * SWrho * (vbulk-fSW*vSW) * np.abs(vbulk-fSW*vSW) * dt * 60 / CMEmass
+        else:
+            dV = -Cd * CMEarea * SWrho * (vCME-vSW) * np.abs(vCME-vSW) * dt * 60 / CMEmass
+            
         vCME += dV
         Elon += Erotrate * dt
-        vExp = SSscale*vCME / (1. + (1+CMEB+CMEA*np.tan(CMEAW))/(np.tan(CMEAW)*CMEB)) # if vCME = vNose and self-sim
+        vExp = CMEB * SSscale * vCME * CdivR
         thetas = np.linspace(-math.pi/2, math.pi/2,1001)
         Epos1 = SPH2CART([Er,Elat,Elon])
         temp = rotz(Epos1, -CMElon)
@@ -201,6 +212,7 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
         dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMEB*CtimesR)**2
         CAang = thetas[np.where(dists2 == np.min(dists2))]
         thismin = np.min(dists2)
+        #print(rCME, thismin)
         if (rCME>printR): 
             printR += 5
             outTs.append(t/60./24.)
@@ -219,6 +231,11 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
             outvBulks.append((vCME-vExp)/1e5)
             outvExps.append(vExp/1e5)
             outAWs.append(CMEAW*180./3.14159)
+            # Calculate angle between radial direction and CME normal
+            # to adjust velocities.  Take avg of a+c for axis radius
+            # as first approx.  Derived from law of cosines
+            FullrCME = bCME + 0.5*(1+CMEA)*CtimesR
+            ndotr = (Er**2 + FullrCME**2 - rcent**2)/(2*Er*FullrCME)
             if not silent:
                 print ('Transit Time:     ', TT)
                 print ('Final Velocity:   ', vCME/1e5)
@@ -227,11 +244,11 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
             #print Elon, rCME, vCME/1e5#,CAang[0]/dtor, np.tan(Epos2[1]/(CMEB*CtimesR))/dtor
             #print CAang[0]/dtor
             inCME = True
-            return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs]), Elon, ElonEr       
+            return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs]), Elon, ElonEr, ndotr       
         elif thismin < prevmin:
             prevmin = thismin
         else:
-            return np.array([[9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999 
+            return np.array([[9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
 
 #invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
 # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!

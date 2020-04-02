@@ -22,6 +22,8 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
+np.random.seed(120150)
+
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
@@ -180,7 +182,7 @@ def genEnsMem(runnum=0):
     outstr = str(runnum)
     outstr = outstr.zfill(4) + '   '
     flagAccel = False
-    new_pos = np.empty(3)
+    new_pos = [float(input_values['ilat']), float(input_values['ilon']), float(input_values['tilt'])]
     for item in EnsInputs.keys():
         # Sort out what variable we adjust for each param
         # The lambda functions will auto adjust to new global values in them
@@ -321,6 +323,7 @@ def goForeCAT():
     if 'SSscale'  in input_values: CME.SSscale = float(input_values['SSscale'])
     
     for i in range(nRuns):
+        
         print('Running ForeCAT simulation '+str(i+1)+' of '+str(nRuns))
     
         # Make a new ensemble member
@@ -340,8 +343,8 @@ def goForeCAT():
         # will repeatedly need sin/cos of lon/colat -> calc once here
         latID = int(CME.cone[1,1]*2 + 179)
         lonID = int(CME.cone[1,2]*2)
-        fullBvec = ForceFields.B_high[-2,latID,lonID]
-        inorout = np.sign (np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
+        fullBvec = ForceFields.B_high[-1,latID,lonID]
+        inorout = np.sign(np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
         CME.BSW = inorout*fullBvec[3] * (rmax/213)**2 *1e5
         # calc alfven speed
         CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
@@ -432,20 +435,22 @@ def goANTEATR():
     SatRotRate = SatVars0[3]
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
-    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs, ANTvTrans, SWv, SWn
+    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs, ANTvTrans, SWv, SWn, ANTCMErs
     ANTvBulks = {}
     ANTvExps = {}
     ANTts  = {}
     ANTsatLons = {}
     ANTAWs  = {}
+    ANTCMErs = {}
     impactIDs = []
     ANTvTrans = {}
     
     # Check if we were give SW values or if using background from ForeCAT
     givenSW = False
-    if -9999 not in mySW:  
-        givenSW = True
-        nSW, vSW = mySW[0], mySW[1]
+    # Uncomment this if want to use input values from txt files
+    #if -9999 not in mySW:  
+    #    givenSW = True
+    #    nSW, vSW = mySW[0], mySW[1]
     
     for i in range(nRuns):
         myParams = SatVars0
@@ -478,8 +483,7 @@ def goANTEATR():
         
         # Package up invec, run ANTEATR
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeA, cmeB, vSW, nSW, Cd]
-        ATresults, Elon, ElonEr = getAT(invec,CMEr0,myParams, silent=True, SSscale=CME.SSscale)
-        
+        ATresults, Elon, ElonEr, ndotr = getAT(invec,CMEr0,myParams, silent=True, SSscale=CME.SSscale)
         # Check if miss or hit  
         if ATresults[0][0] != 9999:
             impactIDs.append(i)
@@ -495,14 +499,15 @@ def goANTEATR():
             CMEAW = ATresults[5][-1]
             
             # Store things to pass to FIDO ensembles
-            ANTsatLons[i] = ElonEr # lon at time CME nose is at Earth/sat radius
+            ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
+            ANTCMErs[i] = rCME
             ANTvBulks[i] = CMEvbulk#ATresults[1] 
             ANTvExps[i]  = CMEvexp
             ANTAWs[i] = CMEAW
             ANTts[i] = TotTime
             ANTvTrans[i] = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
                         
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(ndotr*CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(ndotr*CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
             
@@ -523,6 +528,8 @@ def goANTEATR():
             
             #outprint = outprint + '{:4.2f}'.format(nSW) + ' ' + '{:4.2f}'.format(vSW)
             #ANTEATRfile.write(outprint+'\n')
+        else:
+            print('miss')
     ANTEATRfile.close()    
     
 def goFIDO():
@@ -571,16 +578,18 @@ def goFIDO():
             vexp = ANTvExps[i]
             cmeAW = ANTAWs[i]
             vtrans = ANTvTrans[i]
+            CMEr = ANTCMErs[i]
         else:
             SatLon = SatVars0[1]
             CME_v1AU = float(input_values['CME_v1AU'])
             vexp  = CME.vExp      
             cmeAW = CME.ang_width*radeg
+            CMEr = CME.points[CC.idcent][1,0]
             if includeSIT:
                 vtrans = float(input_values['vTrans'])
 
         # Other CME parameters from CME object
-        CMEr, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
+        CMElat, CMElon =  CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
         tilt = CME.tilt
         # Mass
         mass = CME.M/1e15
@@ -591,51 +600,59 @@ def goFIDO():
         # Sheath stuff
         if includeSIT:
             vels = [CME_v1AU,vexp, vtrans, CME.vSW]
-            sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], CME.cs, CME.vA)
+            sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
         else:
             sheathParams = []
         
         # order is Sat_lat [0], Sat_lon0 [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
         # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
         # Sat_rad [14], Sat_rot [15]
-        inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, vexp, SatVars0[2], SatVars0[3]/60.]
-        Bout, tARR, Bsheath, tsheath, radfrac = FIDO.run_case(inps, sheathParams)
-        vProf = FIDO.radfrac2vprofile(radfrac, CME_v1AU, vexp)
+        inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, vexp, SatVars0[2], SatVars0[3]/60., CMEr]
+        flagit = False
+        try:
+            Bout, tARR, Bsheath, tsheath, radfrac, isHit = FIDO.run_case(inps, sheathParams)
+            vProf = FIDO.radfrac2vprofile(radfrac, CME_v1AU, vexp)
+        except:
+            # sometimes get a miss even though ANTEATR says hit?
+            # for now just flag and skip
+            flagit = True
         
-        # Down sample B resolution
-        t_res = 1 # resolution = 60 mins/ t_res
-        tARRDS = FIDO.hourify(t_res*tARR, tARR)
-        BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
-        vProfDS = FIDO.hourify(t_res*tARR, vProf)
+        if not flagit:    
+            # Down sample B resolution
+            t_res = 1 # resolution = 60 mins/ t_res
+            tARRDS = FIDO.hourify(t_res*tARR, tARR)
+            BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
+            vProfDS = FIDO.hourify(t_res*tARR, vProf)
         
-        # Write sheath stuff first if needed
-        if includeSIT:
-            tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
-            BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
-            for j in range(len(BsheathDS[0])):
+            # Write sheath stuff first if needed
+            if includeSIT:
+                tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
+                BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
+                for j in range(len(BsheathDS[0])):
+                    outprint = str(i)
+                    outprint = outprint.zfill(4) + '   '
+                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]]
+                    for iii in outstuff:
+                        outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                    FIDOfile.write(outprint+'\n')
+            # Print the flux rope field        
+            for j in range(len(BvecDS[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]]
+                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                FIDOfile.write(outprint+'\n')
-        # Print the flux rope field        
-        for j in range(len(BvecDS[0])):
-            outprint = str(i)
-            outprint = outprint.zfill(4) + '   '
-            outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
-            for iii in outstuff:
-                outprint = outprint +'{:6.3f}'.format(iii) + ' '
-            FIDOfile.write(outprint+'\n')    
+                FIDOfile.write(outprint+'\n')    
             
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        '''cols = ['k', 'b','r', 'k']  
-        fig = plt.figure()
-        for i2 in range(len(Bout)):
-            plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
-            plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
-        plt.show() '''
+        if False:
+            cols = ['k', 'b','r', 'k']  
+            fig = plt.figure()
+            for i2 in range(len(Bout)):
+                #plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
+                plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
+            plt.show() 
         print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
     FIDOfile.close()
     

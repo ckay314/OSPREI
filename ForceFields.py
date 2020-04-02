@@ -770,16 +770,16 @@ def getBCPU(Rin, lat, lon, scangs, printit=False):
 	
 	# determine the B at the 8 adjacent points
 	# assuming B low for now!!!!!
-	B1 = theChosenPickle[Rids, latIDs+1, lonIDs,:]
-	B2 = theChosenPickle[Rids, latIDs+1, (lonIDs+1)%720,:]
-	B3 = theChosenPickle[Rids, latIDs, lonIDs,:]
-	B4 = theChosenPickle[Rids, latIDs, (lonIDs+1)%720,:]
+	B1 = theChosenPickle[Rids, latIDs+1, lonIDs%719,:]
+	B2 = theChosenPickle[Rids, latIDs+1, (lonIDs+1)%719,:]
+	B3 = theChosenPickle[Rids, latIDs, lonIDs%719,:]
+	B4 = theChosenPickle[Rids, latIDs, (lonIDs+1)%719,:]
 	upRids = Rids+1
 	upRids[aboveSS] = -1
-	B5 = theChosenPickle[upRids, latIDs+1, lonIDs,:]
-	B6 = theChosenPickle[upRids, latIDs+1, (lonIDs+1)%720,:]
-	B7 = theChosenPickle[upRids, latIDs, lonIDs,:]
-	B8 = theChosenPickle[upRids, latIDs, (lonIDs+1)%720,:]
+	B5 = theChosenPickle[upRids, latIDs+1, lonIDs%719,:]
+	B6 = theChosenPickle[upRids, latIDs+1, (lonIDs+1)%719,:]
+	B7 = theChosenPickle[upRids, latIDs, lonIDs%719,:]
+	B8 = theChosenPickle[upRids, latIDs, (lonIDs+1)%719,:]
 
 	# determine weighting of interpolation points
 	flat = lat*2 - latIDs + 179

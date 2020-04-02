@@ -19,10 +19,10 @@ kmRs  = 1.0e5 / rsun # km (/s) divided by rsun (in cm)
 
 
 # variables that carry all the simulation params
-global inps, shinps, calcSheathParams
+global inps, shinps, calcSheathParams, moreShinps
 # set up with default values that will get replaced when 
 # set by user
-inps = np.zeros(16)
+inps = np.zeros(17)
 inps[0]  = 0.       # Satellite Latitude
 inps[1]  = 0.       # Satellite Longitude
 inps[2]  = 0.       # CME Latitude
@@ -39,6 +39,7 @@ inps[12] = 0.       # CME start
 inps[13] = 0.       # CME expansion velocity
 inps[14] = 213.     # Satellite radius
 inps[15] = 1.141e-5 # Satellite orbital rate
+inps[16] = 212      # CME starting radius (Rs)
 shinps = np.zeros(7)
 shinps[0] =  -12    # Sheath Start Time
 shinps[1] =  12     # Sheath Duration
@@ -47,6 +48,13 @@ shinps[3] =  500.   # Sheath Velocity
 shinps[4] =  -4.    # SW Bx
 shinps[5] =  4.     # SW By
 shinps[6] =  0.     # SW Bz
+moreShinps = np.zeros(5)
+moreShinps[0] = 5.   # nSW
+moreShinps[1] = 400. # vSW
+moreShinps[2] = 49.5 # cs
+moreShinps[3] = 55.4 # vA
+moreShinps[4] = 600  # transit time
+    
 
 # settings for the model and their defaults
 global expansion_model, ISfilename, hasSheath, calcSheath, canPrint, ObsData
@@ -153,7 +161,6 @@ def isinCME(vec_in, CME_shape):
     CME_crossrad = CME_shape[2]
     # Return if outside -> misses the satellite
     if (myb > CME_crossrad):
-        #print CME_shape[2]+CME_shape[1]+CME_shape[0], myb/CME_crossrad, vec_in
         myb = -9999.
         return myb, -9999, -9999., -9999, -9999    
     # If hits, find the theta/phi at point of impact    
@@ -191,14 +198,14 @@ def getFRprofile():
     # determining when/where it is within the CME, and getting the magnetic field vector
     
     # Unpack the parameters from inps
-    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMESRA, CMESRB, CMEvr, CMEB, CMEH, tshift, CMEstart, vExp, FFr, rotspeed = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15]
+    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMESRA, CMESRB, CMEvr, CMEB, CMEH, tshift, CMEstart, vExp, FFr, rotspeed, CMEr = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16]
     
     # Convert from shape parameters to actual CME shape
     # Set up CME shape as [d, a, b, c]
     CME_shape = np.zeros(4)
     shapeC = np.tan(CMEAW*dtor) / (1. + CMESRB + np.tan(CMEAW*dtor) * (CMESRA + CMESRB)) 
     dtorang = (CMElon - FFlon) / np.sin((90.-CMEtilt) * dtor) * dtor
-    CMEnose = 0.999*FFr # start just in front of sat dist, can't hit any closer 
+    CMEnose = CMEr#0.999*FFr # start just in front of sat dist, can't hit any closer 
     CME_shape[3] = CMEnose * shapeC
     CME_shape[1] = CME_shape[3] * CMESRA
     CME_shape[2] = CME_shape[3] * CMESRB 
@@ -276,7 +283,7 @@ def getFRprofile():
             obsBz.append(BSC[2])
             tARR.append(t/3600.)
             rCME.append(CMEnose)
-            radfrac.append(minb/CME_crossrad)                
+            radfrac.append(minb/CME_crossrad)   
         else:
             # stop checking if exit CME
             if enteredCME: t = tmax+1
@@ -334,7 +341,7 @@ def run_case(inpsIn, shinpsIn):
     # No impact case
     else:
         if canPrint: print ('No impact expected')
-    return Bout, tARR, Bsheath, tsheath, radfrac 
+    return Bout, tARR, Bsheath, tsheath, radfrac, isHit 
 
 # -------------------------------------------------------------------------------------- #
 def radfrac2vprofile(radfrac, vAvg, vExp):
@@ -408,7 +415,7 @@ def calcSheathInps(CMEstart, vels, nSW, BSW, satr, B=None, cs=49.5, vA=55.4):
     # vels should be [vbulk, vexp, vtransit (avg), vSW]
     # Assume B in is Br, was calc at 213 so scale if need be
     # Use a simple Parker model for mag field
-    # BSW can be positive for radial out or neg for radial in
+    # BSW can be positive for radial out or neg for radial in 
     if B == None:
         # scale to sat distance if not 1 AU
         BphiBr = (2.7e-6) * satr * 7e5 / vels[3]
@@ -523,7 +530,7 @@ def readInputFile():
     inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
     # Include some duplicates between OSPREI names and more natural FIDO only names
     # (ie CME_lat and ilat both work to set CME lat) so can reuse OSPREI .txt files
-    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA', 'SWBx', 'SWBy', 'SWBz', 'ObsDataFile']
+    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'CME_AW', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA', 'SWBx', 'SWBy', 'SWBz', 'ObsDataFile', 'ImpCMEr', 'Sat_rot']
     # Check if name is in list and add to dictionary if so
     input_values = {}
     for i in range(len(inputs)):
@@ -581,6 +588,8 @@ def assignInps(input_values):
         inps[15] = float(input_values['Sat_rot'])  
     if 'Expansion_Model' in input_names:
         expansion_model = input_values['Expansion_Model']
+    if 'ImpCMEr' in input_names:
+        inps[16] = float(input_values['ImpCMEr'])
         
     # Can either take sheath inputs from file or calculate from 
     # given parameters
@@ -613,8 +622,6 @@ def assignInps(input_values):
     shinps[0] = inps[12]-shinps[1]/24.
     # Pull in parameters needed to calculate the sheath if needed
     global moreShinps
-    # put in defaults
-    moreShinps = [5., 400., 49.5, 55.4, 600.]
     if calcSheath:
         BSW = np.sqrt(shinps[4]**2 + shinps[5]**2) # use other values if given
         nSW = 5.   # Solar wind number density
@@ -645,8 +652,13 @@ def assignInps(input_values):
             
 def saveResults(Bout, tARR, Bsheath, tsheath, radfrac, t_res=1):
     # Save a file with the data
-    FIDOfile = open('FIDOresults'+input_file[:-4]+'.dat', 'w')
-    print ('Saving results in ', 'FIDOresults'+input_file[:-4]+'.dat')
+    try:
+        FIDOfile = open('FIDOresults'+input_file[:-4]+'.dat', 'w')
+        print ('Saving results in ', 'FIDOresults'+input_file[:-4]+'.dat')
+    except:
+        FIDOfile = open('FIDOresults.dat', 'w')
+        print ('Saving results in FIDOresults.dat')
+        
     # Down sample B resolution
     # resolution = 60 mins/ t_res -> # of points per hour
     tARRDS = hourify(t_res*tARR, tARR)
@@ -716,11 +728,9 @@ def saveRestartFile():
 if __name__ == '__main__':
     # order is Sat_lat [0], Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
     # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
-    # Sat_rad [14], Sat_rot [15]
+    # Sat_rad [14], Sat_rot [15], CMEr[16]
     
     startFromText()
-    #inps = [4.131, 80.83, -12.280000102840006, 90.99999979431998, 38.37, 64.99999992222988, 0.7, 0.6, 500.0, -70.0, 1.0, 0.0, 2.45, 0.0, 213.0, 1.1407524220455427e-05]    
     Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, shinps)
     print(Bout)
     print(Bsheath)
-    
