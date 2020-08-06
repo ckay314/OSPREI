@@ -24,19 +24,19 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
     # Solar wind values all at rFinal
     vFront = invec[0] * 1e5
     Mass   = invec[1] * 1e15
-    CMEAW  = invec[2] * pi / 180.
-    CMEA   = invec[3]
-    CMEBr  = invec[4]
-    CMEBp  = CMEBr
-    rFront = invec[5] * rsun
-    Bscale = invec[6]
-    n1AU   = invec[7]
-    vSW    = invec[8] * 1e5
-    B1AU   = invec[9] # may not actually be 1AU if rFinal isn't
-    Cd     = invec[10]
-    rFinal = invec[11] *rsun
-    tau    = invec[12] # 1 to mimic Lundquist
-    cnm    = invec[13] # 1.927 for Lundquist
+    AW     = invec[2] * pi / 180.
+    AWp    = invec[3] * pi / 180.
+    deltax = invec[4]
+    deltap = invec[5]
+    rFront = invec[6] * rsun
+    Bscale = invec[7]
+    n1AU   = invec[8]
+    vSW    = invec[9] * 1e5
+    B1AU   = invec[10] # may not actually be 1AU if rFinal isn't
+    Cd     = invec[11]
+    rFinal = invec[12] *rsun
+    tau    = invec[13] # 1 to mimic Lundquist
+    cnm    = invec[14] # 1.927 for Lundquist
     
     # Open a file to save output
     # will default to PARADE_temp.dat
@@ -55,24 +55,25 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
 
     # CME shape
     # alpha * br is the cross sec width in z dir
-    alpha = np.sqrt(1+16*CMEA**2)/4/CMEA
+    alpha = np.sqrt(1+16*deltax**2)/4/deltax
     # normal vector dot z
     ndotz = 1./alpha
     # Convert AW and shape params to actual lengths
-    CdivR = np.tan(CMEAW) / (1. + CMEBr*alpha + np.tan(CMEAW) * (CMEA + CMEBr))
-    c = CdivR * rFront
-    a = CMEA * c
-    br = CMEBr * c
-    bp = CMEBp * c 
-    delta = br / bp
-    d = rFront - a - br
+    Deltabr = deltap * np.tan(AWp) / (1 + deltap * np.tan(AWp))
+    br = Deltabr * rFront
+    c  = (np.tan(AW)*(1-Deltabr) - alpha*Deltabr)/(1+deltax*np.tan(AW)) * rFront
+    a  = deltax * c
+    bp = br / deltap
+    d  = rFront - a - br
     rCent = d+a
     rEdge = c + br*alpha
-    
+    CMEBr = br / c
+    CMEBp = bp / c
+       
     # Save the initial R and CME B values
     rFront0 = rFront
-    initB0 = Bscale * Bsw0 / delta / tau
-        
+    initB0 = Bscale * Bsw0 / deltap / tau
+            
     # Calc AW again as will later, mostly saving as new var name
     AW = np.arctan((br*alpha+c)/d)
     # AW in perp (y) direction
@@ -81,7 +82,7 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
     # Initial values of things we use to scale B parameters
     initlen = lenFun(a/c)*c
     initbp = bp
-    initdelta = delta
+    initdeltap = deltap
     initcnm = cnm
     
     # Two options for initial velocities:
@@ -97,7 +98,7 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
     else:    
         # 2. self-similar velocities
         vexpC = vFront * c/rFront
-        vexpA = vexpC * CMEA
+        vexpA = vexpC * deltax
         vexpBr = vexpC * CMEBr
         vexpBp = vexpC * CMEBp
         vBulk = vFront - vexpA - vexpBr
@@ -117,7 +118,7 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
         totAccelC = 0.
         
         # Calc shape params
-        delta = br / bp
+        deltap = br / bp
 
         # Update solar wind properties
         rhoSWn = 1.67e-24 * n1AU * (rFinal/rFront)**2
@@ -128,8 +129,8 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
         
         # Update flux rope field parameters
         lenNow = lenFun(a/c)*c
-        B0 = initB0 * initdelta**2/delta**2 * initbp**2 / bp**2 #(CAtor / (br*bp))
-        cnm = initcnm * lenNow / initlen * initbp / bp * (initdelta**2+1) / (delta**2+1)
+        B0 = initB0 * initdeltap**2/deltap**2 * initbp**2 / bp**2 #(CAtor / (br*bp))
+        cnm = initcnm * lenNow / initlen * initbp / bp * (initdeltap**2+1) / (deltap**2+1)
             
         # Update CME density
         vol = pi*br*bp *  lenFun(a/c)*c
@@ -137,15 +138,15 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
                 
         # Force at nose
         # Internal flux rope forces
-        kNose = 1.3726 * CMEA / c   
+        kNose = 1.3726 * deltax / c   
         #kNose = a / c**2 # torus version
         RcNose = 1./kNose   
         gammaN = br / RcNose        
-        dg = delta * gammaN
-        dg2 = delta**2 * gammaN**2 
-        coeff1N = delta**2 / dg**3 / np.sqrt(1-dg2)/(1+delta**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
-        toAccN = delta * pi * bp**2 * RcNose * rho
-        coeff2N = - delta**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
+        dg = deltap * gammaN
+        dg2 = deltap**2 * gammaN**2 
+        coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+        toAccN = deltap * pi * bp**2 * RcNose * rho
+        coeff2N = - deltap**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
         if not axisOff:
             aTotNose = (coeff2N+coeff1N) * B0**2 * RcNose * bp / toAccN        
             totAccelF += aTotNose
@@ -153,15 +154,15 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
             
         # Force at flank
         # Internal flux rope forces
-        kEdge = 40 * CMEA / c / np.sqrt(16*CMEA+1)**3
+        kEdge = 40 * deltax / c / np.sqrt(16*deltax+1)**3
         #kEdge = c / a**2 # torus version
         RcEdge = 1./kEdge    
         gammaE = br / RcEdge
-        dg = delta*gammaE
-        dg2 = delta**2 * gammaE**2 
-        coeff1E = delta**2 / dg**3 / np.sqrt(1-dg2)/(1+delta**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
-        coeff2E = - delta**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
-        toAccE = delta * pi * bp**2 * RcEdge * rho
+        dg = deltap*gammaE
+        dg2 = deltap**2 * gammaE**2 
+        coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+        coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
+        toAccE = deltap * pi * bp**2 * RcEdge * rho
         if not axisOff:
             aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE
             totAccelE += aTotEdge
@@ -169,15 +170,15 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
         
         # Internal cross section forces
         Btot2 = BSWr**2 + BSWphi**2
-        coeff3 = -delta**3 * 2/ 3/(delta**2+1)/cnm**2
+        coeff3 = -deltap**3 * 2/ 3/(deltap**2+1)/cnm**2
         # Option to turn of cross-section tension
         if not csTens: coeff3 = 0.
-        coeff4 = delta**3*(tau/3. - 0.2)
-        coeff4sw = 0*delta*(Btot2/B0**2) / 8.
+        coeff4 = deltap**3*(tau/3. - 0.2)
+        coeff4sw = 0*deltap*(Btot2/B0**2) / 8.
         if not csOff:
-            aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / delta
+            aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
             totAccelBr += aBr
-            totAccelBp += aBr * delta
+            totAccelBp += aBr * deltap
             totAccelF += aBr
             totAccelE += aBr
                         
@@ -228,23 +229,23 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
         vexpA += totAccelA * dt
         
         # Calc shape params and new AWs
-        CMEA = a/c
+        deltax = a/c
         CMEBr = br/c
         CMEBp = bp/c
         AW = np.arctan((c+br*alpha)/d) # semi approx
         AWp = np.arctan(bp/(d+a))
-        alpha = np.sqrt(1+16*CMEA**2)/4/CMEA
+        alpha = np.sqrt(1+16*deltax**2)/4/deltax
         ndotz = 1./alpha
         b = np.sqrt(br * bp)
         
         # Calc new max mag field values
-        Btor = delta * tau * B0
-        Bpol = 2*delta*B0/cnm/(delta**2+1)
+        Btor = deltap * tau * B0
+        Bpol = 2*deltap*B0/cnm/(deltap**2+1)
                     
         # Print things
         if rFront > printR:
             if not silent:
-                lessstuff = [i/60, rFront/rsun, AW*180/pi, AWp*180/pi, CMEA, CMEBr, CMEBp, vFront/1e5, vexpBr/1e5, vexpBp/1e5, Btor*1e5, Bpol*1e5, np.sqrt(Btot2)*1e5, cnm]
+                lessstuff = [i/60, rFront/rsun, AW*180/pi, AWp*180/pi, deltax, CMEBr, CMEBp, vFront/1e5, vexpBr/1e5, vexpBp/1e5, Btor*1e5, Bpol*1e5, np.sqrt(Btot2)*1e5, cnm, rhoSWn/1.67e-24, br/rsun]
                 outstuff = ''
                 for item in lessstuff:
                     outstuff = outstuff + '{:5.3f}'.format(item) + ' '
@@ -261,39 +262,45 @@ def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=Fals
     f1.write(outstuff2+'\n')   
     f1.close()   
     t = 2*br/(vFront-vexpBr)
-    print('Transit Time (hr):  ', i/60.)
-    print('In Situ Duration (hr):  ', t/3600 + vexpBr*t/(vFront-vexpBr)/3600)   
+    v0 = vFront - vexpBr
+    if not silent:
+        print('Transit Time (hr):  ', i/60.)
+        print('In Situ Duration (hr):  ', t/3600 + vexpBr*t/(vFront-vexpBr)/3600)  
+    return fullstuff
         
-    
-# Inputs ---------------------------------
-# A [425, 1, 27, 0.7, 0.5, 10, 1.25, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-# B [889, 5, 40.9, 0.7, 0.5, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-# C [1083, 9.9, 46.7, 0.7, 0.5, 10, 5, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-# D [1547, 50, 60.7, 0.7, 0.5, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927']
-#[1300, 6.9, 60, 0.8, 0.5, 10, 3, 6.9, 440, 8, 1, 213., 1, 1.927]
-#[1300, 7, 60, 0.7, 0.5, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555] new version with C 1.555
+if __name__ == "__main__":
+        
+    # Inputs ---------------------------------
+    # A [425, 1, 27, 0.7, 0.5, 1, 10, 1.25, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    # B [889, 5, 40.9, 0.7, 0.5, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    # C [1083, 9.9, 46.7, 0.7, 0.5, 1, 10, 5, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    # D [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927']
+    #[1300, 6.9, 60, 0.8, 0.5, 1, 10, 3, 6.9, 440, 8, 1, 213., 1, 1.927]
+    #[1300, 7, 60, 0.7, 0.5, 1, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555] new version with C 1.555
 
-#invec = [1300, 7, 60, 0.7, 0.5, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555]
-#runParade(invec, pan=True)
+    #invec = [1300, 7, 60, 0.7, 0.5, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555]
+    invecF = [1250, 10, 45, 12.5, 0.7, 1., 10, 3, 6.9, 440, 5.7, 1, 213., 1.1, 1.927]
+    invecS = [600, 2, 30, 5, 0.7,  1, 10, 1.33, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecF = [1250, 10, 45, 10, 0.7, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecE = [2000, 50, 60, 15, 0.7, 1, 10, 8, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    runParade(invecE)
 
-invecA = [1083, 9.9, 46.7, 0.7, 0.5, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-invecB = [1547, 50, 60.7, 0.7, 0.5, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-invecC = [1547, 50, 60.7, 0.7, 0.5, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-invecD = [1547, 50, 60.7, 0.7, 0.5, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    '''invecA = [1083, 9.9, 46.7, 0.7, 0.5, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecB = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecC = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecD = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
 
-invecS = [600, 5, 30, 0.7, 0.3, 10, 1.33, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-invecF = [1250, 10, 45, 0.7, 0.5, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-invecE = [2000, 50, 60, 0.7, 0.5, 10, 8, 6.9, 440, 5.7, 1, 213., 1, 1.927]
+    invecSold = [600, 5, 30, 0.7, 0.3, 1, 10, 1.33, 6.9, 440, 5.7, 1, 213., 1, 1.927]
 
-runParade(invecE, pan=False, csOff=True, axisOff=True, dragOff=True, name='ES10')
-runParade(invecE, pan=False, csOff=True, axisOff=True, dragOff=False, name='ES1D')
-runParade(invecE, pan=False, csTens=False, axisOff=True, dragOff=True, name='ES20')
-runParade(invecE, pan=False, csTens=False, axisOff=True, dragOff=False, name='ES2D')
-runParade(invecE, pan=False, axisOff=True, dragOff=True, name='ES30')
-runParade(invecE, pan=False, axisOff=True, dragOff=False, name='ES3D')
-runParade(invecE, pan=False, dragOff=True, name='ES40')
-runParade(invecE, pan=False, dragOff=False, name='ES4D')
+    runParade(invecS, pan=True, csOff=True, axisOff=True, dragOff=True, name='SP10')
+    runParade(invecS, pan=True, csOff=True, axisOff=True, dragOff=False, name='SP1D')
+    runParade(invecS, pan=True, csTens=False, axisOff=True, dragOff=True, name='SP20')
+    runParade(invecS, pan=True, csTens=False, axisOff=True, dragOff=False, name='SP2D')
+    runParade(invecS, pan=True, axisOff=True, dragOff=True, name='SP30')
+    runParade(invecS, pan=True, axisOff=True, dragOff=False, name='SP3D')
+    runParade(invecS, pan=True, dragOff=True, name='SP40')
+    runParade(invecS, pan=True, dragOff=False, name='SP4D')'''
 
-#runParade(invecB)
-#runParade(invecC)
-#runParade(invecD)
+    #runParade(invecB)
+    #runParade(invecC)
+    #runParade(invecD)
