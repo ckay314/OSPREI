@@ -136,7 +136,6 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
     Elon = Elon0
     vExp = CMEB * SSscale * vCME * CdivR
     bCME = CdivR * rCME * CMEB
-    
     dt = 1
     t  = 0
     # run CME nose to 1 AU
@@ -236,6 +235,9 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
             # as first approx.  Derived from law of cosines
             FullrCME = bCME + 0.5*(1+CMEA)*CtimesR
             ndotr = (Er**2 + FullrCME**2 - rcent**2)/(2*Er*FullrCME)
+            vbulk = (vCME - (CMEA+CMEB)*CdivR*vCME)
+            Eydist = np.sqrt(Epos2[1]**2 + Epos2[2]**2)
+            rdotvf = np.cos(np.arctan(np.abs(Eydist/Epos2[0])))
             if not silent:
                 print ('Transit Time:     ', TT)
                 print ('Final Velocity:   ', vCME/1e5)
@@ -244,13 +246,16 @@ def getAT(invec, rCME, Epos, silent=False, SSscale =1.):
             #print Elon, rCME, vCME/1e5#,CAang[0]/dtor, np.tan(Epos2[1]/(CMEB*CtimesR))/dtor
             #print CAang[0]/dtor
             inCME = True
-            return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs]), Elon, ElonEr, ndotr       
+            return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs]), Elon, ElonEr, ndotr, rdotvf       
         elif thismin < prevmin:
             prevmin = thismin
         else:
-            return np.array([[9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
+            return np.array([[9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999, 9999 
 
-#invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
-# Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
-#invec = [-5.,3.,30.,262.,0.56, 17., 0.75, 0.35, 450., 5.0, 1.]               
-#print getAT(invec, 21.5,[4.763,0,213.])
+if __name__ == '__main__':
+    #invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
+    # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
+    #invec = [-5.,3.,30.,262.,0.56, 17., 0.75, 0.35, 450., 5.0, 1.]               
+    #print getAT(invec, 21.5,[4.763,0,213.])
+    invec = [0, 0, 0, 1250, 10., 45., 0.7, 0.3689, 440., 6.9, 1.]
+    getAT(invec, 10., [0,0,213,0])

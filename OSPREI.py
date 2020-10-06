@@ -350,7 +350,6 @@ def goForeCAT():
         CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
         # Save the CME in the array
         CMEarray.append(CME)
-
         # Write the simulation results to a file
         # Only saving run number, nose dist, lat, lon, tilt
         # since vr, AW can be reconstructed from empirical equation
@@ -363,6 +362,7 @@ def goForeCAT():
             ForeCATfile.write(outprint+'\n')
         
     ForeCATfile.close()
+    
 
 def makeCMEarray():
     global ipos
@@ -483,7 +483,7 @@ def goANTEATR():
         
         # Package up invec, run ANTEATR
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeA, cmeB, vSW, nSW, Cd]
-        ATresults, Elon, ElonEr, ndotr = getAT(invec,CMEr0,myParams, silent=True, SSscale=CME.SSscale)
+        ATresults, Elon, ElonEr, ndotr, rdotvf = getAT(invec,CMEr0,myParams, silent=True, SSscale=CME.SSscale)
         # Check if miss or hit  
         if ATresults[0][0] != 9999:
             impactIDs.append(i)
@@ -506,8 +506,7 @@ def goANTEATR():
             ANTAWs[i] = CMEAW
             ANTts[i] = TotTime
             ANTvTrans[i] = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
-                        
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(ndotr*CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(ndotr*CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(rdotvf*CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(ndotr*CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
             
