@@ -30,7 +30,7 @@ def readinputfile():
     return input_values, inputs
 
 def get_inputs(inputs):
-    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'useGPU', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time', 'SSscale', 'includeSIT', 'nSW', 'vSW', 'BSW', 'cs', 'vA']
+    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'useGPU', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time', 'SSscale', 'includeSIT', 'nSW', 'vSW', 'BSW', 'cs', 'vA','Bscale', 'tau', 'cnm']
     # Other var names which can ignore since OSPREI/ANTEATR/FIDO use
     other_vars = ['suffix', 'nRuns', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'models', 'ObsDataFile', 'vTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary

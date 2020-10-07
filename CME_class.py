@@ -138,6 +138,9 @@ class CME:
 		self.BSW = 5
 		self.cs  = 49.5
 		self.vA  = 55.4 
+		self.Bscale = 2.
+		self.tau  = 1.
+		self.cnm  = 1.927
 
 
 	# Programs typically called only within this class

@@ -1,306 +1,452 @@
 import numpy as np
+import math
+import sys
 
-rsun = 7e10
+global rsun, dtor, radeg, kmRs
+rsun  =  7e10		 # convert to cm, 0.34 V374Peg
+dtor  = 0.0174532925  # degrees to radians
+radeg = 57.29577951    # radians to degrees
+kmRs  = 1.0e5 / rsun # km (/s) divided by rsun (in cm)
 pi = 3.14159
 
 # Empirical function to calculate length of axis
 global lenFun
 lenCoeffs = [0.61618, 0.47539022, 1.95157615]
 lenFun = np.poly1d(lenCoeffs)
-# calc as lenFun(a/c)
-
-# Empirical functions to calculate hoop force coefficient
-'''g1Coeffs = [ 2.32974897, 13.57489783, 28.39890803, 26.50096997, 15.37622926, -3.01860085]
-g2Coeffs = [ 2.94681341, 17.03267855, 35.68191889, 33.73752841, 16.91187526,  0.29796235]
-global g1, g2
-g1 = np.poly1d(g1Coeffs)
-g2 = np.poly1d(g2Coeffs)'''
-#Calc hoop coeffs as -2.405*np.exp(g1(np.log(b/Rc))) + 2*np.exp(g2(np.log(b/Rc)))
 
 
+#-----------geometry functions ------------------------------------
 
-def runParade(invec, pan=False, silent=False, save=True, csTens=True, csOff=False, axisOff=False, dragOff=False, name='temp'):
-    # invec = [0: vCME (km/s), 1: mass (1e15 g), 2: AW (deg), 3: shape A, 4: shape B, 5: rFront (rsun), 6: Btor/Bswr  7: nSW (cm^-3), 8: vSW (km/s), 9: BSW (nT), 10: Cd, 11: rFinal (rsun)], 12: tau, 13: cnm
-    # Solar wind values all at rFinal
-    vFront = invec[0] * 1e5
-    Mass   = invec[1] * 1e15
-    AW     = invec[2] * pi / 180.
-    AWp    = invec[3] * pi / 180.
-    deltax = invec[4]
-    deltap = invec[5]
-    rFront = invec[6] * rsun
-    Bscale = invec[7]
-    n1AU   = invec[8]
-    vSW    = invec[9] * 1e5
-    B1AU   = invec[10] # may not actually be 1AU if rFinal isn't
-    Cd     = invec[11]
-    rFinal = invec[12] *rsun
-    tau    = invec[13] # 1 to mimic Lundquist
-    cnm    = invec[14] # 1.927 for Lundquist
+def SPH2CART(sph_in):
+    r = sph_in[0]
+    colat = (90. - sph_in[1]) * dtor
+    lon = sph_in[2] * dtor
+    x = r * np.sin(colat) * np.cos(lon)
+    y = r * np.sin(colat) * np.sin(lon)
+    z = r * np.cos(colat)
+    return [x, y, z]
+
+def CART2SPH(x_in):
+# calcuate spherical coords from 3D cartesian
+# output lat not colat
+    r_out = np.sqrt(x_in[0]**2 + x_in[1]**2 + x_in[2]**2)
+    colat = np.arccos(x_in[2] / r_out) * 57.29577951
+    lon_out = np.arctan(x_in[1] / x_in[0]) * 57.29577951
+    if lon_out < 0:
+        if x_in[0] < 0:
+            lon_out += 180.
+        elif x_in[0] > 0:
+            lon_out += 360. 
+    elif lon_out > 0.:
+	    if x_in[0] < 0:  lon_out += 180. 
+    return [r_out, 90. - colat, lon_out]
+
+def rotx(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the x-axis
+    ang *= dtor
+    yout = np.cos(ang) * vec[1] - np.sin(ang) * vec[2]
+    zout = np.sin(ang) * vec[1] + np.cos(ang) * vec[2]
+    return [vec[0], yout, zout]
+
+def roty(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the y-axis
+    ang *= dtor
+    xout = np.cos(ang) * vec[0] + np.sin(ang) * vec[2]
+    zout =-np.sin(ang) * vec[0] + np.cos(ang) * vec[2]
+    return [xout, vec[1], zout]
+
+def rotz(vec, ang):
+# Rotate a 3D vector by ang (input in degrees) about the y-axis
+	ang *= dtor
+	xout = np.cos(ang) * vec[0] - np.sin(ang) * vec[1]
+	yout = np.sin(ang) * vec[0] + np.cos(ang) * vec[1]
+	return [xout, yout, vec[2]]
     
-    # Open a file to save output
-    # will default to PARADE_temp.dat
-    fname = 'PARADE_'+name+'.dat'
-    f1 = open(fname, 'w')
+def processANTinputs(input_values):
+    Epos = [0.,0.,213.,1.141e-5] # sat_lat, sat_lon, sat_rad, sat_rot
+    # sat rot default is  360/365.256/24./60./60.
+    try: 
+        Epos[0] = float(input_values['Sat_lat'])
+    except:
+        print('Assuming satellite at 0 lat')
+    try: 
+        Epos[1] = float(input_values['Sat_lon'])
+    except:
+        print('Assuming satellite at 0 lon')
+    try: 
+        Epos[2] = float(input_values['Sat_rad'])
+    except:
+        print('Assuming satellite at 213 Rs (L1)')
+    try: 
+        Epos[3] = float(input_values['Sat_rot'])
+    except:
+        print('Assuming satellite orbits at Earth orbital speed')
+    try: 
+        Cd = float(input_values['Cd'])
+    except:
+        print('Assuming radial Cd = 1')
+        Cd = 1.
+    try: 
+        nSW = float(input_values['nSW'])
+    except:
+        nSW = -9999
+    try: 
+        vSW = float(input_values['vSW'])
+    except:
+        vSW = -9999
+    try: 
+        BSW = float(input_values['BSW'])
+    except:
+        BSW = -9999
+    try:
+        Bscale = float(input_values['Bscale'])
+    except:
+        Bscale = -9999
+    try:
+        tau = float(input_values['tau'])
+    except:
+        tau = -9999
+    try:
+        cnm = float(input_values['cnm'])
+    except:
+        cnm = -9999
+    try: 
+        cs = float(input_values['cs'])
+    except:
+        cs = -9999
+    try: 
+        vA = float(input_values['vA'])
+    except:
+        vA = -9999
     
-    # B1AU is the total magnetic field strength at rFinal
-    # need to split into Br and Bphi
-    BphiBr = 2.7e-6 * rFinal  / vSW 
-    Br1AU = B1AU / np.sqrt(1+BphiBr**2)
-    # Br at the CME front at the beginning of run
-    Bsw0 = Br1AU * (rFinal/rFront)**2 / 1e5
+    return Epos, Cd, [nSW, vSW, BSW, Bscale, cs, vA]    
     
-    t = 0.
-    dt = 60. # in seconds
-
-    # CME shape
-    # alpha * br is the cross sec width in z dir
+def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
+    # Nose Direction
+    kNose = 1.3726 * deltax / c   
+    RcNose = 1./kNose   
+    gammaN = bp / RcNose        
+    dg = deltap * gammaN
+    dg2 = deltap**2 * gammaN**2 
+    coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+    toAccN = deltap * pi * bp**2 * RcNose * rho
+    coeff2N = - deltap**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
+    aTotNose = (coeff2N+coeff1N) * B0**2 * RcNose * bp / toAccN 
+    # Edge Direction
+    kEdge = 40 * deltax / c / np.sqrt(16*deltax+1)**3
+    RcEdge = 1./kEdge    
+    gammaE = bp / RcEdge
+    dg = deltap*gammaE
+    dg2 = deltap**2 * gammaE**2 
+    coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+    coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
+    toAccE = deltap * pi * bp**2 * RcEdge * rho
+    aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE               
+    return aTotNose, aTotEdge
+    
+def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
+    # Internal cross section forces
+    coeff3 = -deltap**3 * 2/ 3/(deltap**2+1)/cnm**2
+    # Option to turn of cross-section tension
+    if not csTens: coeff3 = 0.
+    coeff4 = deltap**3*(tau/3. - 0.2)
+    coeff4sw = deltap*(Btot2/B0**2) / 8.
+    kNose = 1.3726 * deltax / c   
+    RcNose = 1./kNose   
+    toAccN = deltap * pi * bp**2 * RcNose * rho
+    aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
+    return aBr
+    
+def getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz):
+    # dragAccels = [dragR, dragEdge, bulk, dragBr, dragBp, dragA, dragC]
+    dragAccels = np.zeros(7)
+    # Radial Drag
+    CMEarea = 4*CMElens[6]*CMElens[4] 
+    dragAccels[0] = -Cd*CMEarea*rhoSWn * (vs[0]-vSW) * np.abs(vs[0]-vSW) / Mass
+    # Edge Drag
+    CMEarea2 = 2*CMElens[4]*(CMElens[5] + CMElens[3])
+    dragAccels[1] = -Cd*CMEarea2*rhoSWe * (vs[1]-np.sin(AW)*vSW) * np.abs(vs[1]-np.sin(AW)*vSW)  / Mass
+    # CS Perp Drag
+    CMEarea3 = 2*CMElens[3]*lenFun(CMElens[5] / CMElens[6]) * CMElens[6]
+    dragAccels[4] = -Cd*CMEarea3*rhoSWn * (vs[4]-np.sin(AWp)*vSW) * np.abs(vs[4]-np.sin(AWp)*vSW) / Mass 
+    # Individual components  
+    dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
+    dragAccels[3] = dragAccels[0] * (vs[3]/vs[0])
+    dragAccels[5] = dragAccels[0] * (vs[5]/vs[0])
+    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) * ndotz    
+    return dragAccels
+    
+def IVD(vFront, AW, AWp, deltax, deltap, fscales):
+    vs = np.zeros(7)
+    # vs = [vFront, vEdge, vBulk, vexpBr, vexpBp, vexpA, vexpC]
+    vs[0] = vFront
+    vs[1]  = vs[0] * np.sin(AW)
+    # shape things
     alpha = np.sqrt(1+16*deltax**2)/4/deltax
     # normal vector dot z
     ndotz = 1./alpha
-    # Convert AW and shape params to actual lengths
+    
+    f1 = fscales[0]
+    f2 = fscales[1]
+    # Calculate the nus for conv and self sim
+    nu1C = np.cos(AWp)
+    nu2C = np.cos(AW)
+    nu1S = 1 / (1 + deltap * np.tan(AWp))
+    nu2S = nu1S - deltax * (np.tan(AW)*(nu1S-alpha*(1-nu1S))) / (1+deltax*np.tan(AW))
+    # Take the appropriate fraction of each
+    nu1 = f1 * nu1C + (1-f1) * nu1S
+    nu2 = f2 * nu2C + (1-f2) * nu2S
+        
+    vs[2] = nu2 * vs[0]
+    vs[5] = nu1 * vs[0] - vs[2]
+    vs[4] = nu1 * vs[0] * np.tan(AWp)
+    vs[3] = vs[0] * (1 - nu1)
+    vs[6] = nu2 * vs[0] * np.tan(AW) - alpha * vs[3]
+    return vs
+    
+def initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass):
+    # CME shape
+    # alpha * CMElens[3] is the cross sec width in z dir
+    alpha = np.sqrt(1+16*deltax**2)/4/deltax
+    # normal vector dot z
+    ndotz = 1./alpha
     Deltabr = deltap * np.tan(AWp) / (1 + deltap * np.tan(AWp))
-    br = Deltabr * rFront
-    c  = (np.tan(AW)*(1-Deltabr) - alpha*Deltabr)/(1+deltax*np.tan(AW)) * rFront
-    a  = deltax * c
-    bp = br / deltap
-    d  = rFront - a - br
-    rCent = d+a
-    rEdge = c + br*alpha
-    CMEBr = br / c
-    CMEBp = bp / c
-       
-    # Save the initial R and CME B values
-    rFront0 = rFront
-    initB0 = Bscale * Bsw0 / deltap / tau
-            
-    # Calc AW again as will later, mostly saving as new var name
-    AW = np.arctan((br*alpha+c)/d)
-    # AW in perp (y) direction
-    AWp = np.arctan(bp/(d+a))
+    CMElens[3] = Deltabr * CMElens[0]
+    CMElens[6]  = (np.tan(AW)*(1-Deltabr) - alpha*Deltabr)/(1+deltax*np.tan(AW)) * CMElens[0]
+    CMElens[5]  = deltax * CMElens[6]
+    CMElens[4] = CMElens[3] / deltap
+    CMElens[2]  = CMElens[0] - CMElens[5] - CMElens[3]
+    rCent = CMElens[2] + CMElens[5]
+    CMElens[1] = CMElens[6] + CMElens[3]*alpha
+    # Initiate CME density
+    vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
+    rho = Mass / vol    
+    return alpha, ndotz, Deltabr, rCent, rho
     
-    # Initial values of things we use to scale B parameters
-    initlen = lenFun(a/c)*c
-    initbp = bp
-    initdeltap = deltap
-    initcnm = cnm
+def updateSW(Bsw0, BphiBr, vSW, n1AU, rFinal, rFront0, CMElens):
+    BSWr = Bsw0 * (rFront0 / CMElens[0])**2
+    BSWphi = BSWr * 2.7e-6 * CMElens[0]  / vSW
+    Btot2 = BSWr**2 + BSWphi**2
+    rhoSWn = 1.67e-24 * n1AU * (rFinal/CMElens[0])**2
+    rhoSWe = 1.67e-24 * n1AU * (rFinal/(CMElens[1]))**2
+    return Btot2, rhoSWn, rhoSWe
     
-    # Two options for initial velocities:
-    # 1. Convective velocities - following traditional
-    # pancaking method with few diff assumptions
-    if pan:
-        vexpA  = vFront * (np.cos(AWp) - np.cos(AW))
-        vexpBr = 2*vFront * (1 - np.cos(AWp))
-        vexpBp = vFront * np.sin(AWp)    
-        vBulk  = vFront * np.cos(AW)
-        vEdge  = vFront * np.sin(AW)
-        vexpC = vEdge - alpha * vexpBr
-    else:    
-        # 2. self-similar velocities
-        vexpC = vFront * c/rFront
-        vexpA = vexpC * deltax
-        vexpBr = vexpC * CMEBr
-        vexpBp = vexpC * CMEBp
-        vBulk = vFront - vexpA - vexpBr
-        vEdge = vexpC + vexpBr
+def updateCME(CMElens, Mass):
+    # Calc shape params and new AWs
+    deltap = CMElens[3] / CMElens[4]
+    deltax = CMElens[5] / CMElens[6]
+    alpha = np.sqrt(1+16*deltax**2)/4/deltax
+    ndotz = 1./alpha
+    AW = np.arctan((CMElens[6] + CMElens[3]*alpha)/CMElens[2]) # semi approx
+    AWp = np.arctan(CMElens[4]/(CMElens[2] + CMElens[5]))
+    # Update CME density
+    vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
+    rho = Mass / vol
+    return deltap, deltax, alpha, ndotz, AW, AWp, rho
+        
+    
 
-    # Simulation loop
-    i = 0    
-    printR = int(rFront)
-    while rFront <= rFinal:
-        # Set accels to 0
-        totAccelBr = 0.
-        totAccelBp = 0.
-        totAccelD = 0.
-        totAccelE = 0.
-        totAccelF = 0.
-        totAccelA = 0.
-        totAccelC = 0.
-        
-        # Calc shape params
-        deltap = br / bp
+# -------------- main function ------------------
+def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff=False, axisOff=False, dragOff=False):
+    
+    Elat      = Epos[0]
+    Elon      = Epos[1]
+    Er        = Epos[2] *7e10
+    Erotrate  = Epos[3]  # should be in deg/sec
+    CMElat     = invec[0]
+    CMElon     = invec[1]
+    CMEtilt    = invec[2]    
+    vFront     = invec[3] * 1e5
+    Mass       = invec[4] * 1e15
+    AW         = invec[5] * pi / 180.
+    AWp        = invec[6] * pi / 180.
+    deltax     = invec[7]
+    deltap     = invec[8]
+    rFront     = invec[9] * rsun
+    Bscale     = invec[10]
+    n1AU       = invec[11]
+    vSW        = invec[12] * 1e5
+    B1AU       = invec[13] # may not actually be 1AU if rFinal isn't
+    Cd         = invec[14]
+    tau        = invec[15] # 1 to mimic Lundquist
+    cnm        = invec[16] # 1.927 for Lundquist
+    
+    t = 0.
+    dt = 60. # in seconds
+    CMElens = np.zeros(8)
+    #CMElens = [rFront, rEdge, d, br, bp, a, c, rXCent]
+    CMElens[0] = rFront
+    alpha, ndotz, Deltabr, rCent, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass)
+    
+    # this will need to go
+    CMEA = CMElens[5]/CMElens[6]
+    CMEB = CMElens[4]/CMElens[6]    
+    CdivR = np.tan(AW) / (1. + CMEB + np.tan(AW) * (CMEA + CMEB))
+    
+    # B1AU is the total magnetic field strength at rFinal
+    # need to split into Br and Bphi
+    BphiBr = 2.7e-6 * Er  / vSW 
+    Br1AU = B1AU / np.sqrt(1+BphiBr**2)
+    # Initial Solar Wind Properties
+    Bsw0 = Br1AU * (Er/CMElens[0])**2 / 1e5    
+    Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
+    
+    # Set up factors for scaling B through conservation
+    B0 = Bscale * Bsw0 / deltap / tau
+    B0scaler = B0 * deltap**2 * CMElens[4]**2 
+    initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
+    cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
 
-        # Update solar wind properties
-        rhoSWn = 1.67e-24 * n1AU * (rFinal/rFront)**2
-        rhoSWe = 1.67e-24 * n1AU * (rFinal/(rEdge))**2
-        # Bsw values at nose
-        BSWr = Bsw0 * (rFront0 / rFront)**2
-        BSWphi = BSWr * 2.7e-6 * rFront  / vSW 
-        
-        # Update flux rope field parameters
-        lenNow = lenFun(a/c)*c
-        B0 = initB0 * initdeltap**2/deltap**2 * initbp**2 / bp**2 #(CAtor / (br*bp))
-        cnm = initcnm * lenNow / initlen * initbp / bp * (initdeltap**2+1) / (deltap**2+1)
+    # Set up the initial velocities
+    if fscales == None:
+        if pan: 
+            fscales = [1., 1.]
+        else:
+            fscales = [0., 0.]
+    vs = IVD(vFront, AW, AWp, deltax, deltap, fscales)    
             
-        # Update CME density
-        vol = pi*br*bp *  lenFun(a/c)*c
-        rho = Mass / vol
-                
-        # Force at nose
+    # calculate any E rot between the time given and the start of the ANTEATR simulation
+    CMElens[0] = rFront 
+    printR = rFront
+    inCME = False
+    prevmin = 9999.
+    
+    # arrays for saving profiles
+    outTs     = []
+    outRs     = []
+    outvTots  = []
+    outvBulks = []
+    outvExps  = []
+    outAWs    = []
+    outAWps   = []
+    outdelxs  = []
+    outdelps  = []
+    outBs     = []
+    outCnms   = []
+    
+    
+    while not inCME:
+    #while CMElens[0] <= 0.9*Er:
+        # Accels order = [Front, Edge, Center, CSr, CSp, Axr, Axp,]
+        totAccels = np.zeros(7)
+        magAccels = np.zeros(7)  
+        # Calculate forces
         # Internal flux rope forces
-        kNose = 1.3726 * deltax / c   
-        #kNose = a / c**2 # torus version
-        RcNose = 1./kNose   
-        gammaN = br / RcNose        
-        dg = deltap * gammaN
-        dg2 = deltap**2 * gammaN**2 
-        coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
-        toAccN = deltap * pi * bp**2 * RcNose * rho
-        coeff2N = - deltap**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
         if not axisOff:
-            aTotNose = (coeff2N+coeff1N) * B0**2 * RcNose * bp / toAccN        
-            totAccelF += aTotNose
-            totAccelA += aTotNose
-            
-        # Force at flank
-        # Internal flux rope forces
-        kEdge = 40 * deltax / c / np.sqrt(16*deltax+1)**3
-        #kEdge = c / a**2 # torus version
-        RcEdge = 1./kEdge    
-        gammaE = br / RcEdge
-        dg = deltap*gammaE
-        dg2 = deltap**2 * gammaE**2 
-        coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
-        coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
-        toAccE = deltap * pi * bp**2 * RcEdge * rho
-        if not axisOff:
-            aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE
-            totAccelE += aTotEdge
-            totAccelC += aTotEdge
-        
-        # Internal cross section forces
-        Btot2 = BSWr**2 + BSWphi**2
-        coeff3 = -deltap**3 * 2/ 3/(deltap**2+1)/cnm**2
-        # Option to turn of cross-section tension
-        if not csTens: coeff3 = 0.
-        coeff4 = deltap**3*(tau/3. - 0.2)
-        coeff4sw = 0*deltap*(Btot2/B0**2) / 8.
+            aTotNose, aTotEdge = getAxisF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho)
+            magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
         if not csOff:
-            aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
-            totAccelBr += aBr
-            totAccelBp += aBr * deltap
-            totAccelF += aBr
-            totAccelE += aBr
-                        
-        # Radial Drag
-        dragR, dragC, dragBp = 0., 0., 0.
+            aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
+            magAccels += [aBr, aBr * ndotz, 0, aBr, aBr*deltap, 0., 0.] 
+        totAccels += magAccels                
+        # Drag Force
         if not dragOff:
-            CMEarea = 4*c*bp 
-            dragR  =  -Cd * CMEarea * rhoSWn * (vFront-vSW) * np.abs(vFront-vSW)  / Mass
-            # C dir Drag
-            CMEarea2 = 2*bp*(a+br)
-            dragC  = -Cd * CMEarea2 * rhoSWe * (vEdge - np.sin(AW)*vSW) * np.abs(vEdge  - np.sin(AW)*vSW)  / Mass
-            # Bp dir Drag
-            CMEarea3 = 2*br*lenFun(a/c)*c
-            dragBp = -Cd * CMEarea3 * rhoSWn * (vexpBp - np.sin(AWp)*vSW) * np.abs(vexpBp - np.sin(AWp)*vSW) / Mass
-
-        # Update accels to include drag forces
-        totAccelF += dragR  
-        totAccelBr += dragR * (vexpBr/vFront)
-        totAccelBp += dragBp 
-        totAccelD += dragR * (vBulk/vFront)      
-        totAccelE += dragC         
-        totAccelA += dragR * (vexpA/vFront)
-        totAccelC += dragC * (vexpC/vEdge)
-        
+            dragAccels = getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz)
+            # Update accels to include drag forces
+            totAccels += dragAccels
         # Update CME shape
-        rEdge += vEdge*dt + 0.5*totAccelE*dt**2
-        rFront += vFront*dt + 0.5*totAccelF*dt**2
-        br += vexpBr*dt + 0.5*totAccelBr*dt**2
-        bp += vexpBp*dt + 0.5*totAccelBp*dt**2
-        d += vBulk*dt + 0.5*totAccelD*dt**2
-        # This gives the same as calc from accels
-        #c = rEdge - alpha*br
-        #a = rFront - d - br    
-        a += vexpA * dt + 0.5*totAccelA*dt**2
-        c += vexpC * dt + 0.5*totAccelC*dt**2
-    
-        rCent = d + a
-        
+        CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
+        CMElens[7] = CMElens[2] + CMElens[5]
         # Update velocities
-        vFront += totAccelF * dt
-        vexpBr += totAccelBr * dt
-        vexpBp += totAccelBp * dt
-        vBulk += totAccelD * dt
-        vEdge += totAccelE * dt
-        #vexpC = vEdge - alpha*vexpBr
-        #vexpA = vFront - vexpBr - vBulk
-        vexpC += totAccelC * dt
-        vexpA += totAccelA * dt
+        vs += totAccels * dt
         
         # Calc shape params and new AWs
-        deltax = a/c
-        CMEBr = br/c
-        CMEBp = bp/c
-        AW = np.arctan((c+br*alpha)/d) # semi approx
-        AWp = np.arctan(bp/(d+a))
-        alpha = np.sqrt(1+16*deltax**2)/4/deltax
-        ndotz = 1./alpha
-        b = np.sqrt(br * bp)
+        deltap, deltax, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
         
-        # Calc new max mag field values
+        # Update flux rope field parameters
+        lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
+        B0 = B0scaler / deltap**2 / CMElens[4]**2 
+        cnm = cnmscaler * lenNow  / CMElens[4] / (deltap**2+1)
         Btor = deltap * tau * B0
         Bpol = 2*deltap*B0/cnm/(deltap**2+1)
-                    
-        # Print things
-        if rFront > printR:
-            if not silent:
-                lessstuff = [i/60, rFront/rsun, AW*180/pi, AWp*180/pi, deltax, CMEBr, CMEBp, vFront/1e5, vexpBr/1e5, vexpBp/1e5, Btor*1e5, Bpol*1e5, np.sqrt(Btot2)*1e5, cnm, rhoSWn/1.67e-24, br/rsun]
-                outstuff = ''
-                for item in lessstuff:
-                    outstuff = outstuff + '{:5.3f}'.format(item) + ' '
-                print (outstuff)  
-
-            if save:
-                fullstuff = [i/60./24., rFront/rsun, AW*180/pi,  AWp*180/pi, a/rsun, br/rsun, bp/rsun, c/rsun, d/rsun, vFront/1e5, vEdge/1e5, vexpA/1e5, vexpBr/1e5, vexpBp/1e5, vexpC/1e5, vBulk/1e5, rho/1.67e-24, B0*1e5, cnm, rhoSWn/1.67e-24, BSWr*1e5, BSWphi*1e5, coeff1N, coeff2N, coeff1E, coeff2E, coeff3, coeff4, coeff4sw, dragR, dragC, dragBp] 
-                outstuff2 = ''
-                for item in fullstuff:
-                    outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
-                f1.write(outstuff2+'\n')  
-            printR += 7e10          
-        i +=1
-    f1.write(outstuff2+'\n')   
-    f1.close()   
-    t = 2*br/(vFront-vexpBr)
-    v0 = vFront - vexpBr
-    if not silent:
-        print('Transit Time (hr):  ', i/60.)
-        print('In Situ Duration (hr):  ', t/3600 + vexpBr*t/(vFront-vexpBr)/3600)  
-    return fullstuff
+                
+        # Update solar wind properties
+        Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
         
-if __name__ == "__main__":
+        Elon += Erotrate * dt
+        t += dt
+        if (CMElens[0]>printR):             
+            printR += 5*7e10
+            outTs.append(t/3600./24.)
+            outRs.append(CMElens[0]/7e10)
+            outvTots.append(vs[0]/1e5)
+            outvBulks.append((vs[0]-vs[3])/1e5)
+            outvExps.append(vs[3]/1e5)
+            outAWs.append(AW*180./3.14159)
+            outAWps.append(AWp*180/pi)
+            outdelxs.append(deltax)
+            outdelps.append(deltap)
+            outBs.append(B0)
+            outCnms.append(cnm)
+            
+        # Determine if sat is inside CME once it gets reasonably close
+        if CMElens[0] >= 0.95*Er:
+            # Get Earth/sat pos in CME coordinate frame
+            Epos1 = SPH2CART([Er,Elat,Elon])
+            temp = rotz(Epos1, -CMElon)
+            temp2 = roty(temp, CMElat)
+            Epos2 = rotx(temp2, 90.-CMEtilt)
+            # Get the CME axis
+            psis = np.linspace(0, math.pi/2,500)
+            xFRa = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
+            zFRa = 0.5 * CMElens[2] * (np.sin(psis) + np.sqrt(1 - np.cos(psis)))
+            xFR = np.array([xFRa[::-1], xFRa]).reshape([-1])
+            zFR = np.array([-zFRa[::-1], zFRa]).reshape([-1])
+            psis = np.array([-psis[::-1], psis]).reshape([-1])
+            
+            # Determine the closest point on the axis and that distance
+            dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMElens[4])**2
+            thismin = np.min(dists2)
+            thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
+            sn = np.sign(thisPsi)
+            thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[2] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
+            vp = np.array(Epos2) - np.array(thisAx)
+            # Get the normal vector
+            if thisPsi == 0: thisPsi = 0.00001
+            Nvec = [0.5 * sn*(np.cos(thisPsi) + 0.5*np.sin(thisPsi)/np.sqrt(1-np.cos(thisPsi))), 0., deltax * np.sin(thisPsi)] 
+            Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+            norm = np.array(Nvec) / Nmag
+
+            # Find the sat position within the CS
+            vpmag = np.sqrt(np.sum(vp**2))
+            CSpol = np.arccos(np.dot(vp, norm) / vpmag)
+            CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
+            parat = np.arctan(np.tan(CSpol)*deltap)
+            # Get the max R for that parametric t
+            maxr = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
+            
+            #print (CMElens[0]/rsun, thismin)
+            if vpmag < maxr:    
+                TT = t/3600./24.
+                outTs.append(t/3600./24.)
+                outRs.append(CMElens[0]/7e10)
+                outvTots.append(vs[0]/1e5)
+                outvBulks.append((vs[0]-vs[3])/1e5)
+                outvExps.append(vs[3]/1e5)
+                outAWs.append(AW*180./3.14159)
+                outAWps.append(AWp*180/pi)
+                outdelxs.append(deltax)
+                outdelps.append(deltap)
+                outBs.append(B0)
+                outCnms.append(cnm)
+                if not silent:
+                    print ('Transit Time:     ', TT)
+                    print ('Final Velocity:   ', vs[0]/1e5)
+                    print ('CME nose dist:    ', CMElens[0]/7e10)
+                    print ('Earth longitude:  ', Elon)
+                inCME = True
+                return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon  
+            elif thismin < prevmin:
+                prevmin = thismin
+            elif CMElens[0] > Er + 100 * 7e10:
+                return np.array([[9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999 
+            else:
+                return np.array([[9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999 
         
-    # Inputs ---------------------------------
-    # A [425, 1, 27, 0.7, 0.5, 1, 10, 1.25, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    # B [889, 5, 40.9, 0.7, 0.5, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    # C [1083, 9.9, 46.7, 0.7, 0.5, 1, 10, 5, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    # D [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927']
-    #[1300, 6.9, 60, 0.8, 0.5, 1, 10, 3, 6.9, 440, 8, 1, 213., 1, 1.927]
-    #[1300, 7, 60, 0.7, 0.5, 1, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555] new version with C 1.555
 
-    #invec = [1300, 7, 60, 0.7, 0.5, 10, 7, 6.9, 400, 4, 1, 213., 1, 1.555]
-    invecF = [1250, 10, 45, 12.5, 0.7, 1., 10, 3, 6.9, 440, 5.7, 1, 213., 1.1, 1.927]
-    invecS = [600, 2, 30, 5, 0.7,  1, 10, 1.33, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    invecF = [1250, 10, 45, 10, 0.7, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    invecE = [2000, 50, 60, 15, 0.7, 1, 10, 8, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    runParade(invecE)
+if __name__ == '__main__':
+    # invec = [CMElat, CMElon, CMEtilt, vFront, Mass, AW, AWp, deltax, deltap, rFront**, Bscale, nSW, vSW, BSW, Cd, rFinal, tau, cnm] (rFront used to be outside invec)
+    # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
+    invec = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
+    outs, Elonf = getAT(invec, [0,0,213,1.141e-5], fscales=[0.5,0.5])
 
-    '''invecA = [1083, 9.9, 46.7, 0.7, 0.5, 1, 10, 3, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    invecB = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    invecC = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-    invecD = [1547, 50, 60.7, 0.7, 0.5, 1, 10, 7, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-
-    invecSold = [600, 5, 30, 0.7, 0.3, 1, 10, 1.33, 6.9, 440, 5.7, 1, 213., 1, 1.927]
-
-    runParade(invecS, pan=True, csOff=True, axisOff=True, dragOff=True, name='SP10')
-    runParade(invecS, pan=True, csOff=True, axisOff=True, dragOff=False, name='SP1D')
-    runParade(invecS, pan=True, csTens=False, axisOff=True, dragOff=True, name='SP20')
-    runParade(invecS, pan=True, csTens=False, axisOff=True, dragOff=False, name='SP2D')
-    runParade(invecS, pan=True, axisOff=True, dragOff=True, name='SP30')
-    runParade(invecS, pan=True, axisOff=True, dragOff=False, name='SP3D')
-    runParade(invecS, pan=True, dragOff=True, name='SP40')
-    runParade(invecS, pan=True, dragOff=False, name='SP4D')'''
-
-    #runParade(invecB)
-    #runParade(invecC)
-    #runParade(invecD)
