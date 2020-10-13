@@ -98,18 +98,6 @@ def processANTinputs(input_values):
         BSW = float(input_values['BSW'])
     except:
         BSW = -9999
-    try:
-        Bscale = float(input_values['Bscale'])
-    except:
-        Bscale = -9999
-    try:
-        tau = float(input_values['tau'])
-    except:
-        tau = -9999
-    try:
-        cnm = float(input_values['cnm'])
-    except:
-        cnm = -9999
     try: 
         cs = float(input_values['cs'])
     except:
@@ -119,7 +107,7 @@ def processANTinputs(input_values):
     except:
         vA = -9999
     
-    return Epos, Cd, [nSW, vSW, BSW, Bscale, cs, vA]    
+    return Epos, Cd, [nSW, vSW, BSW, cs, vA]    
     
 def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     # Nose Direction
@@ -277,12 +265,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     #CMElens = [rFront, rEdge, d, br, bp, a, c, rXCent]
     CMElens[0] = rFront
     alpha, ndotz, Deltabr, rCent, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass)
-    
-    # this will need to go
-    CMEA = CMElens[5]/CMElens[6]
-    CMEB = CMElens[4]/CMElens[6]    
-    CdivR = np.tan(AW) / (1. + CMEB + np.tan(AW) * (CMEA + CMEB))
-    
+        
     # B1AU is the total magnetic field strength at rFinal
     # need to split into Br and Bphi
     BphiBr = 2.7e-6 * Er  / vSW 
@@ -415,7 +398,6 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             # Get the max R for that parametric t
             maxr = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
             
-            #print (CMElens[0]/rsun, thismin)
             if vpmag < maxr:    
                 TT = t/3600./24.
                 outTs.append(t/3600./24.)

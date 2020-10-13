@@ -20,11 +20,8 @@ def initForeCAT(input_values):
     # Simulation set up --------------------------------------------------------------------|
     #---------------------------------------------------------------------------------------|
 
-    # Initialize GPU arrays and load magnetic field data
-    if FC.useGPU:
-        FF.init_GPU(FC.CR, Ntor, Npol)
-    else:
-        FF.init_CPU(FC.CR, Ntor, Npol)
+    # Initialize magnetic field data
+    FF.init_CPU(FC.CR, Ntor, Npol)
 
     # Initialize magnetic field and distance pickles
     FC.initdefpickle(FC.CR)
@@ -32,7 +29,7 @@ def initForeCAT(input_values):
 
 def initCME(CME_params, ipos):
     # Initialize CME
-    CME = CC.CME(ipos, CME_params, Ntor, Npol, FC.user_vr, FC.user_exp, FC.user_mass, FC.user_Bexp, FC.rsun)
+    CME = CC.CME(ipos, CME_params, Ntor, Npol, FC.user_vr, FC.user_exp, FC.user_mass, FC.AWratio, FC.rsun)
     return CME
 
 
@@ -45,7 +42,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Set up empty arrays if output path
     if path:
-        outts, outRs, outlats, outlons, outtilts, outvrs, outAWs, outvdefs = [], [], [], [], [], [], [], []
+        outts, outRs, outlats, outlons, outtilts, outvrs, outAWs, outAWps, outvdefs, outdeltaAxs, outdeltaCSs, = [], [], [], [], [], [], [], [], [], [], []
     
     # Run until nose hits rmax
     while CME.points[CC.idcent][1,0] <= rmax:
@@ -77,12 +74,15 @@ def runForeCAT(CME, rmax, silent=False, path=False):
                 vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
                 outvrs.append(vCME)
                 outvdefs.append(vdef)
-                outAWs.append(CME.ang_width*FC.radeg)
+                outAWs.append(CME.AW*FC.radeg)
+                outAWps.append(CME.AWp*FC.radeg)
+                outdeltaAxs.append(CME.deltaAx)
+                outdeltaCSs.append(CME.deltaCS)
             # Reset print counter        
             dtprint = CME.dt	
 
         # Advance a step
-        CME.update_CME(FC.user_vr, FC.user_exp, FC.user_mass, FC.user_Bexp)
+        CME.update_CME(FC.user_vr, FC.user_exp, FC.user_mass)
         dtprint += CME.dt
             
     # Print final step if tprint not equal to time resolution so that we
@@ -104,12 +104,14 @@ def runForeCAT(CME, rmax, silent=False, path=False):
             vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
             outvrs.append(vCME)
             outvdefs.append(vdef)
-            outAWs.append(CME.ang_width*FC.radeg)
+            outAWs.append(CME.AW*FC.radeg)
+            outAWps.append(CME.AWp*FC.radeg)
+            outdeltaAxs.append(CME.deltaAx)
+            outdeltaCSs.append(CME.deltaCS)
             
             
     # Clean up things        
     if FC.saveData: FC.outfile.close()    # close the output files
-    if FC.useGPU: FF.clear_GPU() # reset GPU if needed
     
     # Correct the nose lon of the CME (take out solar rotation)
     # and recalculate the CME points
@@ -120,7 +122,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Return the path data if needed, else just return final CME 
     if path:
-        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outvrs, outvdefs])
+        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvrs, outvdefs, outdeltaAxs, outdeltaCSs])
     else:
         return CME
 
@@ -129,5 +131,5 @@ def runForeCAT(CME, rmax, silent=False, path=False):
 if __name__ == '__main__':
     input_values, allinputs = FC.readinputfile()
     ipos, rmax = initForeCAT(input_values)
-    CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], ipos)
-    CME = runForeCAT(CME, rmax)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
+    CME = runForeCAT(CME, rmax, path=True)

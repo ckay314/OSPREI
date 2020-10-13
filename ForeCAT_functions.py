@@ -30,7 +30,7 @@ def readinputfile():
     return input_values, inputs
 
 def get_inputs(inputs):
-    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'useGPU', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time', 'SSscale', 'includeSIT', 'nSW', 'vSW', 'BSW', 'cs', 'vA','Bscale', 'tau', 'cnm']
+    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'deltaAx', 'deltaCS', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time', 'SSscale', 'includeSIT', 'nSW', 'vSW', 'BSW', 'cs', 'vA','Bscale', 'tau', 'cnm', 'AWp']
     # Other var names which can ignore since OSPREI/ANTEATR/FIDO use
     other_vars = ['suffix', 'nRuns', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'models', 'ObsDataFile', 'vTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary
@@ -41,8 +41,6 @@ def get_inputs(inputs):
     # to be an input value if we want to ensemble it
     input_values['Cdperp'] = 1.   
     input_values['rstart'] = 1.1
-    input_values['shapeA'] = 1.   
-    input_values['shapeB'] = 0.15  
     input_values['shapeB0'] = 0.05    
     input_values['raccel1'] = 1.3
     input_values['raccel2'] = 4.0
@@ -50,6 +48,8 @@ def get_inputs(inputs):
     input_values['AWmin'] = 5.
     input_values['AWr'] = 1.5
     input_values['rmaxM'] = 10.
+    input_values['deltaAx'] = 1.
+    input_values['deltaCS'] = 1.
     
              
     for i in range(len(inputs)):
@@ -98,10 +98,10 @@ def getInps(input_values):
     Cd = float(input_values['Cdperp'])
     
     # check for CME shape and initial nose distance
-    global shapeA, shapeB, rstart
+    global rstart, deltaAx, deltaCS
     rstart = float(input_values['rstart'])
-    shapeA = float(input_values['shapeA'])
-    shapeB = float(input_values['shapeB'])
+    deltaAx = float(input_values['deltaAx'])
+    deltaCS = float(input_values['deltaCS'])
     
     # get distance where we stop the simulation
     try: 
@@ -131,14 +131,7 @@ def getInps(input_values):
     global lon0
     lon0 = 0.
     if 'L0' in input_values:  lon0 = float(input_values['L0'])
-    
-    # determine if using GPU
-    global useGPU
-    useGPU = False
-    if 'useGPU' in input_values: 
-        if input_values['useGPU'] == 'True': 
-            useGPU = True
-            
+                
     # get radial propagation model params
     global rga, rap, vmin, vmax, a_prop
     rga = float(input_values['raccel1'])
@@ -162,14 +155,16 @@ def getInps(input_values):
         sys.exit()          
     global user_exp 
     user_exp = lambda R_nose: aw0 + (awM-aw0)*(1. - np.exp(-(R_nose-1.)/awR))
-    
-    # check if given a B0, if so let shape B evolve at same rate as full AW
-    global shapeB0
-    shapeB0 = 0.2*shapeB # set default to final shape/50 if not specified, random but reasonable
-    if 'shapeB0' in input_values:  shapeB0 = float(input_values['shapeB0'])
-    global user_Bexp
-    user_Bexp = lambda R_nose: shapeB0 + (shapeB-shapeB0)*(1. - np.exp(-(R_nose-1.)/awR))
-    
+    # check if we have AWp given, for now use ratio of AWp/AWmax to scale
+    # expansion model until adding expansion forces
+    global AWratio
+    try:
+        AWp = float(input_values['AWp'])
+        AWratio = lambda R_nose: (AWp/awM)*(1. - np.exp(-(R_nose-1.)/awR))
+    except:
+        # arbitrary default of 3
+        AWratio = 1/3.
+            
     # mass
     global rmaxM, max_M
     rmaxM = float(input_values['rmaxM']) 
@@ -197,8 +192,6 @@ def getInps(input_values):
     
 
 def initdefpickle(CR):
-	# moved from pickle B since now use GPU_funcs for mag field stuff instead
-	# opens the pickle holding the angular distance from the HCS
 	global dists
 	# get pickle name
 	fname = 'PFSS' + str(CR) 
@@ -218,7 +211,6 @@ def user_vr(R_nose, rhat):
     else: vtemp = np.sqrt(vmin**2 + 2. * a_prop * (R_nose - rga))
     return vtemp, vtemp*rhat
 
-
 def openfile(CME):
     global outfile
     outfile = open(fprefix + ".dat", "w")
@@ -234,7 +226,7 @@ def printstep(CME):
     vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
     vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
     # outdata is [t, lat, lon, tilt, vCME, vDef, AW, A, B]
-    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.ang_width*radeg, CME.shape_ratios[0], CME.shape_ratios[1]]
+    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS]
     outprint = ''
     for i in outdata:
         outprint = outprint +'{:7.3f}'.format(i) + ' '  
@@ -273,7 +265,7 @@ def calc_drag(CME):
 	beta = 2.515 * np.power(H, 1.382) 
 	varCd = Cd * math.tanh(beta)
 	# determine drag force
-	Fd = - (2. * varCd * SW_rho / CME.shape[1] / rsun / math.pi) * CMEv_nr * magdifvec
+	Fd = - (2. * varCd * SW_rho / CME.rp  / rsun / math.pi) * CMEv_nr * magdifvec
 	return Fd
 
 def calc_dist(lat, lon):

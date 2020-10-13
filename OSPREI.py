@@ -315,7 +315,7 @@ def goForeCAT():
     global iparams, ipos
     ipos, rmax = initForeCAT(input_values)
 
-    CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     # add any ANTEATR/FIDO params to the seed case
     if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
     if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
@@ -355,12 +355,10 @@ def goForeCAT():
         # Save the CME in the array
         CMEarray.append(CME)
         # Write the simulation results to a file
-        # Only saving run number, nose dist, lat, lon, tilt
-        # since vr, AW can be reconstructed from empirical equation
         for j in range(len(path[0,:])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j]]
+            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j], path[8,j], path[9,j], path[10,j]]
             for iii in outstuff:
                 outprint = outprint +'{:4.2f}'.format(iii) + ' '
             ForeCATfile.write(outprint+'\n')
@@ -372,7 +370,7 @@ def makeCMEarray():
     global ipos
     ipos, rmax = initForeCAT(input_values)
     # initiate the CME
-    CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     # add non ForeCAT vars
     if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
     if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
@@ -398,17 +396,11 @@ def move2corona(CME, rmax):
     # Need to take the CMEs which are generated in low corona for ForeCAT and
     # move to outer corona for ANTEATR/FIDO
     # Pull in values
-    CME.ang_width = FC.awM * dtor
-    CME.shape_ratios[0] = FC.shapeA
-    CME.shape_ratios[1] = FC.shapeB
-    # Calculate shape
-    CME.shape[2] = rmax * np.tan(CME.ang_width) / (1 + CME.shape_ratios[1] 	+ (CME.shape_ratios[0]+ CME.shape_ratios[1]) * np.tan(CME.ang_width))
-    CME.shape[0] = CME.shape_ratios[0] * CME.shape[2]
-    CME.shape[1] = CME.shape_ratios[1] * CME.shape[2]
-	# calc new center/cone pos using new nose position and shape
-    CME.cone[1,0] = rmax
-    CME.cone[1,0] += - CME.shape[0] - CME.shape[1] # remove a+b from radial distance
-    CME.cone[0,:] = FC.SPH2CART(CME.cone[1,:]) 
+    CME.points[CC.idcent][1,0] = rmax
+    CME.AW = FC.user_exp(rmax) * dtor
+    CME.AWp = FC.AWratio(rmax) * CME.AW
+    CME.calc_lens()
+
     # set vr, don't really care about correct XYZ orientation, ANTEATR just needs magnitude
     CME.vels[0,:] = CME.vels[0,:]*0
     CME.vels[0,0] = float(input_values['vrmax']) * 1e5
@@ -471,15 +463,10 @@ def goANTEATR():
         # Mass
         mass = CME.M/1e15
         # CME shape
-        cmeAW = CME.ang_width*radeg
-        cmeA, cmeB = CME.shape_ratios[0], CME.shape_ratios[1]
-        # calc new format from old (for now !!!!)
-        deltax = cmeA
-        deltap = 1.
-        alpha = np.sqrt(1+16*deltax**2)/4/deltax
-        c = CMEr0 * (np.tan(CME.ang_width)/(1 + cmeB*alpha + (cmeA + cmeB)*np.tan(CME.ang_width)))
-        b = cmeB * c
-        cmeAWp = np.arctan(b/(CMEr0-b)) * radeg
+        cmeAW = CME.AW*radeg
+        cmeAWp = CME.AWp*radeg
+        deltax = CME.deltaAx
+        deltap = CME.deltaCS
  
         # Check if passed SW variables
         if -9999 in mySW:
