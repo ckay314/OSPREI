@@ -17,29 +17,39 @@ dtor  = 0.0174532925  # degrees to radians
 radeg = 57.29577951    # radians to degrees
 kmRs  = 1.0e5 / rsun # km (/s) divided by rsun (in cm)
 
+# Empirical function to calculate length of axis
+global lenFun
+lenCoeffs = [0.61618, 0.47539022, 1.95157615]
+lenFun = np.poly1d(lenCoeffs)
 
 # variables that carry all the simulation params
-global inps, shinps, calcSheathParams, moreShinps
+global inps, shinps, calcSheathParams, moreShinps, vExps
 # set up with default values that will get replaced when 
 # set by user
-inps = np.zeros(17)
+inps = np.zeros(19)
 inps[0]  = 0.       # Satellite Latitude
 inps[1]  = 0.       # Satellite Longitude
 inps[2]  = 0.       # CME Latitude
 inps[3]  = 0.       # CME Longitude
 inps[4]  = 0.       # CME Tilt
 inps[5]  = 45.      # Angular Width
-inps[6]  = 0.75     # CME Shape Ratio A
-inps[7]  = 0.35     # CME Shape Ratio B
-inps[8]  = 440.     # CME bulk/radial velocity
-inps[9]  = 25.      # CME B0
-inps[10] = 1.       # CME Polarity (+ = RH, - = LH)
-inps[11] = 0.       # t Shift (rel. to CME start)
-inps[12] = 0.       # CME start
-inps[13] = 0.       # CME expansion velocity
+inps[6]  = 15.
+inps[7]  = 0.7     # deltaAx
+inps[8]  = 0.5     # deltaCS
+inps[9]  = 440.     # CME bulk/radial velocity
+inps[10]  = 25.      # CME B0
+inps[11] = 1.       # CME Polarity (+ = RH, - = LH)
+inps[12] = 0.       # t Shift (rel. to CME start)
+inps[13] = 0.       # CME start
+vExp = 0.       # CME expansion velocity
 inps[14] = 213.     # Satellite radius
 inps[15] = 1.141e-5 # Satellite orbital rate
 inps[16] = 212      # CME starting radius (Rs)
+inps[17] = 1.927    # cnm
+inps[18] = 1        # tau
+
+vExps = np.array([440., 0, 440, 0, 0, 0, 0])
+
 shinps = np.zeros(7)
 shinps[0] =  -12    # Sheath Start Time
 shinps[1] =  12     # Sheath Duration
@@ -179,6 +189,59 @@ def isinCME(vec_in, CME_shape):
             return -9999, -9999, -9999., -9999, -9999    
     return myb, mythetaT, mythetaP, 0, CME_crossrad
 
+def new_isinCME(vec_in, CMElens, deltaAx, deltaCS): 
+    # Check and see if the requested point is actually in the CME and return
+    # the cylindrical radial distance (from center of FR)
+    # Function assumes vec_in is in CME Cartesian coord sys
+    # CMElens = [CMEnose, rEdge, d, br, bp, a, c]
+    
+    # Make a flux rope axis in xz plane
+    thetas = np.linspace(-math.pi/2, math.pi/2, 1001)
+    xFR = CMElens[2] + deltaAx * CMElens[6] * np.cos(thetas)
+    zFR = 0.5 * CMElens[6] * np.sign(thetas)*(np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas))))
+    # Calc the distance from all axis points
+    dists2 = (vec_in[0] - xFR)**2 + vec_in[1]**2 + (vec_in[2] - zFR)**2
+    # Find the closest point on the axis
+    myb2 = np.min(dists2)
+    
+    minidx = np.where(dists2 == myb2)[0]
+    temp = thetas[np.where(dists2 == myb2)]
+    mythetaT = temp[0]
+    myb = np.sqrt(myb2)
+    CME_crossrad = CMElens[4] 
+    
+    # Return if outside -> misses the satellite
+    if (myb > CME_crossrad):
+        myb = -9999.
+        return myb, -9999, -9999., -9999, -9999    
+    # If hits, find the theta/phi at point of impact    
+    else:
+    # Need to check if less than actual r for that part of cross section
+        # Get the normal vector
+        if mythetaT == 0: mythetaT = 0.00001
+        sn = np.sign(mythetaT)
+        mythetaT = np.abs(mythetaT)
+        Nvec = [0.5 * sn*(np.cos(mythetaT) + 0.5*np.sin(mythetaT)/np.sqrt(1-np.cos(mythetaT))), 0., deltaAx * np.sin(mythetaT)] 
+        Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+        norm = np.array(Nvec) / Nmag
+        
+        # Find the sat position within the CS
+        thisAx = [CMElens[2] + deltaAx * CMElens[6] * np.cos(mythetaT), 0.,  0.5 * sn * CMElens[6] * (np.sin(mythetaT) + np.sqrt(1 - np.cos(mythetaT)))]
+        vp = np.array(vec_in) - np.array(thisAx)
+        vpmag = np.sqrt(np.sum(vp**2))
+        vpn = vp / vpmag
+        dotIt = np.dot(vp, norm)
+        CSpol = np.arccos(np.abs(dotIt) / vpmag)
+        CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
+        parat = np.arctan2(np.tan(CSpol)*deltaCS, np.sign(dotIt))
+        # Get the max R for that parametric t
+        maxr = np.sqrt(deltaCS**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]  
+        if myb < maxr:
+            return myb, sn*mythetaT, parat, 0, maxr
+        else:
+            return myb, -9999, -9999, -9999, -9999
+
+
 # -------------------------------------------------------------------------------------- #
 def getBvector(CME_shape, minb, thetaT, thetaP):
     # Takes in the CME shape and point within CME and gets the poloidal and
@@ -192,25 +255,57 @@ def getBvector(CME_shape, minb, thetaT, thetaP):
     pdir = pdir / pmag
     return tdir, pdir
 
+def new_getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
+    # Takes in the CME shape and point within CME and gets the poloidal and
+    # toroidal direction at that point
+    # Normal direction for that theta along axis
+    sn = np.sign(mythetaT)
+    mythetaT = np.abs(mythetaT)
+    Nvec = [0.5 * sn*(np.cos(mythetaT) + 0.5*np.sin(mythetaT)/np.sqrt(1-np.cos(mythetaT))), 0., deltaAx * np.sin(mythetaT)] 
+    Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+    norm = np.array(Nvec) / Nmag
+    axAng = np.arccos(np.abs(norm[0]))
+    # tangent direction
+    tan  = np.zeros(3)
+    tan[0], tan[2] = -norm[2], norm[0] 
+    # CS angular direction
+    pol = -np.array([-deltaCS * np.sin(thetaP), np.cos(thetaP), 0.])
+    return tan, pol
+      
+    
+
 # -------------------------------------------------------------------------------------- #
 def getFRprofile():
     # Main function for getting the flux rope profile by propagating a CME outward, 
     # determining when/where it is within the CME, and getting the magnetic field vector
     
     # Unpack the parameters from inps
-    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMESRA, CMESRB, CMEvr, CMEB, CMEH, tshift, CMEstart, vExp, FFr, rotspeed, CMEr = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16]
+    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMEAWp, deltaAx, deltaCS, CMEvr, CMEB, CMEH, tshift, CMEstart, FFr, rotspeed, CMEr, cnm, tau = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16], inps[17], inps[18]
+                
+    # new shape things
+    alpha = np.sqrt(1 + 16 * deltaAx**2) / 4 / deltaAx
+    Delta = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) 
+    rp = Delta * CMEr    
+    Lp = (np.tan(CMEAW*dtor) * (1 - deltaCS * Delta) - alpha * deltaCS * Delta) / (1 + deltaAx * np.tan(CMEAW*dtor)) * CMEr
+    Lr = deltaAx * Lp
+    rr = deltaCS * rp
+    rCent = CMEr - Lr - rr
+    #CMElens = [CMEnose, rEdge, d, br, bp, a, c]
+    CMElens = np.zeros(7)
+    CMElens[0] = CMEr#0.999*FFr # start just in front of sat dist, can't hit any closer 
+    CMElens[3] = rr
+    CMElens[6]  = Lp
+    CMElens[5]  = Lr
+    CMElens[4] = rp
+    CMElens[2]  = rCent
+    CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
     
-    # Convert from shape parameters to actual CME shape
-    # Set up CME shape as [d, a, b, c]
-    CME_shape = np.zeros(4)
-    shapeC = np.tan(CMEAW*dtor) / (1. + CMESRB + np.tan(CMEAW*dtor) * (CMESRA + CMESRB)) 
-    dtorang = (CMElon - FFlon) / np.sin((90.-CMEtilt) * dtor) * dtor
-    CMEnose = CMEr#0.999*FFr # start just in front of sat dist, can't hit any closer 
-    CME_shape[3] = CMEnose * shapeC
-    CME_shape[1] = CME_shape[3] * CMESRA
-    CME_shape[2] = CME_shape[3] * CMESRB 
-    CME_shape[0] = CMEnose - CME_shape[1] - CME_shape[2]
-    
+    # things for scaling the magnetic field as CME changes shape/size
+    B0 = CMEB / deltaCS / tau
+    B0scaler = B0 * deltaCS**2 * CMElens[4]**2 
+    initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
+    cnmscaler = cnm / initlen * CMElens[4] * (deltaCS**2+1)    
+        
     # Set up arrays to hold values over the spacecraft path
     obsBx = []
     obsBy = []
@@ -243,21 +338,9 @@ def getFRprofile():
         temp2 = roty(temp, CMElat)
         FF_CMExyz = rotx(temp2, (90.-CMEtilt))
         
-        # Calculate CME shape (self-simlar unless flagged off)
-        # Self-similar
-        if (enteredCME == False) or (expansion_model == 'Self-Similar'):
-            CME_shape[3] = CMEnose * np.tan(CMEAW*dtor) / (1. + CMESRB + np.tan(CMEAW*dtor) * (CMESRA + CMESRB))
-            CME_shape[1] = CME_shape[3] * CMESRA
-            CME_shape[2] = CME_shape[3] * CMESRB 
-        # Using expansion velocity
-        elif expansion_model == 'vExp':
-            CMEnose += vExp * dt/7e5
-            CME_shape[2] += vExp * dt/7e5
-        # Update front position within CME_shape regardless of expansion mode
-        CME_shape[0] = CMEnose - CME_shape[1] - CME_shape[2]
-	    
+        minb, thetaT, thetaP, flagit, CME_crossrad = new_isinCME(FF_CMExyz, CMElens, deltaAx, deltaCS)
+	           
         # Check if currently in the CME and get position within
-        minb, thetaT, thetaP, flagit, CME_crossrad = isinCME(FF_CMExyz, CME_shape)
         # Track the minimum distance from center -> Impact Parameter
         if np.abs(minb/CME_crossrad) < ImpParam: ImpParam = np.abs(minb/CME_crossrad)
         # If hasn't been flagged determine the magnetic field vector
@@ -266,10 +349,16 @@ def getFRprofile():
             # If not set to expand flag it to stop after first contact
             if expansion_model != 'Self-Similar': flagExp = True
             # Get the toroidal and poloidal magnetic field based on distance
-            Btor = CMEB * jv(0, 2.4 * minb / CME_crossrad)
-            Bpol = CMEB * CMEH * jv(1, 2.4 * minb / CME_crossrad)
-	        # Convert this into CME Cartesian coordinates
-            tdir, pdir = getBvector(CME_shape, minb, thetaT, thetaP)
+            Btor = CMEB * deltaCS * (tau - (minb/CME_crossrad)**2)
+            ecH  = np.sqrt(deltaCS**2 * np.sin(thetaP)**2 + np.cos(thetaP)**2)
+            Bpol = - 2 * deltaCS * CMEB * CMEH * ecH / (deltaCS**2 + 1) / cnm * (minb/CME_crossrad)
+            
+            # Convert this into CME Cartesian coordinates
+            tdir, pdir = new_getBvector(CMElens, minb, thetaT, thetaP, deltaAx, deltaCS) 
+            #print (tdir)
+            #print (pdir)
+            #print (sd)
+            
             Bt_vec = Btor * tdir
             Bp_vec = Bpol * pdir
             Btot = Bt_vec + Bp_vec
@@ -282,20 +371,21 @@ def getFRprofile():
             obsBy.append(-BSC[1])
             obsBz.append(BSC[2])
             tARR.append(t/3600.)
-            rCME.append(CMEnose)
+            rCME.append(CMElens[0])
             radfrac.append(minb/CME_crossrad)   
         else:
             # stop checking if exit CME
             if enteredCME: t = tmax+1
         # Move to next step in simulation
         t += dt
-	    # CME nose moves to new position
-        CMEnose += CMEvr * dt / 7e5 # change position in Rsun
-	    # Update the total magnetic field -> should decrease as expands
-        if (enteredCME == False) or (expansion_model == 'Self-Similar'):
-            CMEB *= ((CMEnose - CMEvr * dt / 7e5) / CMEnose)**2
-        elif expansion_model == 'vExp':
-            CMEB *= ((CME_shape[2] - vExp * dt / 7e5) / CME_shape[2])**2
+	    # CME nose moves to new position, have vr in vexp vector
+        CMElens += vExps * dt / 7e5
+        
+        # Update B0/cnm
+        lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
+        CMEB = B0scaler / deltaCS**2 / CMElens[4]**2 
+        cnm = cnmscaler * lenNow  / CMElens[4] / (deltaCS**2+1)
+                     
 	    # Include the orbit of the satellite/Earth
         FFlon += dt * rotspeed
         
@@ -314,14 +404,15 @@ def getFRprofile():
     return Bout, tARR, isHit, ImpParam, np.array(radfrac)
     
 # -------------------------------------------------------------------------------------- #
-def run_case(inpsIn, shinpsIn):
+def run_case(inpsIn, shinpsIn, vExpIn):
     # Take the values passed in and set to globals for convenience
-    global inps, shinps
+    global inps, shinps, vExps
     inps = inpsIn
     shinps = shinpsIn
+    vExps = vExpIn
     
     # use to set sheath end
-    CMEstart = inps[12] + inps[11]/24.
+    CMEstart = inps[13] + inps[12]/24.
     
     # run the simulation    
     Bout, tARR, isHit, ImpParam, radfrac = getFRprofile()
@@ -530,7 +621,7 @@ def readInputFile():
     inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
     # Include some duplicates between OSPREI names and more natural FIDO only names
     # (ie CME_lat and ilat both work to set CME lat) so can reuse OSPREI .txt files
-    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'ilat', 'ilon', 'tilt', 'AWmax', 'CME_AW', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA', 'SWBx', 'SWBy', 'SWBz', 'ObsDataFile', 'ImpCMEr', 'Sat_rot']
+    possible_vars = ['CME_lat', 'CME_lon', 'CME_tilt', 'CME_AW', 'CME_AWp', 'AW', 'AWp', 'ilat', 'ilon', 'tilt', 'AWmax', 'shapeA', 'shapeB', 'FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'CME_vr', 'vTrans', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'includeSIT', 'hasSheath', 'sheathTime', 'Compression', 'vSheath', 'SWBr', 'SWBphi', 'calcSheath', 'BSW', 'nSW', 'vSW', 'vTransit', 'cs', 'vA', 'SWBx', 'SWBy', 'SWBz', 'ObsDataFile', 'ImpCMEr', 'Sat_rot', 'deltaAx', 'deltaCS', 'cnm', 'Cnm', 'tau']
     # Check if name is in list and add to dictionary if so
     input_values = {}
     for i in range(len(inputs)):
@@ -540,7 +631,7 @@ def readInputFile():
     return input_values
         
 def assignInps(input_values):
-    global inps, shinps, hasSheath, calcSheath, expansion_model, ObsData
+    global inps, shinps, hasSheath, calcSheath, expansion_model, ObsData, vExps
     input_names = input_values.keys()
     if 'ObsDataFile' in input_names:
         ObsData = input_values['ObsDataFile']
@@ -564,32 +655,45 @@ def assignInps(input_values):
         inps[5] = float(input_values['CME_AW'])
     elif 'AWmax' in input_names:
         inps[5] = float(input_values['AWmax'])
-    if 'shapeA' in input_names:
-        inps[6] = float(input_values['shapeA'])
-    if 'shapeB' in input_names:
-        inps[7] = float(input_values['shapeB'])
+    elif 'AW' in input_names:
+        inps[5] = float(input_values['AW'])
+    if 'CME_AWp' in input_names:
+        inps[6] = float(input_values['CME_AWp'])
+    elif 'AWp' in input_names:
+        inps[6] = float(input_values['AWp'])        
+    if 'deltaAx' in input_names:
+        inps[7] = float(input_values['deltaAx'])
+    if 'deltaCS' in input_names:
+        inps[8] = float(input_values['deltaCS'])
     if 'CME_vr' in input_names:
-        inps[8] = float(input_values['CME_vr'])
+        inps[9] = float(input_values['CME_vr'])
     elif 'CME_v1AU' in input_names:
-        inps[8] = float(input_values['CME_v1AU'])        
+        inps[9] = float(input_values['CME_v1AU'])        
     if 'FR_B0' in input_names:
-        inps[9] = float(input_values['FR_B0'])
+        inps[10] = float(input_values['FR_B0'])
     if 'FR_pol' in input_names:
-        inps[10] = float(input_values['FR_pol'])
+        inps[11] = float(input_values['FR_pol'])
     if 'tshift' in input_names:
-        inps[11] = float(input_values['tshift'])
+        inps[12] = float(input_values['tshift'])
     if 'CME_start' in input_names:
-        inps[12] = float(input_values['CME_start'])
-    if 'CME_vExp' in input_names:
-        inps[13] = float(input_values['CME_vExp'])
+        inps[13] = float(input_values['CME_start'])
     if 'Sat_rad' in input_names:
         inps[14] = float(input_values['Sat_rad'])
     if 'Sat_rot' in input_names:
         inps[15] = float(input_values['Sat_rot'])  
-    if 'Expansion_Model' in input_names:
-        expansion_model = input_values['Expansion_Model']
     if 'ImpCMEr' in input_names:
         inps[16] = float(input_values['ImpCMEr'])
+    if 'cnm' in input_names:
+        inps[17] = float(input_values['cnm'])
+    elif 'Cnm' in input_names:
+        inps[17] = float(input_values['Cnm'])
+    if 'tau' in input_names:
+        inps[18] = float(input_values['tau'])
+        
+    if 'CME_vExp' in input_names:
+        vExp = float(input_values['CME_vExp']) / inps[8] # vExp_rr is vExp * deltaCS so convert to just vExp
+        # vExps = [CMEnose, rEdge, d, br, bp, a, c]
+        vExps = np.array([inps[9], 0, inps[9]-inps[8]*vExp, inps[8]*vExp, vExp, 0, 0])
         
     # Can either take sheath inputs from file or calculate from 
     # given parameters
@@ -619,7 +723,7 @@ def assignInps(input_values):
         if input_values['calcSheath'] == 'True':
             calcSheath = True
     # set start of sheath based on CME_start and sheathTime        
-    shinps[0] = inps[12]-shinps[1]/24.
+    shinps[0] = inps[13]-shinps[1]/24.
     # Pull in parameters needed to calculate the sheath if needed
     global moreShinps
     if calcSheath:
@@ -643,12 +747,12 @@ def assignInps(input_values):
             vA = float(input_values['vA'])
         moreShinps = [nSW, vSW, cs, vA, vTransit]
             
-        vels =  [inps[8], inps[13], vTransit, vSW]
+        vels =  [inps[9], vExp, vTransit, vSW]
         if countBsIn == 3:
             Bvec = [shinps[4], shinps[5], shinps[6]]
-            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], B=Bvec, cs=cs, vA=vA)    
+            shinps = calcSheathInps(inps[13], vels, nSW, BSW, inps[14], B=Bvec, cs=cs, vA=vA)    
         else:
-            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
+            shinps = calcSheathInps(inps[13], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
             
 def saveResults(Bout, tARR, Bsheath, tsheath, radfrac, t_res=1):
     # Save a file with the data
@@ -663,7 +767,7 @@ def saveResults(Bout, tARR, Bsheath, tsheath, radfrac, t_res=1):
     # resolution = 60 mins/ t_res -> # of points per hour
     tARRDS = hourify(t_res*tARR, tARR)
     BvecDS = [hourify(t_res*tARR,Bout[0][:]), hourify(t_res*tARR,Bout[1][:]), hourify(t_res*tARR,Bout[2][:]), hourify(t_res*tARR,Bout[3][:])]
-    vProf = radfrac2vprofile(radfrac, inps[8], inps[13])
+    vProf = radfrac2vprofile(radfrac, inps[9], vExp)
     vProfDS = hourify(t_res*tARR, vProf)
     
     # Write sheath stuff first if needed
@@ -697,13 +801,13 @@ def saveRestartFile():
     FIDOfile.write('CME_tilt: '+str(inps[4])+'\n')
     FIDOfile.write('CME_AW: '+str(inps[5])+'\n')
     FIDOfile.write('shapeA: '+str(inps[6])+'\n')
-    FIDOfile.write('shapeB: '+str(inps[7])+'\n')
-    FIDOfile.write('CME_vr: '+str(inps[8])+'\n')
-    FIDOfile.write('FR_B0: '+str(inps[9])+'\n')
-    FIDOfile.write('FR_pol: '+str(inps[10])+'\n')
-    FIDOfile.write('tshift: '+str(inps[11])+'\n')
-    FIDOfile.write('CME_start: '+str(inps[12])+'\n')
-    FIDOfile.write('CME_vExp: '+str(inps[13])+'\n')
+    FIDOfile.write('shapeB: '+str(inps[8])+'\n')
+    FIDOfile.write('CME_vr: '+str(inps[9])+'\n')
+    FIDOfile.write('FR_B0: '+str(inps[10])+'\n')
+    FIDOfile.write('FR_pol: '+str(inps[11])+'\n')
+    FIDOfile.write('tshift: '+str(inps[12])+'\n')
+    FIDOfile.write('CME_start: '+str(inps[13])+'\n')
+    FIDOfile.write('CME_vExp: '+str(vExp)+'\n')
     FIDOfile.write('Sat_rad: '+str(inps[14])+'\n')
     FIDOfile.write('Sat_rot: '+str(inps[15])+'\n')
     FIDOfile.write('Expansion_Model: '+expansion_model+'\n')
@@ -730,7 +834,19 @@ if __name__ == '__main__':
     # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
     # Sat_rad [14], Sat_rot [15], CMEr[16]
     
-    startFromText()
-    Bout, tARR, Bsheath, tsheath, radfrac = run_case(inps, shinps)
-    print(Bout)
-    print(Bsheath)
+    # new order Sat_lat [0], Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
+    # CMEAWp[6], CMEdeltaAx [7], CMEdeltaCS [8], CMEvr [9], CMEB0 [10], CMEH [11], tshift [12], 
+    # tstart [13],  vexp[14],  Sat_rad [15], Sat_rot [16], CMEr[17]
+    
+    startFromText()    
+    
+    Bout, tARR, Bsheath, tsheath, radfrac, isHit = run_case(inps, shinps, vExps)
+    #print(Bout)
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    plt.plot(tARR, Bout[-1], 'k')
+    plt.plot(tARR, Bout[0], 'r')
+    plt.plot(tARR, Bout[1], 'b')
+    plt.plot(tARR, Bout[2], 'g')
+    plt.show()
+    #print(Bsheath)

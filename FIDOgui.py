@@ -13,8 +13,6 @@ import sys
 import FIDO
 import numpy as np
 
-global Bout, tARR, Bsheath, tsheath, radfrac
-
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')    
 
@@ -22,7 +20,7 @@ pg.setConfigOption('foreground', 'k')
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 700)
+        MainWindow.resize(800, 715)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         # CME Parameters Title
@@ -51,11 +49,11 @@ class Ui_MainWindow(object):
         self.AWLab.setGeometry(QtCore.QRect(10, 175, 90, 20))
         self.AWLE = QtWidgets.QLineEdit(self.centralwidget)
         self.AWLE.setGeometry(QtCore.QRect(10, 195, 90, 20))
-        # Radial/bulk velocity
-        self.vrLab = QtWidgets.QLabel(self.centralwidget)
-        self.vrLab.setGeometry(QtCore.QRect(10, 220, 90, 20))
-        self.vrLE = QtWidgets.QLineEdit(self.centralwidget)
-        self.vrLE.setGeometry(QtCore.QRect(10, 240, 90, 20))
+        # Angular Width Perp
+        self.AWpLab = QtWidgets.QLabel(self.centralwidget)
+        self.AWpLab.setGeometry(QtCore.QRect(10, 220, 90, 20))
+        self.AWpLE = QtWidgets.QLineEdit(self.centralwidget)
+        self.AWpLE.setGeometry(QtCore.QRect(10, 240, 90, 20))        
         # CME Shape Parameters
         self.shapeALab = QtWidgets.QLabel(self.centralwidget)
         self.shapeALab.setGeometry(QtCore.QRect(10, 265, 90, 20))
@@ -65,36 +63,49 @@ class Ui_MainWindow(object):
         self.shapeBLab.setGeometry(QtCore.QRect(10, 310, 90, 20))
         self.shapeBLE = QtWidgets.QLineEdit(self.centralwidget)
         self.shapeBLE.setGeometry(QtCore.QRect(10, 330, 90, 20))
-        # Expansion mode
-        self.ExpLab = QtWidgets.QLabel(self.centralwidget)
-        self.ExpLab.setGeometry(QtCore.QRect(10, 375, 110, 20))
-        self.ExpBox = QtWidgets.QComboBox(self.centralwidget)
-        self.ExpBox.setGeometry(QtCore.QRect(10, 395, 90, 20))
+        # Radial/bulk velocity
+        self.vrLab = QtWidgets.QLabel(self.centralwidget)
+        self.vrLab.setGeometry(QtCore.QRect(10, 355, 90, 20))
+        self.vrLE = QtWidgets.QLineEdit(self.centralwidget)
+        self.vrLE.setGeometry(QtCore.QRect(10, 375, 90, 20))
         # Expansion Velocity 
         self.vExpLab = QtWidgets.QLabel(self.centralwidget)
-        self.vExpLab.setGeometry(QtCore.QRect(10, 420, 90, 20))
+        self.vExpLab.setGeometry(QtCore.QRect(10, 400, 90, 20))
         self.vExpLE = QtWidgets.QLineEdit(self.centralwidget)
-        self.vExpLE.setGeometry(QtCore.QRect(10, 440, 90, 20))
+        self.vExpLE.setGeometry(QtCore.QRect(10, 420, 90, 20))
+        
         # Flux rope magnitude
         self.B0Lab = QtWidgets.QLabel(self.centralwidget)
-        self.B0Lab.setGeometry(QtCore.QRect(10, 485, 90, 20))
+        self.B0Lab.setGeometry(QtCore.QRect(10, 445, 90, 20))
         self.B0LE = QtWidgets.QLineEdit(self.centralwidget)
-        self.B0LE.setGeometry(QtCore.QRect(10, 505, 90, 20))
+        self.B0LE.setGeometry(QtCore.QRect(10, 465, 90, 20))
         # Flux Rope polarity
         self.PolLab = QtWidgets.QLabel(self.centralwidget)
-        self.PolLab.setGeometry(QtCore.QRect(10, 530, 90, 20))
+        self.PolLab.setGeometry(QtCore.QRect(10, 490, 90, 20))
         self.PolBox = QtWidgets.QComboBox(self.centralwidget)
-        self.PolBox.setGeometry(QtCore.QRect(10, 550, 90, 20))        
+        self.PolBox.setGeometry(QtCore.QRect(10, 510, 90, 20))       
+        # Flux rope magnitude
+        self.cnmLab = QtWidgets.QLabel(self.centralwidget)
+        self.cnmLab.setGeometry(QtCore.QRect(10, 535, 90, 20))
+        self.cnmLE = QtWidgets.QLineEdit(self.centralwidget)
+        self.cnmLE.setGeometry(QtCore.QRect(10, 555, 90, 20))
+        # Flux Rope polarity
+        self.tauLab = QtWidgets.QLabel(self.centralwidget)
+        self.tauLab.setGeometry(QtCore.QRect(10, 580, 90, 20))
+        self.tauLE = QtWidgets.QLineEdit(self.centralwidget)
+        self.tauLE.setGeometry(QtCore.QRect(10, 600, 90, 20))       
+        
+         
         # CME (flux rope) start time
         self.StartLab = QtWidgets.QLabel(self.centralwidget)
-        self.StartLab.setGeometry(QtCore.QRect(10, 595, 90, 20))
+        self.StartLab.setGeometry(QtCore.QRect(10, 625, 90, 20))
         self.StartLE = QtWidgets.QLineEdit(self.centralwidget)
-        self.StartLE.setGeometry(QtCore.QRect(10, 615, 90, 20))
+        self.StartLE.setGeometry(QtCore.QRect(10, 645, 90, 20))
         # shift relative to start time
         self.tShiftLab = QtWidgets.QLabel(self.centralwidget)
-        self.tShiftLab.setGeometry(QtCore.QRect(10, 640, 90, 20))
+        self.tShiftLab.setGeometry(QtCore.QRect(10, 670, 90, 20))
         self.tShiftLE = QtWidgets.QLineEdit(self.centralwidget)
-        self.tShiftLE.setGeometry(QtCore.QRect(10, 660, 90, 20))
+        self.tShiftLE.setGeometry(QtCore.QRect(10, 690, 90, 20))
                 
         # Plot windows
         self.graphB = pg.PlotWidget(self.centralwidget)
@@ -194,7 +205,10 @@ class Ui_MainWindow(object):
         
         # Button for turining the wireframe on or off -----------------------------------|
         self.saveButton = QtWidgets.QPushButton(self.centralwidget)
-        self.saveButton.setGeometry(QtCore.QRect(363, 655, 80, 25))
+        self.saveButton.setGeometry(QtCore.QRect(413, 655, 80, 25))
+        # Button to replot for option other than enter ----------------------------------|
+        self.plotButton = QtWidgets.QPushButton(self.centralwidget)
+        self.plotButton.setGeometry(QtCore.QRect(313, 655, 80, 25))
         
         
         MainWindow.setCentralWidget(self.centralwidget)
@@ -208,13 +222,15 @@ class Ui_MainWindow(object):
         self.LonLab.setText(_translate("MainWindow", "Longitude"))
         self.TiltLab.setText(_translate("MainWindow", "Tilt"))
         self.AWLab.setText(_translate("MainWindow", "Ang Width"))
-        self.vrLab.setText(_translate("MainWindow", "Bulk V"))
-        self.ExpLab.setText(_translate("MainWindow", "Expansion Model"))
+        self.AWpLab.setText(_translate("MainWindow", "CS Ang Width"))
+        self.vrLab.setText(_translate("MainWindow", "Front V"))
         self.vExpLab.setText(_translate("MainWindow", "Expansion v"))
-        self.shapeALab.setText(_translate("MainWindow", "Shape A"))
-        self.shapeBLab.setText(_translate("MainWindow", "Shape B"))
+        self.shapeALab.setText(_translate("MainWindow", "Delta Ax"))
+        self.shapeBLab.setText(_translate("MainWindow", "Delta CS"))
         self.B0Lab.setText(_translate("MainWindow", "FR B0"))
         self.PolLab.setText(_translate("MainWindow", "FR Polarity"))
+        self.cnmLab.setText(_translate("MainWindow", "Cnm"))
+        self.tauLab.setText(_translate("MainWindow", "Tau"))
         self.StartLab.setText(_translate("MainWindow", "FR Start Time"))
         self.tShiftLab.setText(_translate("MainWindow", "Time Shift"))
         self.SClabel.setText(_translate("MainWindow", "Spacecraft"))
@@ -236,6 +252,7 @@ class Ui_MainWindow(object):
         self.vALab.setText(_translate("MainWindow", "vA"))
         self.vTransLab.setText(_translate("MainWindow", "Transit Vel"))
         self.saveButton.setText(_translate("MainWindow", "Save"))
+        self.plotButton.setText(_translate("MainWindow", "Plot"))
         
         
 class mywindow(QtWidgets.QMainWindow):
@@ -281,7 +298,6 @@ class mywindow(QtWidgets.QMainWindow):
         PWs[3].setLabels(left='B (nT)')    
         
         # Add things to menu Boxes
-        self.ui.ExpBox.addItems(["None", "Self-Similar", "vExp"])
         self.ui.ShBox.addItems(["No", "Dur/Comp", "From SW"])
         self.ui.PolBox.addItems(["+", "-"])
         
@@ -305,36 +321,39 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.LonLE.setText(str(FIDO.inps[3]))
         self.ui.TiltLE.setText(str(FIDO.inps[4]))
         self.ui.AWLE.setText(str(FIDO.inps[5]))
-        self.ui.shapeALE.setText(str(FIDO.inps[6]))
-        self.ui.shapeBLE.setText(str(FIDO.inps[7]))
-        self.ui.vrLE.setText(str(FIDO.inps[8]))
-        self.ui.B0LE.setText(str(FIDO.inps[9]))        
-        if np.sign(int(FIDO.inps[10])) == -1:
+        self.ui.AWpLE.setText(str(FIDO.inps[6]))
+        self.ui.shapeALE.setText(str(FIDO.inps[7])) 
+        self.ui.shapeBLE.setText(str(FIDO.inps[8]))
+        self.ui.vrLE.setText(str(FIDO.inps[9]))
+        self.ui.B0LE.setText(str(FIDO.inps[10]))        
+        self.ui.cnmLE.setText(str(FIDO.inps[17]))        
+        self.ui.tauLE.setText(str(FIDO.inps[18]))        
+        if np.sign(int(FIDO.inps[11])) == -1:
             self.ui.PolBox.setCurrentText('-')
-        self.ui.tShiftLE.setText(str(FIDO.inps[11]))        
-        self.ui.StartLE.setText(str(FIDO.inps[12]))        
-        self.ui.vExpLE.setText(str(FIDO.inps[13]))        
+        self.ui.tShiftLE.setText(str(FIDO.inps[12]))        
+        self.ui.StartLE.setText(str(FIDO.inps[13]))        
+        self.ui.vExpLE.setText(str(FIDO.vExps[3]))    # switch this    
         self.ui.SCRLE.setText(str(FIDO.inps[14]))        
         self.ui.SCOrbLE.setText(str(FIDO.inps[15]))   
-        if FIDO.expansion_model == 'Self-Similar':
-            self.ui.ExpBox.setCurrentText('Self-Similar')
-        elif FIDO.expansion_model == 'vExp':
-            self.ui.ExpBox.setCurrentText('vExp')
+        # add cnm and tau
+        
         if FIDO.hasSheath:
             if FIDO.calcSheath:
                 self.ui.ShBox.setCurrentText('From SW')
             else:
                 self.ui.ShBox.setCurrentText('Dur/Comp')
-            self.ui.DurLE.setText('{:6.2f}'.format(FIDO.shinps[1]))
-            self.ui.CompLE.setText('{:6.2f}'.format(FIDO.shinps[2]))
-            self.ui.BxLE.setText('{:6.2f}'.format(FIDO.shinps[4]))
-            self.ui.ByLE.setText('{:6.2f}'.format(FIDO.shinps[5]))
-            self.ui.BzLE.setText('0')
-            self.ui.nLE.setText(str(FIDO.moreShinps[0]))
-            self.ui.vLE.setText(str(FIDO.moreShinps[1]))
-            self.ui.csLE.setText(str(FIDO.moreShinps[2]))
-            self.ui.vALE.setText(str(FIDO.moreShinps[3]))
-            self.ui.vTransLE.setText(str(FIDO.moreShinps[4]))
+                
+                
+        self.ui.DurLE.setText('{:6.2f}'.format(FIDO.shinps[1]))
+        self.ui.CompLE.setText('{:6.2f}'.format(FIDO.shinps[2]))
+        self.ui.BxLE.setText('{:6.2f}'.format(FIDO.shinps[4]))
+        self.ui.ByLE.setText('{:6.2f}'.format(FIDO.shinps[5]))
+        self.ui.BzLE.setText('0')
+        self.ui.nLE.setText(str(FIDO.moreShinps[0]))
+        self.ui.vLE.setText(str(FIDO.moreShinps[1]))
+        self.ui.csLE.setText(str(FIDO.moreShinps[2]))
+        self.ui.vALE.setText(str(FIDO.moreShinps[3]))
+        self.ui.vTransLE.setText(str(FIDO.moreShinps[4]))
             
         # Connect the boxes to actions    
         self.ui.SCLatLE.returnPressed.connect(self.recalcProfile)
@@ -343,10 +362,13 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.LonLE.returnPressed.connect(self.recalcProfile)
         self.ui.TiltLE.returnPressed.connect(self.recalcProfile)
         self.ui.AWLE.returnPressed.connect(self.recalcProfile)
+        self.ui.AWpLE.returnPressed.connect(self.recalcProfile)
         self.ui.shapeALE.returnPressed.connect(self.recalcProfile)
         self.ui.shapeBLE.returnPressed.connect(self.recalcProfile)
         self.ui.vrLE.returnPressed.connect(self.recalcProfile)
         self.ui.B0LE.returnPressed.connect(self.recalcProfile)
+        self.ui.cnmLE.returnPressed.connect(self.recalcProfile)
+        self.ui.tauLE.returnPressed.connect(self.recalcProfile)
         self.ui.tShiftLE.returnPressed.connect(self.recalcProfile)
         self.ui.StartLE.returnPressed.connect(self.recalcProfile)
         self.ui.vExpLE.returnPressed.connect(self.recalcProfile)
@@ -363,86 +385,110 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.vALE.returnPressed.connect(self.recalcProfile)
         self.ui.vTransLE.returnPressed.connect(self.recalcProfile)
         self.ui.PolBox.currentIndexChanged.connect(self.recalcProfile)
-        self.ui.ExpBox.currentIndexChanged.connect(self.recalcProfile)
         self.ui.ShBox.currentIndexChanged.connect(self.recalcProfile)        
         self.ui.saveButton.clicked.connect(self.saveResults)
+        self.ui.plotButton.clicked.connect(self.recalcProfile)
             
         self.recalcProfile()
             
     def recalcProfile(self):
-        FIDO.inps[0] = float(self.ui.SCLatLE.text())
-        FIDO.inps[1] = float(self.ui.SCLonLE.text())
-        FIDO.inps[2] = float(self.ui.LatLE.text())
-        FIDO.inps[3] = float(self.ui.LonLE.text())
-        FIDO.inps[4] = float(self.ui.TiltLE.text())
-        FIDO.inps[5] = float(self.ui.AWLE.text())
-        FIDO.inps[6] = float(self.ui.shapeALE.text())
-        FIDO.inps[7] = float(self.ui.shapeBLE.text())
-        FIDO.inps[8] = float(self.ui.vrLE.text())
-        FIDO.inps[9] = float(self.ui.B0LE.text())
-        FIDO.inps[11] = float(self.ui.tShiftLE.text())
-        FIDO.inps[12] = float(self.ui.StartLE.text())
-        FIDO.inps[13] = float(self.ui.vExpLE.text())
-        FIDO.inps[14] = float(self.ui.SCRLE.text())
-        FIDO.inps[15] = float(self.ui.SCOrbLE.text())
+        flagit = False
+        try:
+            FIDO.inps[2] = float(self.ui.LatLE.text())
+            FIDO.inps[3] = float(self.ui.LonLE.text())
+            FIDO.inps[4] = float(self.ui.TiltLE.text())
+            FIDO.inps[5] = float(self.ui.AWLE.text())
+            FIDO.inps[6] = float(self.ui.AWpLE.text())
+            FIDO.inps[7] = float(self.ui.shapeALE.text())
+            FIDO.inps[8] = float(self.ui.shapeBLE.text())
+            FIDO.inps[9] = float(self.ui.vrLE.text())
+            FIDO.inps[10] = float(self.ui.B0LE.text())
+            FIDO.inps[17] = float(self.ui.cnmLE.text())
+            FIDO.inps[18] = float(self.ui.tauLE.text())
+            FIDO.inps[12] = float(self.ui.tShiftLE.text())
+            FIDO.inps[13] = float(self.ui.StartLE.text())
+            vExp = float(self.ui.vExpLE.text()) /  FIDO.inps[8]
+            FIDO.vExps = np.array([FIDO.inps[9], 0, FIDO.inps[9]-FIDO.inps[8]*vExp, FIDO.inps[8]*vExp, vExp, 0, 0])
+        except:
+            print ('Error in CME inputs')
+            flagit = True
+
+        try:
+            FIDO.inps[0] = float(self.ui.SCLatLE.text())
+            FIDO.inps[1] = float(self.ui.SCLonLE.text())
+            FIDO.inps[14] = float(self.ui.SCRLE.text())
+            FIDO.inps[15] = float(self.ui.SCOrbLE.text())
+        except:
+            print ('Error in CME inputs')
+            flagit = True
         
         if self.ui.PolBox.currentText() == '+':
-            FIDO.inps[10] = 1
+            FIDO.inps[11] = 1
         else:
-            FIDO.inps[10] = -1
-        
-        if self.ui.ExpBox.currentText() == 'None':
-            FIDO.expansion_model = 'None'
-        elif self.ui.ExpBox.currentText() == 'Self-Similar':
-            FIDO.expansion_model = 'Self-Similar'
-        elif self.ui.ExpBox.currentText() == 'vExp':
-            FIDO.expansion_model = 'vExp'
-            
-        if self.ui.ShBox.currentText() != 'No':
-            FIDO.hasSheath = True
-            FIDO.shinps[4] = float(self.ui.BxLE.text())
-            FIDO.shinps[5] = float(self.ui.ByLE.text())
-            FIDO.shinps[6] = float(self.ui.BzLE.text())
-            if self.ui.ShBox.currentText() == 'Dur/Comp':
-                FIDO.calcSheath = False
-                FIDO.shinps[1] = float(self.ui.DurLE.text())
-                FIDO.shinps[2] = float(self.ui.CompLE.text())
-            elif self.ui.ShBox.currentText() == 'From SW':
-                FIDO.calcSheath = True
-                FIDO.moreShinps[0] = float(self.ui.nLE.text())
-                FIDO.moreShinps[1] = float(self.ui.vLE.text())
-                FIDO.moreShinps[2] = float(self.ui.csLE.text())
-                FIDO.moreShinps[3] = float(self.ui.vALE.text())
-                FIDO.moreShinps[4] = float(self.ui.vTransLE.text())
-                vels = [FIDO.inps[8], FIDO.inps[13], FIDO.moreShinps[4], FIDO.moreShinps[1]]
-                Bvec = [FIDO.shinps[4], FIDO.shinps[5], FIDO.shinps[6]]
-                # recalculate things
-                BSW = np.sqrt(FIDO.shinps[4]**2 + FIDO.shinps[5]**2 + FIDO.shinps[6]**2)
-                FIDO.shinps = FIDO.calcSheathInps(FIDO.inps[12], vels, FIDO.moreShinps[0], BSW, FIDO.inps[14], B=Bvec, cs=FIDO.moreShinps[2], vA=FIDO.moreShinps[3])                             
-        else:
-            FIDO.hasSheath = False
-        
-        # recalculate with the new values
-        global Bout, tARR, Bsheath, tsheath, radfrac
-        Bout, tARR, Bsheath, tsheath, radfrac = FIDO.run_case(FIDO.inps, FIDO.shinps)
-        for i in range(len(self.plots)):
-            plot = self.plots[i]
-            pw = PWs[i]
-            if FIDO.hasSheath:
-                plotx = np.append(tsheath, tARR)
-                ploty = np.append(Bsheath[i], Bout[i])
+            FIDO.inps[11] = -1
+                    
+        try:
+            if self.ui.ShBox.currentText() != 'No':
+                FIDO.hasSheath = True
+                FIDO.shinps[4] = float(self.ui.BxLE.text())
+                FIDO.shinps[5] = float(self.ui.ByLE.text())
+                FIDO.shinps[6] = float(self.ui.BzLE.text())
+                if self.ui.ShBox.currentText() == 'Dur/Comp':
+                    FIDO.calcSheath = False
+                    FIDO.shinps[1] = float(self.ui.DurLE.text())
+                    FIDO.shinps[2] = float(self.ui.CompLE.text())
+                elif self.ui.ShBox.currentText() == 'From SW':
+                    FIDO.calcSheath = True
+                    FIDO.moreShinps[0] = float(self.ui.nLE.text())
+                    FIDO.moreShinps[1] = float(self.ui.vLE.text())
+                    FIDO.moreShinps[2] = float(self.ui.csLE.text())
+                    FIDO.moreShinps[3] = float(self.ui.vALE.text())
+                    FIDO.moreShinps[4] = float(self.ui.vTransLE.text())
+                    # switch this to vexp...
+                    vels = [FIDO.inps[9], FIDO.vExps[3], FIDO.moreShinps[4], FIDO.moreShinps[1]]
+                    Bvec = [FIDO.shinps[4], FIDO.shinps[5], FIDO.shinps[6]]
+                    # recalculate things
+                    BSW = np.sqrt(FIDO.shinps[4]**2 + FIDO.shinps[5]**2 + FIDO.shinps[6]**2)
+                    FIDO.shinps = FIDO.calcSheathInps(FIDO.inps[13], vels, FIDO.moreShinps[0], BSW, FIDO.inps[14], B=Bvec, cs=FIDO.moreShinps[2], vA=FIDO.moreShinps[3])                             
             else:
-                plotx, ploty = tARR, Bout[i]
-            # Set plot range (must do first)
-            pw.setRange(xRange=[plotx[0]-0.1, plotx[-1]+0.1], padding=0.01)
-            # Plot zero lines
-            if i != 3:
-                self.zeroplots[i].setData([plotx[0]-0.5,plotx[-1]+0.5], [0,0])
-            # Plot obs lines
-            if Obs != None:
-                self.obsplots[i].setData(Obs[0],Obs[i+1])
-            # Plot FIDO results
-            plot.setData(plotx, ploty)
+                FIDO.hasSheath = False
+        except:
+            print ('Error in Sheath inputs')
+            flagit = True
+            
+        if not flagit:
+            # recalculate with the new values
+            global Bout, tARR, Bsheath, tsheath, radfrac
+            Bout, tARR, Bsheath, tsheath, radfrac, isHit = FIDO.run_case(FIDO.inps, FIDO.shinps, FIDO.vExps)
+            
+            for i in range(len(self.plots)):
+                plot = self.plots[i]
+                pw = PWs[i]
+                if isHit:
+                    if FIDO.hasSheath:
+                        plotx = np.append(tsheath, tARR)
+                        ploty = np.append(Bsheath[i], Bout[i])
+                    else:
+                        plotx, ploty = tARR, Bout[i]
+                    # Set plot range (must do first)
+                    pw.setRange(xRange=[plotx[0]-0.1, plotx[-1]+0.1], padding=0.01)
+                    # Plot zero lines
+                    if i != 3:
+                        self.zeroplots[i].setData([plotx[0]-0.5,plotx[-1]+0.5], [0,0])
+                # Plot obs lines
+                if Obs != None:
+                    self.obsplots[i].setData(Obs[0],Obs[i+1])
+                if isHit:
+                    # Check if a window is ~0 and stop it from picking really
+                    # small y axis range
+                    maxY = np.max(np.abs(ploty))
+                    if maxY < 1:
+                        pw.setYRange(-10,10)
+                    # Plot FIDO results
+                    plot.setData(plotx, ploty)
+                else:
+                    plot.setData([FIDO.inps[12],FIDO.inps[12]], [0,0])
+                    print ('No impact')
             
     def saveResults(self):
         FIDO.saveResults(Bout, tARR, Bsheath, tsheath, radfrac)
