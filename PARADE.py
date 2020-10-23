@@ -66,44 +66,44 @@ def processANTinputs(input_values):
     Epos = [0.,0.,213.,1.141e-5] # sat_lat, sat_lon, sat_rad, sat_rot
     # sat rot default is  360/365.256/24./60./60.
     try: 
-        Epos[0] = float(input_values['Sat_lat'])
+        Epos[0] = float(input_values['SatLat'])
     except:
         print('Assuming satellite at 0 lat')
     try: 
-        Epos[1] = float(input_values['Sat_lon'])
+        Epos[1] = float(input_values['SatLon'])
     except:
         print('Assuming satellite at 0 lon')
     try: 
-        Epos[2] = float(input_values['Sat_rad'])
+        Epos[2] = float(input_values['SatR'])
     except:
         print('Assuming satellite at 213 Rs (L1)')
     try: 
-        Epos[3] = float(input_values['Sat_rot'])
+        Epos[3] = float(input_values['SatRot'])
     except:
         print('Assuming satellite orbits at Earth orbital speed')
     try: 
-        Cd = float(input_values['Cd'])
+        Cd = float(input_values['SWCd'])
     except:
         print('Assuming radial Cd = 1')
         Cd = 1.
     try: 
-        nSW = float(input_values['nSW'])
+        nSW = float(input_values['SWn'])
     except:
         nSW = -9999
     try: 
-        vSW = float(input_values['vSW'])
+        vSW = float(input_values['SWv'])
     except:
         vSW = -9999
     try: 
-        BSW = float(input_values['BSW'])
+        BSW = float(input_values['SWB'])
     except:
         BSW = -9999
     try: 
-        cs = float(input_values['cs'])
+        cs = float(input_values['SWcs'])
     except:
         cs = -9999
     try: 
-        vA = float(input_values['vA'])
+        vA = float(input_values['SWvA'])
     except:
         vA = -9999
     
@@ -161,7 +161,7 @@ def getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz):
     dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
     dragAccels[3] = dragAccels[0] * (vs[3]/vs[0])
     dragAccels[5] = dragAccels[0] * (vs[5]/vs[0])
-    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) * ndotz    
+    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz    
     return dragAccels
     
 def IVD(vFront, AW, AWp, deltax, deltap, fscales):
@@ -189,7 +189,8 @@ def IVD(vFront, AW, AWp, deltax, deltap, fscales):
     vs[5] = nu1 * vs[0] - vs[2]
     vs[4] = nu1 * vs[0] * np.tan(AWp)
     vs[3] = vs[0] * (1 - nu1)
-    vs[6] = nu2 * vs[0] * np.tan(AW) - alpha * vs[3]
+    vs[6] = vs[1] - alpha * vs[3]
+    
     return vs
     
 def initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass):
@@ -225,7 +226,7 @@ def updateCME(CMElens, Mass):
     deltax = CMElens[5] / CMElens[6]
     alpha = np.sqrt(1+16*deltax**2)/4/deltax
     ndotz = 1./alpha
-    AW = np.arctan((CMElens[6] + CMElens[3]*alpha)/CMElens[2]) # semi approx
+    AW = np.arctan((CMElens[1])/CMElens[2]) 
     AWp = np.arctan(CMElens[4]/(CMElens[2] + CMElens[5]))
     # Update CME density
     vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
@@ -289,7 +290,6 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     vs = IVD(vFront, AW, AWp, deltax, deltap, fscales)    
             
     # calculate any E rot between the time given and the start of the ANTEATR simulation
-    CMElens[0] = rFront 
     printR = rFront
     inCME = False
     prevmin = 9999.
@@ -306,8 +306,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     outdelps  = []
     outBs     = []
     outCnms   = []
-    
-    
+            
     while not inCME:
     #while CMElens[0] <= 0.9*Er:
         # Accels order = [Front, Edge, Center, CSr, CSp, Axr, Axp,]
@@ -320,7 +319,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
-            magAccels += [aBr, aBr * ndotz, 0, aBr, aBr*deltap, 0., 0.] 
+            magAccels += [aBr, aBr * alpha, 0, aBr, aBr/deltap, 0., 0.] 
         totAccels += magAccels                
         # Drag Force
         if not dragOff:
@@ -335,7 +334,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         
         # Calc shape params and new AWs
         deltap, deltax, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
-        
+                
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
         B0 = B0scaler / deltap**2 / CMElens[4]**2 
@@ -348,7 +347,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         
         Elon += Erotrate * dt
         t += dt
-        if (CMElens[0]>printR):             
+        if (CMElens[0]>printR):         
             printR += 5*7e10
             outTs.append(t/3600./24.)
             outRs.append(CMElens[0]/7e10)
@@ -370,18 +369,16 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             temp2 = roty(temp, CMElat)
             Epos2 = rotx(temp2, 90.-CMEtilt)
             # Get the CME axis
-            psis = np.linspace(0, math.pi/2,500)
-            xFRa = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
-            zFRa = 0.5 * CMElens[2] * (np.sin(psis) + np.sqrt(1 - np.cos(psis)))
-            xFR = np.array([xFRa[::-1], xFRa]).reshape([-1])
-            zFR = np.array([-zFRa[::-1], zFRa]).reshape([-1])
-            psis = np.array([-psis[::-1], psis]).reshape([-1])
-            
+            psis = np.linspace(-math.pi/2, math.pi/2, 1001)
+            sns = np.sign(psis)
+            xFR = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
+            zFR = 0.5 * sns * CMElens[2] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))            
             # Determine the closest point on the axis and that distance
             dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMElens[4])**2
             thismin = np.min(dists2)
             thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
             sn = np.sign(thisPsi)
+            thisPsi = np.abs(thisPsi)
             thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[2] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
             vp = np.array(Epos2) - np.array(thisAx)
             # Get the normal vector
@@ -398,7 +395,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             # Get the max R for that parametric t
             maxr = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
             
-            if vpmag < maxr:    
+            if vpmag < maxr:   
                 TT = t/3600./24.
                 outTs.append(t/3600./24.)
                 outRs.append(CMElens[0]/7e10)
@@ -411,13 +408,15 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                 outdelps.append(deltap)
                 outBs.append(B0)
                 outCnms.append(cnm)
+                estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
                 if not silent:
                     print ('Transit Time:     ', TT)
                     print ('Final Velocity:   ', vs[0]/1e5)
                     print ('CME nose dist:    ', CMElens[0]/7e10)
                     print ('Earth longitude:  ', Elon)
-                inCME = True
-                return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon  
+                    
+                inCME = True                
+                return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon, vs, estDur  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
@@ -430,5 +429,5 @@ if __name__ == '__main__':
     # invec = [CMElat, CMElon, CMEtilt, vFront, Mass, AW, AWp, deltax, deltap, rFront**, Bscale, nSW, vSW, BSW, Cd, rFinal, tau, cnm] (rFront used to be outside invec)
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
     invec = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
-    outs, Elonf = getAT(invec, [0,0,213,1.141e-5], fscales=[0.5,0.5])
+    outs, Elonf, vs = getAT(invec, [0,0,213,1.141e-5], fscales=[0.5,0.5])
 

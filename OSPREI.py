@@ -123,19 +123,9 @@ def setupOSPREI():
     print( 'ANTEATR: ', doANT)
     print( 'FIDO:    ', doFIDO)
 
-def readMoreInputs():
-    global input_values
-    possible_vars = ['Cd', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'nSW', 'vSW', 'BSW', 'cs', 'vA','FR_B0', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'CME_vExp', 'CME_v1AU', 'vTrans', 'Bscale', 'tau', 'cnm']
-    # if matches add to dictionary
-    for i in range(len(allinputs)):
-        temp = allinputs[i]
-        if temp[0][:-1] in possible_vars:
-            input_values[temp[0][:-1]] = temp[1]
-    return input_values
-
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars = ['ilat', 'ilon', 'tilt', 'Cdperp', 'rstart', 'shapeA', 'shapeB', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'shapeB0', 'Cd', 'SSscale','FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW', 'BSW', 'cs', 'vA', 'Bscale', 'tau', 'cnm']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -167,137 +157,152 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['Cd', 'nSW', 'vSW', 'BSW', 'cs', 'vA', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU', 'nSW', 'vSW']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'SWn', 'SWv']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['Cd', 'nSW', 'vSW', 'BSW', 'cs', 'vA', 'SSscale', 'FR_B0', 'CME_vExp', 'CME_v1AU']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'SWn', 'SWv']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
     ensembleFile.write(outstr2+'\n')
             
 def genEnsMem(runnum=0):
-    # Pass it CME params? ipos?
     # Vary parameters for all models at the same time
     outstr = str(runnum)
     outstr = outstr.zfill(4) + '   '
     flagAccel = False
-    new_pos = [float(input_values['ilat']), float(input_values['ilon']), float(input_values['tilt'])]
+    flagExp   = False
+    new_pos = [float(input_values['CMElat']), float(input_values['CMElon']), float(input_values['CMEtilt'])]
     for item in EnsInputs.keys():
         # Sort out what variable we adjust for each param
         # The lambda functions will auto adjust to new global values in them
-        if item == 'ilat':
-            new_pos[0] = np.random.normal(loc=float(input_values['ilat']), scale=EnsInputs['ilat'])
+        if item == 'CMElat':
+            new_pos[0] = np.random.normal(loc=float(input_values['CMElat']), scale=EnsInputs['CMElat'])
             outstr += '{:4.2f}'.format(new_pos[0]) + ' '
-        if item == 'ilon':
-            new_pos[1] = np.random.normal(loc=float(input_values['ilon']), scale=EnsInputs['ilon'])
+        if item == 'CMElon':
+            new_pos[1] = np.random.normal(loc=float(input_values['CMElon']), scale=EnsInputs['CMElon'])
             outstr += '{:4.2f}'.format(new_pos[1]) + ' '
-        if item == 'tilt':
-            new_pos[2] = np.random.normal(loc=float(input_values['tilt']), scale=EnsInputs['tilt'])
+        if item == 'CMEtilt':
+            new_pos[2] = np.random.normal(loc=float(input_values['CMEtilt']), scale=EnsInputs['CMEtilt'])
             outstr += '{:4.2f}'.format(new_pos[2]) + ' '
-        if item == 'Cdperp':
-            FC.Cd = np.random.normal(loc=float(input_values['Cdperp']), scale=EnsInputs['Cdperp'])
+        if item == 'SWCdp':
+            FC.Cd = np.random.normal(loc=float(input_values['SWCdp']), scale=EnsInputs['SWCdp'])
             # Make sure drag coeff is positive if inappropriate uncertainty is used
             if FC.Cd < 0: FC.Cd = 0
             outstr += '{:4.3f}'.format(FC.Cd) + ' '           
-        if item == 'shapeA':
-            FC.shapeA = np.random.normal(loc=float(input_values['shapeA']), scale=EnsInputs['shapeA'])
-            outstr += '{:5.4f}'.format(FC.shapeA) + ' '
-        if item == 'shapeB':
-            FC.shapeB = np.random.normal(loc=float(input_values['shapeB']), scale=EnsInputs['shapeB'])
-            outstr += '{:5.4f}'.format(FC.shapeB) + ' '
-        if item == 'shapeB0':
-            FC.shapeB0 = np.random.normal(loc=float(input_values['shapeB0']), scale=EnsInputs['shapeB0'])
-            outstr += '{:5.4f}'.format(FC.shapeB0) + ' '
-        if item == 'rstart':
-            FC.rstart = np.random.normal(loc=float(input_values['rstart']), scale=EnsInputs['rstart'])
+        if item == 'CMEdelAx':
+            FC.deltaAx = np.random.normal(loc=float(input_values['CMEdelAx']), scale=EnsInputs['CMEdelAx'])
+            outstr += '{:5.4f}'.format(FC.deltaAx) + ' '
+        if item == 'CMEdelCS':
+            FC.deltaCS = np.random.normal(loc=float(input_values['CMEdelCS']), scale=EnsInputs['CMEdelCS'])
+            outstr += '{:5.4f}'.format(FC.deltaCS) + ' '
+        if item == 'CMEr':
+            FC.rstart = np.random.normal(loc=float(input_values['CMEr']), scale=EnsInputs['CMEr'])
             outstr += '{:5.4f}'.format(FC.rstart) + ' '
-        if item == 'raccel1':
-            FC.rga = np.random.normal(loc=float(input_values['raccel1']), scale=EnsInputs['raccel1'])
+        if item == 'FCraccel1':
+            FC.rga = np.random.normal(loc=float(input_values['FCraccel1']), scale=EnsInputs['FCraccel1'])
             outstr += '{:5.4f}'.format(FC.rga) + ' '
             flagAccel = True
-        if item == 'raccel2':
-            FC.rap = np.random.normal(loc=float(input_values['raccel2']), scale=EnsInputs['raccel2'])
+        if item == 'FCraccel2':
+            FC.rap = np.random.normal(loc=float(input_values['FCraccel2']), scale=EnsInputs['FCraccel2'])
             outstr += '{:5.4f}'.format(FC.rap) + ' '
             flagAccel = True
-        if item == 'vrmin':
-            FC.vmin = np.random.normal(loc=float(input_values['vrmin']), scale=EnsInputs['vrmin'])*1e5
+        if item == 'FCvrmin':
+            FC.vmin = np.random.normal(loc=float(input_values['FCvrmin']), scale=EnsInputs['FCvrmin'])*1e5
             outstr += '{:5.2f}'.format(FC.vmin/1e5) + ' '
             flagAccel = True
-        if item == 'vrmax':
-            FC.vmax = np.random.normal(loc=float(input_values['vrmax']), scale=EnsInputs['vrmax'])*1e5
+        if item == 'CMEvr':
+            FC.vmax = np.random.normal(loc=float(input_values['CMEvr']), scale=EnsInputs['CMEvr'])*1e5
             outstr += '{:6.2f}'.format(FC.vmax/1e5) + ' '
             flagAccel = True
-        if item == 'AWr':
-            FC.awR = np.random.normal(loc=float(input_values['AWr']), scale=EnsInputs['AWr'])
+        if item == 'FCAWr':
+            FC.awR = np.random.normal(loc=float(input_values['FCAWr']), scale=EnsInputs['FCAWr'])
             outstr += '{:4.3f}'.format(FC.awR) + ' '
-        if item == 'AWmin':
-            FC.aw0 = np.random.normal(loc=float(input_values['AWmin']), scale=EnsInputs['AWmin'])
+            flagExp = True
+        if item == 'FCAWmin':
+            FC.aw0 = np.random.normal(loc=float(input_values['FCAWmin']), scale=EnsInputs['FCAWmin'])
             outstr += '{:5.2f}'.format(newaw0) + ' '
-        if item == 'AWmax':
-            FC.awM = np.random.normal(loc=float(input_values['AWmax']), scale=EnsInputs['AWmax'])
+            flagExp = True
+        if item == 'CMEAW':
+            FC.awM = np.random.normal(loc=float(input_values[item]), scale=EnsInputs[item])
             outstr += '{:5.2f}'.format(FC.awM) + ' '
-        if item == 'rmaxM':
-            FC.rmaxM = np.random.normal(loc=float(input_values['rmaxM']), scale=EnsInputs['rmaxM'])
+            flagExp = True
+        if item == 'CMEAWp':
+            FC.AWp = np.random.normal(loc=float(input_values[item]), scale=EnsInputs[item])
+            outstr += '{:5.2f}'.format(FC.AWp) + ' '
+            flagExp = True
+            FC.AWratio = lambda R_nose: (FC.AWp/FC.awM)*(1. - np.exp(-(R_nose-1.)/FC.awR))
+        if item == 'FCrmaxM':
+            FC.rmaxM = np.random.normal(loc=float(input_values['FCrmaxM']), scale=EnsInputs['FCrmaxM'])
             outstr += '{:5.2f}'.format(FC.rmaxM) + ' '
-        if item == 'maxM':
-            FC.max_M = np.random.normal(loc=float(input_values['maxM']), scale=EnsInputs['maxM'])* 1e15
+        if item == 'CMEM':
+            FC.max_M = np.random.normal(loc=float(input_values['CMEM']), scale=EnsInputs['CMEM'])* 1e15
             # Set somewhat arbitrary lower bound, definitely don't want negative mass
             if FC.max_M < 1e14: FC.max_M = 1e14
             outstr += '{:5.2f}'.format(FC.max_M/1e15) + ' '        
     
     if flagAccel:
         FC.a_prop = (FC.vmax**2 - FC.vmin **2) / 2. / (FC.rap - FC.rga)
+    if flagExp:
+        FC.user_exp = lambda R_nose: FC.aw0 + (FC.awM-FC.aw0)*(1. - np.exp(-(R_nose-1.)/FC.awR))
+        FC.AWratio = lambda R_nose: (FC.AWp/FC.awM)*(1. - np.exp(-(R_nose-1.)/FC.awR))
             
-    CME = initCME([FC.shapeA, FC.shapeB, FC.rstart], new_pos)
+            
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], new_pos)
+
     # add non ForeCAT vars
-    if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
-    if 'nSW' in input_values: CME.nSW = float(input_values['nSW'])    
-    if 'vSW' in input_values: CME.vSW = float(input_values['vSW'])
-    if 'BSW' in input_values: CME.BSW = float(input_values['BSW'])    
-    if 'cs' in input_values: CME.cs = float(input_values['cs'])
-    if 'vA' in input_values: CME.vA = float(input_values['vA'])
-    if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
-    if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
-    if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
-    # add non ForeCAT things onto the CME object
+    if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
+    if 'SWn' in input_values: CME.nSW = float(input_values['SWn'])    
+    if 'SWv' in input_values: CME.vSW = float(input_values['SWv'])
+    if 'SWB' in input_values: CME.BSW = float(input_values['SWB'])    
+    if 'SWcs' in input_values: CME.cs = float(input_values['SWcs'])
+    if 'SWvA' in input_values: CME.vA = float(input_values['SWvA'])
+    if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
+    if 'FRBscale' in input_values: CME.B0 = float(input_values['FRBscale'])
+    if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
+    # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
-        if item == 'Cd':
-            CME.Cd = np.random.normal(loc=float(input_values['Cd']), scale=EnsInputs['Cd'])
+        if item == 'SWCd':
+            CME.Cd = np.random.normal(loc=float(input_values['SWCd']), scale=EnsInputs['SWCd'])
             if CME.Cd <0: CME.Cd = 0
             outstr += '{:5.3f}'.format(CME.Cd) + ' '
-        if item == 'nSW':
-            CME.nSW = np.random.normal(loc=float(input_values['nSW']), scale=EnsInputs['nSW'])
+        if item == 'SWn':
+            CME.nSW = np.random.normal(loc=float(input_values['SWn']), scale=EnsInputs['SWn'])
             outstr += '{:6.2f}'.format(CME.nSW) + ' '
-        if item == 'vSW':
-            CME.vSW = np.random.normal(loc=float(input_values['vSW']), scale=EnsInputs['vSW'])
+        if item == 'SWv':
+            CME.vSW = np.random.normal(loc=float(input_values['SWv']), scale=EnsInputs['SWv'])
             outstr += '{:6.2f}'.format(CME.vSW) + ' '
-        if item == 'BSW':
-            CME.BSW = np.random.normal(loc=float(input_values['BSW']), scale=EnsInputs['BSW'])
+        if item == 'SWB':
+            CME.BSW = np.random.normal(loc=float(input_values['SWB']), scale=EnsInputs['SWB'])
             outstr += '{:6.2f}'.format(CME.BSW) + ' '
-        if item == 'cs':
-            CME.cs = np.random.normal(loc=float(input_values['cs']), scale=EnsInputs['cs'])
+        if item == 'SWcs':
+            CME.cs = np.random.normal(loc=float(input_values['SWcs']), scale=EnsInputs['SWcs'])
             outstr += '{:6.2f}'.format(CME.cs) + ' '
-        if item == 'vA':
-            CME.vA = np.random.normal(loc=float(input_values['vA']), scale=EnsInputs['vA'])
+        if item == 'SWvA':
+            CME.vA = np.random.normal(loc=float(input_values['SWvA']), scale=EnsInputs['SWvA'])
             outstr += '{:6.2f}'.format(CME.vA) + ' '
-        if item == 'FR_B0':
-            CME.FR_B0 = np.random.normal(loc=float(input_values['FR_B0']), scale=EnsInputs['FR_B0'])
-            outstr += '{:5.2f}'.format(CME.FR_B0) + ' '
-        if item == 'CME_vExp':
-            CME.vExp = np.random.normal(loc=float(input_values['CME_vExp']), scale=EnsInputs['CME_vExp'])
+        if item == 'FRB':
+            CME.B0 = np.random.normal(loc=float(input_values['FRB']), scale=EnsInputs['FRB'])
+            outstr += '{:5.2f}'.format(CME.B0) + ' '
+        if item == 'FRBscale':
+            CME.Bscale = np.random.normal(loc=float(input_values['FRBscale']), scale=EnsInputs['FRBscale'])
+            outstr += '{:5.2f}'.format(CME.Bscale) + ' '
+        if item == 'FRtau':
+            CME.tau = np.random.normal(loc=float(input_values['FRtau']), scale=EnsInputs['FRtau'])
+            outstr += '{:5.2f}'.format(CME.tau) + ' '
+        if item == 'FRCnm':
+            CME.cnm = np.random.normal(loc=float(input_values['FRCnm']), scale=EnsInputs['FRCnm'])
+            outstr += '{:5.2f}'.format(CME.cnm) + ' '
+        if item == 'CMEvExp':
+            CME.vExp = np.random.normal(loc=float(input_values['CMEvExp']), scale=EnsInputs['CMEvExp'])
             outstr += '{:6.2f}'.format(CME.vExp) + ' '
-        if item == 'CME_v1AU':
-            CME.v1AU = np.random.normal(loc=float(input_values['CME_v1AU']), scale=EnsInputs['CME_v1AU'])
-            outstr += '{:6.2f}'.format(CME.v1AU) + ' '
-        if item == 'SSscale':
-            newScale = np.random.normal(loc=float(input_values['SSscale']), scale=EnsInputs['SSscale'])
-            if newScale > 1.: newScale = 1.
-            CME.SSscale = newScale
-            outstr += '{:6.3f}'.format(CME.SSscale) + ' '
-
-    ensembleFile.write(outstr+'\n')       
+    ensembleFile.write(outstr+'\n')  
+    CME.vs[3] = CME.vExp    
+    CME.vs[2] = CME.vs[0] - CME.vs[3]
+    CME.vs[1] = CME.vs[2]*np.tan(CME.AW)
+    CME.vs[4] = CME.vs[3]/CME.deltaCS
+    CME.vs[6] = CME.vs[1] - CME.vs[4]
         
     return CME
                         
@@ -316,15 +321,13 @@ def goForeCAT():
     ipos, rmax = initForeCAT(input_values)
 
     CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
-    # add any ANTEATR/FIDO params to the seed case
-    if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
-    if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
-    if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
-    if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
-    if 'SSscale'  in input_values: CME.SSscale = float(input_values['SSscale'])
-    if 'Bscale'  in input_values: CME.Bscale = float(input_values['Bscale'])
-    if 'tau'  in input_values: CME.tau = float(input_values['tau'])
-    if 'cnm'  in input_values: CME.cnm = float(input_values['cnm'])
+    # add any ANTEATR/FIDO params to the seed case (genEnsMem will add for other cases)
+    if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
+    if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
+    if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
+    if 'CMEBscale'  in input_values: CME.Bscale = float(input_values['CMEBscale'])
+    if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
+    if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
     
     for i in range(nRuns):
         
@@ -344,9 +347,8 @@ def goForeCAT():
         CME.nSW = nSW 
         CME.vSW = vSW 
         # get B
-        # will repeatedly need sin/cos of lon/colat -> calc once here
         latID = int(CME.cone[1,1]*2 + 179)
-        lonID = int(CME.cone[1,2]*2)
+        lonID = int(CME.cone[1,2]*2)%720
         fullBvec = ForceFields.B_high[-1,latID,lonID]
         inorout = np.sign(np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
         CME.BSW = inorout*fullBvec[3] * (rmax/213)**2 *1e5
@@ -367,22 +369,34 @@ def goForeCAT():
     
 
 def makeCMEarray():
+    # Called if FC not ran
     global ipos
     ipos, rmax = initForeCAT(input_values)
+    # wipe the FC functions to constants, assume we're above height of variations
+    FC.user_mass = lambda x: float(input_values['CMEM']) * 1e15
+    FC.user_exp  = lambda x: float(input_values['CMEAW'])
+    FC.AWratio   = lambda x: float(input_values['CMEAWp']) / float(input_values['CMEAW'])
     # initiate the CME
     CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     # add non ForeCAT vars
-    if 'Cd' in input_values: CME.Cd = float(input_values['Cd'])
-    if 'FR_B0' in input_values: CME.FR_B0 = float(input_values['FR_B0'])
-    if 'CME_vExp' in input_values: CME.vExp = float(input_values['CME_vExp'])
-    if 'CME_v1AU' in input_values: CME.v1AU = float(input_values['CME_v1AU'])
-    if 'SSscale'  in input_values: CME.SSscale = float(input_values['SSscale'])
-    if 'Bscale'  in input_values: CME.Bscale = float(input_values['Bscale'])
-    if 'tau'  in input_values: CME.tau = float(input_values['tau'])
-    if 'cnm'  in input_values: CME.cnm = float(input_values['cnm'])
+    if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
+    if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
+    if 'CMEvExp' in input_values: 
+        CME.vExp = float(input_values['CMEvExp'])
+        CME.vs[3] = CME.vExp*1e5
+    if 'CMEBscale'  in input_values: CME.Bscale = float(input_values['CMEBscale'])
+    if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
+    if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
-    
+    # modify rest of vs = [CMEnose, rEdge, d, br, bp, a, c]
+    # CME.vs[0] = CME.v1AU*1e5
+    CME.vs[3] = CME.vExp    
+    CME.vs[2] = CME.vs[0] - CME.vs[3]
+    CME.vs[1] = CME.vs[2]*np.tan(CME.AW)
+    CME.vs[4] = CME.vs[3]/CME.deltaCS
+    CME.vs[6] = CME.vs[1] - CME.vs[4]
+        
     global CMEarray
     CMEarray = [CME]
     
@@ -391,6 +405,7 @@ def makeCMEarray():
         CME = genEnsMem()
         CME = move2corona(CME, rmax)
         CMEarray.append(CME)
+        
 
 def move2corona(CME, rmax):
     # Need to take the CMEs which are generated in low corona for ForeCAT and
@@ -403,9 +418,9 @@ def move2corona(CME, rmax):
 
     # set vr, don't really care about correct XYZ orientation, ANTEATR just needs magnitude
     CME.vels[0,:] = CME.vels[0,:]*0
-    CME.vels[0,0] = float(input_values['vrmax']) * 1e5
+    CME.vels[0,0] = float(input_values['CMEvr']) * 1e5
 	# determine new mass
-    CME.M = float(input_values['maxM'])*1e15
+    CME.M = float(input_values['CMEM'])*1e15
 
      # determine new position of grid points with updated ang_width and cone pos
     CME.calc_points()
@@ -434,20 +449,10 @@ def goANTEATR():
     SatRotRate = SatVars0[3]
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
-    global ANTvBulks, ANTvExps, ANTAWs, ANTts, ANTsatLons, impactIDs, ANTvTrans, SWv, SWn, ANTCMErs
-    ANTvBulks = {}
-    ANTvExps = {}
-    ANTts  = {}
+    global ANTsatLons, impactIDs, SWv, SWn, ANTCMErs
     ANTsatLons = {}
-    ANTAWs  = {}
-    ANTAWps = {}
-    ANTdeltaxs = {}
-    ANTdeltaps = {}
-    ANTB0s = {}
-    ANTcnms = {}
     ANTCMErs = {}
     impactIDs = []
-    ANTvTrans = {}
         
     for i in range(nRuns):
         myParams = SatVars0
@@ -474,21 +479,21 @@ def goANTEATR():
             Bscale, tau, cnm = CME.Bscale, CME.tau, CME.cnm
         else:
             # reset back to defaults before ensembling again
-            nSW, vSW, BSW = mySW[0], mySW[1]
+            nSW, vSW, BSW = mySW[0], mySW[1], mySW[2]
             # Add in ensemble variation if desired
             if i > 0:
-                if 'nSW' in EnsInputs: nSW = np.random.normal(loc=nSW, scale=EnsInputs['nSW'])
-                if 'vSW' in EnsInputs: vSW = np.random.normal(loc=vSW, scale=EnsInputs['vSW'])
-                if 'BSW' in EnsInputs: BSW = np.random.normal(loc=BSW, scale=EnsInputs['BSW'])
-                if 'Bscale' in EnsInputs: Bscale = np.random.normal(loc=Bscale, scale=EnsInputs['Bscale'])
-                if 'tau' in EnsInputs: tau = np.random.normal(loc=tau, scale=EnsInputs['tau'])
-                if 'cnm' in EnsInputs: cnm = np.random.normal(loc=cnm, scale=EnsInputs['cnm'])                
+                if 'SWn' in EnsInputs: nSW = np.random.normal(loc=nSW, scale=EnsInputs['SWn'])
+                if 'SWv' in EnsInputs: vSW = np.random.normal(loc=vSW, scale=EnsInputs['SWv'])
+                if 'SWB' in EnsInputs: BSW = np.random.normal(loc=BSW, scale=EnsInputs['SWB'])
+                if 'CMEBscale' in EnsInputs: Bscale = np.random.normal(loc=Bscale, scale=EnsInputs['CMEBscale'])
+                if 'FRtau' in EnsInputs: tau = np.random.normal(loc=tau, scale=EnsInputs['FRtau'])
+                if 'FRCnm' in EnsInputs: cnm = np.random.normal(loc=cnm, scale=EnsInputs['FRCnm'])                
                 CME.nSW, CME.vSW = nSW, vSW
                 CME.Bscale, CME.BSW, CME.tau, CME.cnm = Bscale, BSW, tau, cnm
         
         # Package up invec, run ANTEATR        
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]
-        ATresults, Elon = getAT(invec, myParams, fscales=[0.5,0.5], silent=True)
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), nSW, vSW, BSW, Cd, tau, cnm]
+        ATresults, Elon, CME.vs, estDur = getAT(invec, myParams, fscales=[0.5,0.5], silent=True)
         
         # Check if miss or hit  
         if ATresults[0][0] != 9999:
@@ -508,21 +513,20 @@ def goANTEATR():
             deltap   = ATresults[8][-1]
             B0       = ATresults[9][-1]
             cnm      = ATresults[10][-1]
-            
             # Store things to pass to FIDO ensembles
             ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
-            ANTCMErs[i] = rCME
-            ANTvBulks[i] = CMEvbulk
-            ANTvExps[i]  = CMEvexp
-            ANTAWs[i] = CMEAW
-            ANTAWps[i] = CMEAWp
-            ANTdeltaxs[i] = deltax
-            ANTdeltaps[i] = deltap
-            ANTB0s[i] = B0
-            ANTcnms[i] = cnm
-            ANTts[i] = TotTime
-            ANTvTrans[i] = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg')
+            # update CME if has that variable
+            CME.points[CC.idcent][1,0] = rCME
+            CME.AW = CMEAW*dtor
+            CME.AWp = CMEAWp*dtor
+            CME.deltaAx = deltax
+            CME.deltaCS = deltap
+            # this B0 is actually Btor, which is what FIDO wants (Btor at center at time of impact)
+            CME.B0 = B0 * 1e5 * np.sign(Bscale) * deltap * CME.tau # in nT now
+            CME.cnm   = cnm
+            CME.vTrans = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
+            CME.t = TotTime
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
@@ -537,13 +541,6 @@ def goANTEATR():
                 for iii in outstuff:
                     outprint = outprint +'{:4.2f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')
-            #outprint = str(i)
-            #outprint = outprint.zfill(4) + '   '
-            #for iii in ATresults:
-            #        outprint = outprint +'{:4.2f}'.format(iii) + ' '
-            
-            #outprint = outprint + '{:4.2f}'.format(nSW) + ' ' + '{:4.2f}'.format(vSW)
-            #ANTEATRfile.write(outprint+'\n')
         else:
             print('miss')
     ANTEATRfile.close()    
@@ -559,16 +556,15 @@ def goFIDO():
     if includeSIT:
         input_values['Add_Sheath'] = 'True'
         FIDO.hasSheath = True
-    if 'Expansion_Model' in input_values:
-        FIDO.expansion_model = input_values['Expansion_Model']
     # Flux rope properties
     CMEB0 = 15. # completely arbitrary number in case not given one
     CMEH  = 1.
-    if 'FR_B0' in input_values: CMEB0 = float(input_values['FR_B0'])
+    if 'FRB' in input_values: CMEB0 = float(input_values['FRB'])
     if 'CMEH' in input_values: CMEH  = float(input_values['FR_pol'])
 
     # Check if ANT ran, if not take input from file
     global SatVars0
+    CMEstart = 0.   
     if not doANT:
         SatVars0, Cd, swnv = processANTinputs(input_values)
         # For FIDO only, if CMEstart = DOY at arrival then need to not add to date when
@@ -585,49 +581,65 @@ def goFIDO():
     # Loop through the CMEs
     for i in toRun:   
         CME = CMEarray[i]
-        # set up input array   
-        # start with parameters that either come from ANTEATR or the input file
-        if doANT: 
-            SatLon = ANTsatLons[i]
-            CMEstart = ANTts[i]
-            CME_v1AU = ANTvBulks[i]
-            vexp = ANTvExps[i]
-            cmeAW = ANTAWs[i]
-            vtrans = ANTvTrans[i]
-            CMEr = ANTCMErs[i]
-        else:
-            SatLon = SatVars0[1]
-            CME_v1AU = float(input_values['CME_v1AU'])
-            vexp  = CME.vExp      
-            cmeAW = CME.ang_width*radeg
-            CMEr = CME.points[CC.idcent][1,0]
-            if includeSIT:
-                vtrans = float(input_values['vTrans'])
+        
+        # order is Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
+        # CMEAWp[6], CMEdeltaAx [7], CMEdeltaCS [8], CMEB0 [9], CMEH [10], tshift [11], 
+        # tstart [12], Sat_rad [13], Sat_rot [14], CMEr[15], cnm [16], tau [17]
+        inps = np.zeros(18)
+        
+        # CME parameters from CME object
+        inps[2], inps[3] =  CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
+        inps[4] = CME.tilt
+        inps[5], inps[6] = CME.AW*radeg, CME.AWp*radeg
+        inps[7], inps[8] = CME.deltaAx, CME.deltaCS
+        vs = CME.vs /1e5
+        inps[9], inps[10] = CME.B0, CMEH
+        # inps[11] is tshift which we keep at zero (only used in GUI)
+        if doANT: CMEstart = CME.t
+        inps[12] = CMEstart
+        inps[15] = CME.points[CC.idcent][1,0]
+        inps[16] = CME.cnm
+        inps[17] = CME.tau
+        
 
-        # Other CME parameters from CME object
-        CMElat, CMElon =  CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
-        tilt = CME.tilt
-        # Mass
-        mass = CME.M/1e15
-        # CME shape
-        cmeA, cmeB = CME.shape_ratios[0], CME.shape_ratios[1]
-        CMEB0 = CME.FR_B0
+        # Sat parameters
+        inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
+        inps[13], inps[14] =  SatVars0[2],  SatVars0[3]  # R/rot
+        
+         
+        if doANT: 
+            inps[1] = ANTsatLons[i] 
+            vtrans = CME.vTrans
+        else:
+            # check if is trying to load FIDO CME at 10 Rs because rmax not change in input
+            if (inps[13] > 200) & (inps[15] < 25.): inps[15] = 0.95*inps[13]
+            if includeSIT:
+                vtrans = float(input_values['CMEvTrans'])
         
         # Sheath stuff
         if includeSIT:
-            vels = [CME_v1AU,vexp, vtrans, CME.vSW]
-            sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
+            # check if front velocity greater than SW
+            if vs[0] > CME.vSW:
+                vels = [vs[0]-vs[3], vs[3], vtrans, CME.vSW]
+                sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
+                actuallySIT = True
+            # If not tell FIDO not to do sheath this time
+            else:
+                actuallySIT = False
+                sheathParams = []
+                FIDO.hasSheath = False
         else:
             sheathParams = []
+            actuallySIT = False
         
-        # order is Sat_lat [0], Sat_lon0 [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
-        # CMESRA [6], CMESRB [7], CMEvr [8], CMEB0 [9], CMEH [10], tshift [11], start [12],  vexp[13], 
-        # Sat_rad [14], Sat_rot [15]
-        inps =[SatVars0[0], SatLon, CMElat, CMElon, tilt,  cmeAW, cmeA, cmeB, CME_v1AU, CMEB0, CMEH, 0., CMEstart, vexp, SatVars0[2], SatVars0[3]/60., CMEr]
+            
         flagit = False
         try:
-            Bout, tARR, Bsheath, tsheath, radfrac, isHit = FIDO.run_case(inps, sheathParams)
-            vProf = FIDO.radfrac2vprofile(radfrac, CME_v1AU, vexp)
+            Bout, tARR, Bsheath, tsheath, radfrac, isHit = FIDO.run_case(inps, sheathParams, vs)
+            vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
+            # turn the sheath back on if we turned it off for a low case
+            if includeSIT: FIDO.hasSheath = True
+            
         except:
             # sometimes get a miss even though ANTEATR says hit?
             # for now just flag and skip
@@ -641,7 +653,7 @@ def goFIDO():
             vProfDS = FIDO.hourify(t_res*tARR, vProf)
         
             # Write sheath stuff first if needed
-            if includeSIT:
+            if actuallySIT:
                 tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
                 BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
                 for j in range(len(BsheathDS[0])):
@@ -658,15 +670,14 @@ def goFIDO():
                 outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                FIDOfile.write(outprint+'\n')    
-            
+                FIDOfile.write(outprint+'\n')  
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        if False:
-            cols = ['k', 'b','r', 'k']  
+        if True:
+            cols = ['r', 'b','g', 'k']  
             fig = plt.figure()
             for i2 in range(len(Bout)):
-                #plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
+                if actuallySIT: plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
                 plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
             plt.show() 
         print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
@@ -686,7 +697,7 @@ def runOSPREI():
         # Fill in CME array for ANTEATR or FIDO
         makeCMEarray()
     
-    readMoreInputs()
+    #readMoreInputs()
         
     if doANT: goANTEATR()
     

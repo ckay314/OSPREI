@@ -30,33 +30,33 @@ def readinputfile():
     return input_values, inputs
 
 def get_inputs(inputs):
-    possible_vars = ['ilat', 'ilon', 'tilt', 'date', 'Cdperp', 'rstart', 'deltaAx', 'deltaCS', 'tprint', 'rmax', 'rotCME', 'Ntor', 'Npol', 'L0', 'raccel1', 'raccel2', 'vrmin', 'vrmax', 'AWmin', 'AWmax', 'AWr', 'maxM', 'rmaxM', 'rsun', 'rotrate', 'Rss', 'saveData', 'printData', 'shapeB0', 'Cd', 'FR_B0','CME_vExp', 'CME_v1AU', 'time', 'SSscale', 'includeSIT', 'nSW', 'vSW', 'BSW', 'cs', 'vA','Bscale', 'tau', 'cnm', 'AWp']
-    # Other var names which can ignore since OSPREI/ANTEATR/FIDO use
-    other_vars = ['suffix', 'nRuns', 'Sat_lat', 'Sat_lon', 'Sat_rad', 'Sat_rot', 'FR_pol', 'CME_start', 'CME_stop', 'Expansion_Model', 'models', 'ObsDataFile', 'vTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
+    # this contains all the ForeCAT things but everything else used by OSPREI
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'saveData', 'printData', 'FRB', 'CMEvExp', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
     # Will overwrite values if given, this just lets us ensemble about defaults for subtle
     # things that might be wanted.  Anything big like mass or position we want to force there
     # to be an input value if we want to ensemble it
-    input_values['Cdperp'] = 1.   
-    input_values['rstart'] = 1.1
-    input_values['shapeB0'] = 0.05    
-    input_values['raccel1'] = 1.3
-    input_values['raccel2'] = 4.0
-    input_values['vrmin'] = 70*1.e5
-    input_values['AWmin'] = 5.
-    input_values['AWr'] = 1.5
-    input_values['rmaxM'] = 10.
-    input_values['deltaAx'] = 1.
-    input_values['deltaCS'] = 1.
+    input_values['SWCdp'] = 1.   
+    input_values['CMEr'] = 1.1
+    input_values['FCraccel1'] = 1.3
+    input_values['FCraccel2'] = 4.0
+    input_values['FCvrmin'] = 70*1.e5
+    input_values['FCAWmin'] = 5.
+    input_values['FCAWr'] = 1.5
+    input_values['FCrmaxM'] = 10.
+    input_values['CMEdelAx'] = 1.
+    input_values['CMEdelCS'] = 1.
+    input_values['FRtau'] = 1.
+    input_values['FRCnm'] = 1.927
     
              
     for i in range(len(inputs)):
         temp = inputs[i]
         if temp[0][:-1] in possible_vars:
             input_values[temp[0][:-1]] = temp[1]
-        elif temp[0][:-1] not in other_vars:
+        else:
             print (temp[0][:-1], ' not a valid input ')
             
     return input_values
@@ -67,17 +67,17 @@ def getInps(input_values):
     rsun = 7e10
     rotrate = 2.8e-6
     Rss = 2.5
-    if 'rsun' in input_values:  rsun = float(input_values['rsun'])
-    if 'rotrate' in input_values:  rotrate = float(input_values['rotrate'])
-    if 'Rss' in input_values:  Rss = float(input_values['Rss'])
+    if 'SunR' in input_values:  rsun = float(input_values['SunR'])
+    if 'SunRotRate' in input_values:  rotrate = float(input_values['SunRotRate'])
+    if 'SunRss' in input_values:  Rss = float(input_values['SunRss'])
     kmRs  = 1.0e5 / rsun 
     
     
     # pull parameters for initial position
     try:
-        ilat = float(input_values['ilat'])
-        ilon = float(input_values['ilon'])
-        tilt = float(input_values['tilt'])
+        ilat = float(input_values['CMElat'])
+        ilon = float(input_values['CMElon'])
+        tilt = float(input_values['CMEtilt'])
     except:
         print('Missing at least one of ilat, ilon, tilt.  Cannot run without :(')
         sys.exit()
@@ -95,37 +95,37 @@ def getInps(input_values):
         
     # check for drag coefficient
     global Cd
-    Cd = float(input_values['Cdperp'])
+    Cd = float(input_values['SWCdp'])
     
     # check for CME shape and initial nose distance
     global rstart, deltaAx, deltaCS
-    rstart = float(input_values['rstart'])
-    deltaAx = float(input_values['deltaAx'])
-    deltaCS = float(input_values['deltaCS'])
+    rstart = float(input_values['CMEr'])
+    deltaAx = float(input_values['CMEdelAx'])
+    deltaCS = float(input_values['CMEdelCS'])
     
     # get distance where we stop the simulation
     try: 
-        rmax = float(input_values['rmax'])
+        rmax = float(input_values['FCrmax'])
     except:
         print('Assuming simulation stops at 10 Rs')
         rmax = 10.
     
     # determine frequency to print to screen
     tprint = 10. # default value
-    if 'tprint' in input_values: tprint = float(input_values['tprint'])
+    if 'FCtprint' in input_values: tprint = float(input_values['FCtprint'])
         
     # determine if including rotation
     global rotCME
     rotCME = True
-    if 'rotCME' in input_values: 
-        if input_values['rotCME'] == 'False': 
+    if 'FCRotCME' in input_values: 
+        if input_values['FCRotCME'] == 'False': 
             rotCME = False
         
     # determine torus grid resolution
     Ntor = 15
     Npol = 13
-    if 'Ntor' in input_values:  Ntor = int(input_values['Ntor'])
-    if 'Npol' in input_values:  Npol = int(input_values['Npol'])
+    if 'FCNtor' in input_values:  Ntor = int(input_values['FCNtor'])
+    if 'FCNpol' in input_values:  Npol = int(input_values['FCNpol'])
     
     # determine L0 parameter
     global lon0
@@ -134,24 +134,24 @@ def getInps(input_values):
                 
     # get radial propagation model params
     global rga, rap, vmin, vmax, a_prop
-    rga = float(input_values['raccel1'])
-    rap = float(input_values['raccel2'])
-    vmin = float(input_values['vrmin']) * 1e5
+    rga = float(input_values['FCraccel1'])
+    rap = float(input_values['FCraccel2'])
+    vmin = float(input_values['FCvrmin']) * 1e5
     try:
-        vmax = float(input_values['vrmax']) *1e5
+        vmax = float(input_values['CMEvr']) *1e5
     except:
-        print('Need final CME speed vrmax')
+        print('Need final CME speed CMEvr')
         sys.exit()
     a_prop = (vmax**2 - vmin **2) / 2. / (rap - rga) # [ cm/s ^2 / rsun]
     
     # get expansion model params
     global aw0, awR, awM
-    aw0 = float(input_values['AWmin'])
-    awR = float(input_values['AWr'])
+    aw0 = float(input_values['FCAWmin'])
+    awR = float(input_values['FCAWr'])
     try:
-        awM = float(input_values['AWmax'])
+        awM = float(input_values['CMEAW'])
     except:
-        print('Need final CME angular width AWmax')  
+        print('Need final CME angular width CMEAW')  
         sys.exit()          
     global user_exp 
     user_exp = lambda R_nose: aw0 + (awM-aw0)*(1. - np.exp(-(R_nose-1.)/awR))
@@ -159,7 +159,7 @@ def getInps(input_values):
     # expansion model until adding expansion forces
     global AWratio
     try:
-        AWp = float(input_values['AWp'])
+        AWp = float(input_values['CMEAWp'])
         AWratio = lambda R_nose: (AWp/awM)*(1. - np.exp(-(R_nose-1.)/awR))
     except:
         # arbitrary default of 3
@@ -167,9 +167,9 @@ def getInps(input_values):
             
     # mass
     global rmaxM, max_M
-    rmaxM = float(input_values['rmaxM']) 
+    rmaxM = float(input_values['FCrmaxM']) 
     try:
-        max_M = float(input_values['maxM']) * 1e15
+        max_M = float(input_values['CMEM']) * 1e15
     except:
         print('Assuming 1e15 g CME')            
         max_M = 1e15
@@ -221,6 +221,7 @@ def printstep(CME):
     if lon0 > -998:
         thislon -= lon0
         thislon += rotrate * 60. * radeg * CME.t
+        thislon = thislon % 360.
     tilt = CME.tilt
     if tilt > 180: tilt -=360.
     vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5

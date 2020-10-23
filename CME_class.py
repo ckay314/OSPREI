@@ -125,34 +125,33 @@ class CME:
         global prev_avgF
         prev_avgF = 99999.  # set to absurdly large number as place holder
 
-        # add some extra variables for OSPREI, set to reasonable defaults
+        # add extra variables for OSPREI, set to reasonable defaults
         self.Cd = 1.0
-        self.FR_B0 = 20.
-        self.vExp  = 0.
+        self.B0 = 20.
         self.v1AU  = 400. * 1e5
-        self.SSscale = 1.
         self.vSW = 400
         self.nSW = 5.
-        self.BSW = 5
+        self.BSW = 6.9
         self.cs  = 49.5
         self.vA  = 55.4 
         self.Bscale = 2.
         self.tau  = 1.
         self.cnm  = 1.927
+        self.vs   = np.array([vrmag, 0, 0, 0, 0, 0, 0]) 
+        self.vTrans = 0.
         
         # redefine dt in secs and as short name variable for convenience
         global dt
         dt = self.dt * 60.
         
 
-
 	# Programs typically called only within this class
     def calc_lens(self):
-        # take AWs, deltas, and rs and get Ls and rs
+        # take AWs, deltas, and rs and get Ls and rs        
         self.alpha = np.sqrt(1 + 16 * self.deltaAx**2) / 4 / self.deltaAx
         self.Delta = np.tan(self.AWp) / (1 + self.deltaCS * np.tan(self.AWp)) #diff by deltacs from b4
         self.rp = self.Delta * self.points[idcent][1,0]
-        self.Lp = (np.tan(self.AW) * (1 - self.Delta) - self.alpha * self.Delta) / (1 + self.deltaAx * np.tan(self.AW)) * self.points[idcent][1,0]
+        self.Lp = (np.tan(self.AW) * (1 - self.deltaCS * self.Delta) - self.alpha * self.deltaCS * self.Delta) / (1 + self.deltaAx * np.tan(self.AW)) * self.points[idcent][1,0]
         self.Lr = self.deltaAx * self.Lp
         self.rr = self.deltaCS * self.rp
         self.cone[1,:] = self.points[idcent][1,:]
@@ -250,7 +249,7 @@ class CME:
         self.angvel = self.angmom / Irot * radeg
 	
 
-    def add_drag(self, vrmag):
+    def addDefDrag(self, vrmag):
         # Determine velocities in latitude and longitude directions - have to split it up this
         # way so that we can conserve angular momentum in each direction once forces -> 0
         # determine colat and lon unit vectors
@@ -295,9 +294,11 @@ class CME:
         # calculate magnitude of vr
         vrmag = np.sqrt(np.sum(self.vels[0,:]**2))
         
-        self.add_drag(vrmag)
+        self.addDefDrag(vrmag)
         # account for solar rotation -> slips toward lower Carrington lon
         self.points[idcent][1,2] -= dt * radeg * FC.rotrate # add in degrees	
+        # make sure doesn't go above 360
+        self.points[idcent][1,2] = self.points[idcent][1,2] % 360.
         # move forward radially
         self.points[idcent][1,0] += vrmag * dt / rsun
 
