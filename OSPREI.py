@@ -259,7 +259,7 @@ def genEnsMem(runnum=0):
     if 'SWcs' in input_values: CME.cs = float(input_values['SWcs'])
     if 'SWvA' in input_values: CME.vA = float(input_values['SWvA'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
-    if 'FRBscale' in input_values: CME.B0 = float(input_values['FRBscale'])
+    if 'FRBscale' in input_values: CME.Bscale = float(input_values['FRBscale'])
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
@@ -325,7 +325,7 @@ def goForeCAT():
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
-    if 'CMEBscale'  in input_values: CME.Bscale = float(input_values['CMEBscale'])
+    if 'FRBscale'  in input_values: CME.Bscale = float(input_values['FRBscale'])
     if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
     if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
     
@@ -384,7 +384,7 @@ def makeCMEarray():
     if 'CMEvExp' in input_values: 
         CME.vExp = float(input_values['CMEvExp'])
         CME.vs[3] = CME.vExp*1e5
-    if 'CMEBscale'  in input_values: CME.Bscale = float(input_values['CMEBscale'])
+    if 'FRBscale'  in input_values: CME.Bscale = float(input_values['FRBscale'])
     if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
     if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
     # Move to end of ForeCAT distance    
@@ -601,7 +601,6 @@ def goFIDO():
         inps[16] = CME.cnm
         inps[17] = CME.tau
         
-
         # Sat parameters
         inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
         inps[13], inps[14] =  SatVars0[2],  SatVars0[3]  # R/rot
