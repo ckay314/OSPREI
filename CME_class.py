@@ -138,6 +138,7 @@ class CME:
         self.tau  = 1.
         self.cnm  = 1.927
         self.vs   = np.array([vrmag, 0, 0, 0, 0, 0, 0]) 
+        self.getvs(vrmag)
         self.vTrans = 0.
         
         # redefine dt in secs and as short name variable for convenience
@@ -277,6 +278,22 @@ class CME:
         # calc new nose sph pos, update lat/lon using vdd[0]/vdd[1]
         self.points[idcent][1,1] += - radeg * vddLL[0] * dt /  self.points[idcent][1,0] / rsun 
         self.points[idcent][1,2] += radeg * vddLL[1] * dt /  self.points[idcent][1,0] / rsun
+        
+    def getvs(self, vmag):
+        self.vs[0] = vmag
+        rp = np.tan(self.AWp) * self.points[idcent][1,0] / (1. + self.deltaAx * np.tan(self.AWp))
+        rr = rp * self.deltaCS
+        alpha = np.sqrt(1 + 16 * self.deltaAx**2) / 4. / self.deltaAx
+        Delta = rr / self.points[idcent][1,0]
+        Lp = (np.tan(self.AW)*(1-Delta) - alpha * Delta) / (1 + self.deltaAx * np.tan(self.AW)) *  self.points[idcent][1,0]
+        Lr = self.deltaAx * Lp
+        # vs = [vFront, vEdge, vBulk, vexpBr, vexpBp, vexpA, vexpC]
+        self.vs[3] = rr / self.points[idcent][1,0] * vmag
+        self.vs[4] = rp / self.points[idcent][1,0] * vmag
+        self.vs[5] = Lr / self.points[idcent][1,0] * vmag
+        self.vs[6] = Lp / self.points[idcent][1,0] * vmag
+        self.vs[2] = self.vs[0] - self.vs[3] - self.vs[5]
+        self.vs[1] = self.vs[2] * np.tan(self.AW)
 
     # Called externally by programs using CME class, update the CME a time step
     def update_CME(self, user_vr, user_exp, user_mass):
@@ -322,7 +339,7 @@ class CME:
 
         # get radial velocity at new distance 
         vmag, self.vels[0,:]= user_vr(self.points[idcent][1,0], self.rhat)
-
+        self.getvs(vmag)
         # update time (in minutes)
         self.t += self.dt
 

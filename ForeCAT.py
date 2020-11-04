@@ -42,7 +42,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Set up empty arrays if output path
     if path:
-        outts, outRs, outlats, outlons, outtilts, outvrs, outAWs, outAWps, outvdefs, outdeltaAxs, outdeltaCSs, = [], [], [], [], [], [], [], [], [], [], []
+        outts, outRs, outlats, outlons, outtilts, outvs, outAWs, outAWps, outvdefs, outdeltaAxs, outdeltaCSs, = [], [], [], [], [], [], [], [], [], [], []
     
     # Run until nose hits rmax
     while CME.points[CC.idcent][1,0] <= rmax:
@@ -70,9 +70,10 @@ def runForeCAT(CME, rmax, silent=False, path=False):
                 if FC.lon0 > -998:
                     newlon = thislon - FC.lon0 + FC.rotrate * 60. * FC.radeg * CME.t
                 outlons.append(newlon) 
-                vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
+                #vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
                 vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
-                outvrs.append(vCME)
+                vs = np.copy(CME.vs)/1e5
+                outvs.append(vs)
                 outvdefs.append(vdef)
                 outAWs.append(CME.AW*FC.radeg)
                 outAWps.append(CME.AWp*FC.radeg)
@@ -100,9 +101,10 @@ def runForeCAT(CME, rmax, silent=False, path=False):
             if FC.lon0 > -998:
                 newlon = thislon - FC.lon0 + FC.rotrate * 60. * FC.radeg * CME.t
             outlons.append(newlon)
-            vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
+            #vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
             vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
-            outvrs.append(vCME)
+            vs = CME.vs/1e5
+            outvs.append(vs)
             outvdefs.append(vdef)
             outAWs.append(CME.AW*FC.radeg)
             outAWps.append(CME.AWp*FC.radeg)
@@ -122,7 +124,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Return the path data if needed, else just return final CME 
     if path:
-        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvrs, outvdefs, outdeltaAxs, outdeltaCSs])
+        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvs, outvdefs, outdeltaAxs, outdeltaCSs])
     else:
         return CME
 

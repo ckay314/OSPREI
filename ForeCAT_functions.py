@@ -31,7 +31,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'saveData', 'printData', 'FRB', 'CMEvExp', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'saveData', 'printData', 'FRB', 'CMEvExp', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -50,6 +50,7 @@ def get_inputs(inputs):
     input_values['CMEdelCS'] = 1.
     input_values['FRtau'] = 1.
     input_values['FRCnm'] = 1.927
+    input_values['FRpol'] = 1
     
              
     for i in range(len(inputs)):

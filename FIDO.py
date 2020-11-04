@@ -351,7 +351,7 @@ def getFRprofile():
             # Get the toroidal and poloidal magnetic field based on distance
             Btor = B0 * deltaCS * (tau - (minb/CME_crossrad)**2)
             ecH  = np.sqrt(deltaCS**2 * np.sin(thetaP)**2 + np.cos(thetaP)**2)
-            Bpol = - 2 * deltaCS * B0 * CMEH * ecH / (deltaCS**2 + 1) / cnm * (minb/CME_crossrad)            
+            Bpol = - 2 * deltaCS * B0 * CMEH * ecH / (deltaCS**2 + 1) / cnm * (minb/CME_crossrad) 
             
             # Convert this into CME Cartesian coordinates
             tdir, pdir = new_getBvector(CMElens, minb, thetaT, thetaP, deltaAx, deltaCS) 
@@ -378,7 +378,6 @@ def getFRprofile():
         t += dt
 	    # CME nose moves to new position, have vr in vexp vector
         CMElens += vExps * dt / 7e5
-        
         # Update B0/cnm
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
         B0 = B0scaler / deltaCS**2 / CMElens[4]**2 
@@ -522,7 +521,7 @@ def calcSheathInps(CMEstart, vels, nSW, BSW, satr, B=None, cs=49.5, vA=55.4):
     compression, vs =getPerpSheath(vfront, vels[3], nSW, BSW, cs, vA)
     # Sheath duration from MLR
     sheathTime = (-16.1*(vfront) + 11.9*(vs- vfront) + 6.8*vels[2] +7776)/sheathv
-    return [CMEstart-sheathTime/24., sheathTime, compression, sheathv, B[0], B[1], B[2]]
+    return [CMEstart-sheathTime/24., sheathTime, compression, sheathv, B[0], B[1], B[2], vs]
     
 # -------------------------------------------------------------------------------------- #
 def getPerpSheath(vSheath, vSW, nSW, BSW, csin=49.5, vAin=55.4):

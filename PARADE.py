@@ -126,11 +126,14 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     gammaE = bp / RcEdge
     dg = deltap*gammaE
     dg2 = deltap**2 * gammaE**2 
-    coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
-    coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
-    toAccE = deltap * pi * bp**2 * RcEdge * rho
-    aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE               
-    return aTotNose, aTotEdge
+    if dg2 < 1:
+        coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+        coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
+        toAccE = deltap * pi * bp**2 * RcEdge * rho
+        aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE       
+        return aTotNose, aTotEdge
+    else:
+        return 9999, 9999
     
 def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     # Internal cross section forces
@@ -193,17 +196,18 @@ def IVD(vFront, AW, AWp, deltax, deltap, fscales):
     
     return vs
     
-def initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass):
+def initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass, printNow=False):
     # CME shape
     # alpha * CMElens[3] is the cross sec width in z dir
     alpha = np.sqrt(1+16*deltax**2)/4/deltax
     # normal vector dot z
     ndotz = 1./alpha
     Deltabr = deltap * np.tan(AWp) / (1 + deltap * np.tan(AWp))
+    #CMElens = [rFront(0), rEdge(1), rCent(2), rr(3), rp(4), Lr(5), Lp(6)]
     CMElens[3] = Deltabr * CMElens[0]
+    CMElens[4] = CMElens[3] / deltap
     CMElens[6]  = (np.tan(AW)*(1-Deltabr) - alpha*Deltabr)/(1+deltax*np.tan(AW)) * CMElens[0]
     CMElens[5]  = deltax * CMElens[6]
-    CMElens[4] = CMElens[3] / deltap
     CMElens[2]  = CMElens[0] - CMElens[5] - CMElens[3]
     rCent = CMElens[2] + CMElens[5]
     CMElens[1] = CMElens[6] + CMElens[3]*alpha
@@ -230,7 +234,7 @@ def updateCME(CMElens, Mass):
     AWp = np.arctan(CMElens[4]/(CMElens[2] + CMElens[5]))
     # Update CME density
     vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
-    rho = Mass / vol
+    rho = Mass / vol        
     return deltap, deltax, alpha, ndotz, AW, AWp, rho
         
     
@@ -297,9 +301,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     # arrays for saving profiles
     outTs     = []
     outRs     = []
-    outvTots  = []
-    outvBulks = []
-    outvExps  = []
+    outvs     = []
     outAWs    = []
     outAWps   = []
     outdelxs  = []
@@ -316,11 +318,15 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         # Internal flux rope forces
         if not axisOff:
             aTotNose, aTotEdge = getAxisF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho)
-            magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
+            if (aTotNose != 9999) & (aTotEdge != 9999):
+                magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
+            else:
+                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888 
+                
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
             magAccels += [aBr, aBr * alpha, 0, aBr, aBr/deltap, 0., 0.] 
-        totAccels += magAccels                
+        totAccels += magAccels        
         # Drag Force
         if not dragOff:
             dragAccels = getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz)
@@ -329,6 +335,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         # Update CME shape
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
+        #print (CMElens[0]/rsun, CMElens[3]/rsun, aTotNose, aTotEdge, aBr)
         # Update velocities
         vs += totAccels * dt
         
@@ -347,13 +354,11 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         
         Elon += Erotrate * dt
         t += dt
-        if (CMElens[0]>printR):         
+        if (CMElens[0]>printR):   
             printR += 5*7e10
             outTs.append(t/3600./24.)
             outRs.append(CMElens[0]/7e10)
-            outvTots.append(vs[0]/1e5)
-            outvBulks.append((vs[0]-vs[3])/1e5)
-            outvExps.append(vs[3]/1e5)
+            outvs.append(vs/1e5)
             outAWs.append(AW*180./3.14159)
             outAWps.append(AWp*180/pi)
             outdelxs.append(deltax)
@@ -395,19 +400,20 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             # Get the max R for that parametric t
             maxr = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
             
-            if vpmag < maxr:   
+            if vpmag < maxr:
+                alpha, ndotz, Deltabr, rCent, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass, printNow=True)
+                deltap, deltax, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)   
                 TT = t/3600./24.
-                outTs.append(t/3600./24.)
-                outRs.append(CMElens[0]/7e10)
-                outvTots.append(vs[0]/1e5)
-                outvBulks.append((vs[0]-vs[3])/1e5)
-                outvExps.append(vs[3]/1e5)
-                outAWs.append(AW*180./3.14159)
-                outAWps.append(AWp*180/pi)
-                outdelxs.append(deltax)
-                outdelps.append(deltap)
-                outBs.append(B0)
-                outCnms.append(cnm)
+                if (t/3600./24.) != outTs[-1]:
+                    outTs.append(t/3600./24.)
+                    outRs.append(CMElens[0]/7e10)
+                    outvs.append(vs/1e5)
+                    outAWs.append(AW*180./3.14159)
+                    outAWps.append(AWp*180/pi)
+                    outdelxs.append(deltax)
+                    outdelps.append(deltap)
+                    outBs.append(B0)
+                    outCnms.append(cnm)
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
                 if not silent:
                     print ('Transit Time:     ', TT)
@@ -416,13 +422,13 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     print ('Earth longitude:  ', Elon)
                     
                 inCME = True                
-                return np.array([outTs, outRs, outvTots, outvBulks, outvExps, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon, vs, estDur  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon, vs, estDur  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
-                return np.array([[9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
             else:
-                return np.array([[9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
         
 
 if __name__ == '__main__':

@@ -41,7 +41,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, shape, Sat_rot, ObsDataFile, includeSIT
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -50,6 +50,7 @@ def setupOSPREI():
     Sat_rot = 360./365.25
     ObsDataFile = None
     includeSIT = False
+    mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
         temp = allinputs[i]
@@ -61,21 +62,19 @@ def setupOSPREI():
             models = temp[1]
         elif temp[0][:-1] == 'time':
             time = temp[1]
-        elif temp[0][:-1] == 'Sat_lat':
+        elif temp[0][:-1] == 'SatLat':
             satPos[0] = float(temp[1])
-        elif temp[0][:-1] == 'Sat_lon':
+        elif temp[0][:-1] == 'SatLon':
             satPos[1] = float(temp[1])
-        elif temp[0][:-1] == 'shapeA':
-            shape[0] = float(temp[1])
-        elif temp[0][:-1] == 'shapeB':
-            shape[1] = float(temp[1])
-        elif temp[0][:-1] == 'Sat_rot':
+        elif temp[0][:-1] == 'SatRot':
             Sat_rot = float(temp[1])
         elif temp[0][:-1] == 'ObsDataFile':
             ObsDataFile = temp[1]
         elif temp[0][:-1] == 'includeSIT':
             if temp[1] == 'True':
                 includeSIT = True
+        elif temp[0][:-1] == 'CMEM':
+            mass = float(temp[1])
             
             
     # get the actual time for the given string
@@ -351,7 +350,7 @@ def goForeCAT():
         lonID = int(CME.cone[1,2]*2)%720
         fullBvec = ForceFields.B_high[-1,latID,lonID]
         inorout = np.sign(np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
-        CME.BSW = inorout*fullBvec[3] * (rmax/213)**2 *1e5
+        CME.BSW = inorout*fullBvec[3] * (2.5/213)**2 *1e5
         # calc alfven speed
         CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
         # Save the CME in the array
@@ -360,11 +359,10 @@ def goForeCAT():
         for j in range(len(path[0,:])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j], path[8,j], path[9,j], path[10,j]]
+            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j][0],  path[7,j][1],  path[7,j][2],  path[7,j][3],  path[7,j][4],  path[7,j][5],  path[7,j][6], path[8,j], path[9,j], path[10,j]]
             for iii in outstuff:
                 outprint = outprint +'{:4.2f}'.format(iii) + ' '
-            ForeCATfile.write(outprint+'\n')
-        
+            ForeCATfile.write(outprint+'\n')        
     ForeCATfile.close()
     
 
@@ -402,7 +400,7 @@ def makeCMEarray():
     
     # Repeat process with ensemble variation
     for i in range(nRuns-1):
-        CME = genEnsMem()
+        CME = genEnsMem(runnum=i+1)
         CME = move2corona(CME, rmax)
         CMEarray.append(CME)
         
@@ -490,13 +488,13 @@ def goANTEATR():
                 if 'FRCnm' in EnsInputs: cnm = np.random.normal(loc=cnm, scale=EnsInputs['FRCnm'])                
                 CME.nSW, CME.vSW = nSW, vSW
                 CME.Bscale, CME.BSW, CME.tau, CME.cnm = Bscale, BSW, tau, cnm
-        
         # Package up invec, run ANTEATR        
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), nSW, vSW, BSW, Cd, tau, cnm]
+        # high fscales = more convective like
         ATresults, Elon, CME.vs, estDur = getAT(invec, myParams, fscales=[0.5,0.5], silent=True)
-        
+                
         # Check if miss or hit  
-        if ATresults[0][0] != 9999:
+        if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
         
             # Can add in ForeCAT time to ANTEATR time
@@ -504,15 +502,13 @@ def goANTEATR():
             # when in outer corona=start of ANTEATR
             TotTime  = ATresults[0][-1]#+CME.t/60./24
             rCME     = ATresults[1][-1]
-            CMEvtot  = ATresults[2][-1]
-            CMEvbulk = ATresults[3][-1]
-            CMEvexp  = ATresults[4][-1]
-            CMEAW    = ATresults[5][-1]
-            CMEAWp   = ATresults[6][-1]
-            deltax   = ATresults[7][-1]
-            deltap   = ATresults[8][-1]
-            B0       = ATresults[9][-1]
-            cnm      = ATresults[10][-1]
+            CMEvs    = ATresults[2][-1]
+            CMEAW    = ATresults[3][-1]
+            CMEAWp   = ATresults[4][-1]
+            deltax   = ATresults[5][-1]
+            deltap   = ATresults[6][-1]
+            B0       = ATresults[7][-1]
+            cnm      = ATresults[8][-1]
             # Store things to pass to FIDO ensembles
             ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
             # update CME if has that variable
@@ -526,24 +522,27 @@ def goANTEATR():
             CME.cnm   = cnm
             CME.vTrans = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
             CME.t = TotTime
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvtot)+' km/s (expansion velocity ' +"{:.2f}".format(CMEvexp)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvs[0])+' km/s (expansion velocity ' +"{:.2f}".format(CMEvs[3])+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
-            
+                        
     
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[2,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[8,j], ATresults[9,j], ATresults[10,j]]
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[7,j]*1e5, ATresults[8,j], tau]
                 for iii in outstuff:
-                    outprint = outprint +'{:4.2f}'.format(iii) + ' '
+                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')
+        elif ATresults[0][0] == 8888:
+            print ('ANTEATR-PARADE forces unstable')
         else:
-            print('miss')
-    ANTEATRfile.close()    
+            print('Miss')
+    ANTEATRfile.close()  
+     
     
 def goFIDO():
     # FIDO portion -----------------------------------------------------|
@@ -556,11 +555,12 @@ def goFIDO():
     if includeSIT:
         input_values['Add_Sheath'] = 'True'
         FIDO.hasSheath = True
+        SITfile = open(Dir+'/SITresults'+thisName+'.dat', 'w')
     # Flux rope properties
     CMEB0 = 15. # completely arbitrary number in case not given one
     CMEH  = 1.
     if 'FRB' in input_values: CMEB0 = float(input_values['FRB'])
-    if 'CMEH' in input_values: CMEH  = float(input_values['FR_pol'])
+    if 'FRpol' in input_values: CMEH  = float(input_values['FRpol'])
 
     # Check if ANT ran, if not take input from file
     global SatVars0
@@ -644,9 +644,9 @@ def goFIDO():
             # for now just flag and skip
             flagit = True
         
-        if not flagit:    
+        if not flagit:  
             # Down sample B resolution
-            t_res = 1 # resolution = 60 mins/ t_res
+            t_res = 3 # resolution = 60 mins/ t_res
             tARRDS = FIDO.hourify(t_res*tARR, tARR)
             BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
             vProfDS = FIDO.hourify(t_res*tARR, vProf)
@@ -658,21 +658,33 @@ def goFIDO():
                 for j in range(len(BsheathDS[0])):
                     outprint = str(i)
                     outprint = outprint.zfill(4) + '   '
-                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]]
+                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3], 0]
                     for iii in outstuff:
                         outprint = outprint +'{:6.3f}'.format(iii) + ' '
                     FIDOfile.write(outprint+'\n')
+                # write the single value sheath properties to a file
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                Mach = (sheathParams[7]-CME.vSW) / np.sqrt(CME.cs**2 + CME.vA**2)
+                n = sheathParams[2] * CME.nSW
+                B = sheathParams[2] * np.abs(CME.BSW)
+                #outstuff = [dur, comp, Mach, n, vsheath, B, vshock]
+                outstuff = [sheathParams[1], sheathParams[2], Mach, n, sheathParams[3], B, sheathParams[7]]
+                for iii in outstuff:
+                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                SITfile.write(outprint+'\n')            
+                
             # Print the flux rope field        
             for j in range(len(BvecDS[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j]]
+                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], 1]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 FIDOfile.write(outprint+'\n')  
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        if True:
+        if False:
             cols = ['r', 'b','g', 'k']  
             fig = plt.figure()
             for i2 in range(len(Bout)):
@@ -680,6 +692,7 @@ def goFIDO():
                 plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
             plt.show() 
         print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
+    if includeSIT: SITfile.close()
     FIDOfile.close()
     
 def runOSPREI():
