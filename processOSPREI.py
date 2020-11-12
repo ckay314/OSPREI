@@ -166,17 +166,19 @@ def txt2obj():
             thisRes.ANTAWps  = ANTdata[myidxs,4]
             thisRes.ANTdelAxs = ANTdata[myidxs,5]
             thisRes.ANTdelCSs = ANTdata[myidxs,6]
-            thisRes.ANTvFs   = ANTdata[myidxs,7]
-            thisRes.ANTvBs   = ANTdata[myidxs,8]
-            thisRes.ANTvEs   = ANTdata[myidxs,9]
-            thisRes.ANTvAxrs = ANTdata[myidxs,10]
-            thisRes.ANTvAxps = ANTdata[myidxs,11]
-            thisRes.ANTvCSrs = ANTdata[myidxs,12]
-            thisRes.ANTvCSps = ANTdata[myidxs,13]
-            thisRes.ANTB0s   = ANTdata[myidxs,14]
-            thisRes.ANTCnms  = ANTdata[myidxs,15]
+            thisRes.ANTdelCSAxs = ANTdata[myidxs,7]
+            
+            thisRes.ANTvFs   = ANTdata[myidxs,8]
+            thisRes.ANTvBs   = ANTdata[myidxs,9]
+            thisRes.ANTvEs   = ANTdata[myidxs,10]
+            thisRes.ANTvAxrs = ANTdata[myidxs,11]
+            thisRes.ANTvAxps = ANTdata[myidxs,12]
+            thisRes.ANTvCSrs = ANTdata[myidxs,13]
+            thisRes.ANTvCSps = ANTdata[myidxs,14]
+            thisRes.ANTB0s   = ANTdata[myidxs,15]
+            thisRes.ANTCnms  = ANTdata[myidxs,16]
             # tau is constant for now
-            thisRes.ANTtaus  = ANTdata[myidxs,16]
+            thisRes.ANTtaus  = ANTdata[myidxs,17]
             # assuming [m,n] = [0,1]
             thisRes.ANTBtors = thisRes.ANTdelCSs * thisRes.ANTB0s * thisRes.ANTtaus
             thisRes.ANTBpols = 2 * thisRes.ANTdelCSs * thisRes.ANTB0s / (thisRes.ANTdelCSs**2+1) / thisRes.ANTCnms
@@ -259,7 +261,7 @@ def txt2obj():
                 row = ENSdata[i+1].astype(float)
                 ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
-        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
+        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))      
     return ResArr
 
@@ -500,9 +502,12 @@ def makeDragplot(ResArr):
     
     # get number of impacts, may be less than nEns
     nImp = 0
+    hits = []
     for i in range(nEns):
         if not ResArr[i].miss:
             nImp += 1
+            hits.append(i)
+            
     
     # Arrays to hold spline results
     fakers = np.linspace(rStart,rEnd-5,100, endpoint=True)
@@ -514,7 +519,7 @@ def makeDragplot(ResArr):
     if nEns > 1:
         i = 0
         # Repackage profiles
-        for key in ResArr.keys():
+        for key in hits:
             # Fit a spline to data since may be different lengths since take different times
             thefit = CubicSpline(ResArr[key].ANTrs,ResArr[key].ANTAWs,bc_type='natural')
             splineVals[i,:, 0] = thefit(fakers)
@@ -569,7 +574,7 @@ def makeDragplot(ResArr):
     # Add the final position as text
     if nEns > 1:
         all_AWs, all_AWps, all_delAxs, all_delCSs, all_vFs, all_vEs, all_vCSrs, all_vCSps, all_vAxrs, all_vAxps, all_Btors, all_Bpols = [], [], [], [], [], [], [], [], [], [], [], []
-        for key in ResArr.keys():
+        for key in hits:
             all_AWs.append(ResArr[key].ANTAWs[-1])
             all_AWps.append(ResArr[key].ANTAWps[-1])
             all_delAxs.append(ResArr[key].ANTdelAxs[-1])
@@ -599,8 +604,8 @@ def makeDragplot(ResArr):
         axes[0].text(0.97, 0.95, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.85,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
-        axes[2].text(0.97, 0.95, '$\delta_{Ax}$'+'{:4.1f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.85, '$\delta_{CS}$'+'{:4.1f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[2].text(0.97, 0.95, '$\delta_{Ax}$'+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.85, '$\delta_{CS}$'+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
         axes[4].text(0.97, 0.95, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
         axes[5].text(0.97, 0.85,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.95, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
@@ -919,9 +924,9 @@ def makeEnsplot(ResArr):
     # duration, Bz, Kp (8 vals) but depends on what we ran
     deg = '('+'$^\circ$'+')'
 
-    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp'}
+    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
     
     nVert = 0
     configID = 0
@@ -935,11 +940,18 @@ def makeEnsplot(ResArr):
     # number of vertical plots depends on num params varied
     nHoriz = len(varied)
     
+    # get impacts, may be less than nEns
+    hits = []
+    for i in range(nEns):
+        if not ResArr[i].miss:
+            hits.append(i)
+    
+    
     # group EnsRes once to avoid doing in each plot
-    nRuns = len(ResArr.keys()) # might need to change to throw out misses
+    nRuns = len(hits) # might need to change to throw out misses
     EnsVal = np.zeros([nHoriz, nRuns])
     i = 0
-    for key in ResArr.keys():
+    for key in hits:
         j = 0
         for item in varied:
             EnsVal[j,i] = ResArr[key].EnsVal[item]
@@ -952,7 +964,7 @@ def makeEnsplot(ResArr):
     counter = 0
     i = 0
     goodIDs = []
-    for key in ResArr.keys():
+    for key in hits:
         if not ResArr[key].miss: goodIDs.append(key)
         elif configID == 100: goodIDs.append(key)
         
@@ -1170,8 +1182,13 @@ def makeImpContours(ResArr):
     lats = np.linspace(-plotwid, plotwid,ngrid).astype(int)
     lons = np.linspace(-plotwid, plotwid,ngrid).astype(int)
     
+    # get impacts, may be less than nEns
+    hits = []
+    for i in range(nEns):
+        if not ResArr[i].miss:
+            hits.append(i)
     
-    for key in ResArr.keys():
+    for key in hits:#ResArr.keys():
         thisLat = ResArr[key].FClats[-1]
         thisLon = ResArr[key].FClons[-1]-OSP.satPos[1]
         thisTilt  = ResArr[key].FCtilts[-1]

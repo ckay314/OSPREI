@@ -133,5 +133,5 @@ def runForeCAT(CME, rmax, silent=False, path=False):
 if __name__ == '__main__':
     input_values, allinputs = FC.readinputfile()
     ipos, rmax = initForeCAT(input_values)
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], ipos)
     CME = runForeCAT(CME, rmax, path=True)

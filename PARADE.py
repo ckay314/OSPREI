@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import sys
+import os.path
 
 global rsun, dtor, radeg, kmRs
 rsun  =  7e10		 # convert to cm, 0.34 V374Peg
@@ -167,16 +168,12 @@ def getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz):
     dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz    
     return dragAccels
     
-def IVD(vFront, AW, AWp, deltax, deltap, fscales):
+def IVD(vFront, AW, AWp, deltax, deltap, alpha, ndotz, fscales):
     vs = np.zeros(7)
     # vs = [vFront, vEdge, vBulk, vexpBr, vexpBp, vexpA, vexpC]
     vs[0] = vFront
     vs[1]  = vs[0] * np.sin(AW)
-    # shape things
-    alpha = np.sqrt(1+16*deltax**2)/4/deltax
-    # normal vector dot z
-    ndotz = 1./alpha
-    
+
     f1 = fscales[0]
     f2 = fscales[1]
     # Calculate the nus for conv and self sim
@@ -196,25 +193,24 @@ def IVD(vFront, AW, AWp, deltax, deltap, fscales):
     
     return vs
     
-def initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass, printNow=False):
+def initCMEparams(deltaAx, deltaCS, deltaCSAx, AW, AWp, CMElens, Mass, printNow=False):
     # CME shape
     # alpha * CMElens[3] is the cross sec width in z dir
-    alpha = np.sqrt(1+16*deltax**2)/4/deltax
-    # normal vector dot z
-    ndotz = 1./alpha
-    Deltabr = deltap * np.tan(AWp) / (1 + deltap * np.tan(AWp))
-    #CMElens = [rFront(0), rEdge(1), rCent(2), rr(3), rp(4), Lr(5), Lp(6)]
-    CMElens[3] = Deltabr * CMElens[0]
-    CMElens[4] = CMElens[3] / deltap
-    CMElens[6]  = (np.tan(AW)*(1-Deltabr) - alpha*Deltabr)/(1+deltax*np.tan(AW)) * CMElens[0]
-    CMElens[5]  = deltax * CMElens[6]
-    CMElens[2]  = CMElens[0] - CMElens[5] - CMElens[3]
-    rCent = CMElens[2] + CMElens[5]
-    CMElens[1] = CMElens[6] + CMElens[3]*alpha
+    CMElens[4] = np.tan(AWp) / (1 + deltaCS * np.tan(AWp)) * CMElens[0]
+    CMElens[3] = deltaCS * CMElens[4]
+    CMElens[6] = CMElens[3] / deltaCSAx 
+    CMElens[5] = deltaAx * CMElens[6]
+    CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
+    CMElens[1] = CMElens[2] * np.tan(AW)
+    
+    # alpha is scaling of rr to rE - Lp
+    alpha = (CMElens[1]-CMElens[3]-CMElens[6])/CMElens[3]
+    ndotz = 4*deltaAx / np.sqrt(1 + 16 * deltaAx**2)
+    
     # Initiate CME density
     vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
     rho = Mass / vol    
-    return alpha, ndotz, Deltabr, rCent, rho
+    return alpha, ndotz, rho
     
 def updateSW(Bsw0, BphiBr, vSW, n1AU, rFinal, rFront0, CMElens):
     BSWr = Bsw0 * (rFront0 / CMElens[0])**2
@@ -226,17 +222,18 @@ def updateSW(Bsw0, BphiBr, vSW, n1AU, rFinal, rFront0, CMElens):
     
 def updateCME(CMElens, Mass):
     # Calc shape params and new AWs
-    deltap = CMElens[3] / CMElens[4]
-    deltax = CMElens[5] / CMElens[6]
-    alpha = np.sqrt(1+16*deltax**2)/4/deltax
-    ndotz = 1./alpha
+    deltaCS = CMElens[3] / CMElens[4]
+    deltaAx = CMElens[5] / CMElens[6]
+    deltaCSAx = CMElens[3] / CMElens[6]
+    alpha = (CMElens[1]-CMElens[3]-CMElens[6])/CMElens[3]
+    ndotz =  4*deltaAx / np.sqrt(1 + 16 * deltaAx**2)
     AW = np.arctan((CMElens[1])/CMElens[2]) 
     AWp = np.arctan(CMElens[4]/(CMElens[2] + CMElens[5]))
     # Update CME density
     vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
     rho = Mass / vol        
-    return deltap, deltax, alpha, ndotz, AW, AWp, rho
-        
+    return deltaCS, deltaAx, deltaCSAx, alpha, ndotz, AW, AWp, rho
+                
     
 
 # -------------- main function ------------------
@@ -255,21 +252,23 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     AWp        = invec[6] * pi / 180.
     deltax     = invec[7]
     deltap     = invec[8]
-    rFront     = invec[9] * rsun
-    Bscale     = invec[10]
-    n1AU       = invec[11]
-    vSW        = invec[12] * 1e5
-    B1AU       = invec[13] # may not actually be 1AU if rFinal isn't
-    Cd         = invec[14]
-    tau        = invec[15] # 1 to mimic Lundquist
-    cnm        = invec[16] # 1.927 for Lundquist
+    deltaCSAx  = invec[9]
+    rFront     = invec[10] * rsun
+    Bscale     = invec[11]
+    n1AU       = invec[12]
+    vSW        = invec[13] * 1e5
+    B1AU       = invec[14] # may not actually be 1AU if rFinal isn't
+    Cd         = invec[15]
+    tau        = invec[16] # 1 to mimic Lundquist
+    cnm        = invec[17] # 1.927 for Lundquist
+    
     
     t = 0.
     dt = 60. # in seconds
     CMElens = np.zeros(8)
     #CMElens = [rFront, rEdge, d, br, bp, a, c, rXCent]
     CMElens[0] = rFront
-    alpha, ndotz, Deltabr, rCent, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass)
+    alpha, ndotz, rho = initCMEparams(deltax, deltap, deltaCSAx, AW, AWp, CMElens, Mass)
         
     # B1AU is the total magnetic field strength at rFinal
     # need to split into Br and Bphi
@@ -291,7 +290,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             fscales = [1., 1.]
         else:
             fscales = [0., 0.]
-    vs = IVD(vFront, AW, AWp, deltax, deltap, fscales)    
+    vs = IVD(vFront, AW, AWp, deltax, deltap, alpha, ndotz, fscales)    
             
     # calculate any E rot between the time given and the start of the ANTEATR simulation
     printR = rFront
@@ -306,6 +305,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     outAWps   = []
     outdelxs  = []
     outdelps  = []
+    outdelCAs = []
     outBs     = []
     outCnms   = []
             
@@ -340,7 +340,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         vs += totAccels * dt
         
         # Calc shape params and new AWs
-        deltap, deltax, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
+        deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
                 
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
@@ -363,8 +363,10 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             outAWps.append(AWp*180/pi)
             outdelxs.append(deltax)
             outdelps.append(deltap)
+            outdelCAs.append(deltaCSAx)
             outBs.append(B0)
             outCnms.append(cnm)
+            
             
         # Determine if sat is inside CME once it gets reasonably close
         if CMElens[0] >= 0.95*Er:
@@ -377,7 +379,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             psis = np.linspace(-math.pi/2, math.pi/2, 1001)
             sns = np.sign(psis)
             xFR = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
-            zFR = 0.5 * sns * CMElens[2] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))            
+            zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))   
             # Determine the closest point on the axis and that distance
             dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMElens[4])**2
             thismin = np.min(dists2)
@@ -401,8 +403,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             maxr = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
             
             if vpmag < maxr:
-                alpha, ndotz, Deltabr, rCent, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass, printNow=True)
-                deltap, deltax, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)   
+                deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)  
                 TT = t/3600./24.
                 if (t/3600./24.) != outTs[-1]:
                     outTs.append(t/3600./24.)
@@ -412,6 +413,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     outAWps.append(AWp*180/pi)
                     outdelxs.append(deltax)
                     outdelps.append(deltap)
+                    outdelCAs.append(deltaCSAx)
                     outBs.append(B0)
                     outCnms.append(cnm)
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
@@ -422,7 +424,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     print ('Earth longitude:  ', Elon)
                     
                 inCME = True                
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outBs, outCnms]), Elon, vs, estDur  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms]), Elon, vs, estDur  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
@@ -432,8 +434,14 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         
 
 if __name__ == '__main__':
-    # invec = [CMElat, CMElon, CMEtilt, vFront, Mass, AW, AWp, deltax, deltap, rFront**, Bscale, nSW, vSW, BSW, Cd, rFinal, tau, cnm] (rFront used to be outside invec)
+    # invec = [CMElat, CMElon, CMEtilt, vFront, Mass, AW, AWp, deltaAx, deltaCS, deltaCSAx rFront**, Bscale, nSW, vSW, BSW, Cd, rFinal, tau, cnm] (rFront used to be outside invec)
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
-    invec = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
-    outs, Elonf, vs = getAT(invec, [0,0,213,1.141e-5], fscales=[0.5,0.5])
+    invec = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 0.3, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
+    satParams = np.array([0, 0, 213.0, 1.141e-05])
+    
+    
+    #invec = np.array([-22.140519587232347, 80.93486075238609, 41.49008505136994, 1100.7881667119304, 10.0, 50.029633210767884, 13.353335642296395, 0.7035836907813499, 0.6546955156404439, 10.008103589946813, 5.138128687981395, 5.465413330722027, 447.4586042598694, 5.7971281947210995, 1.0, 1.0, 1.927])
+    #satParams = np.array([4.131, 80.83147987699999, 213.0, 1.141e-05])
+    
+    outs, Elon, vs, estDur = getAT(invec, satParams, fscales=[0.5,0.5])
 

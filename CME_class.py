@@ -45,7 +45,7 @@ class CME:
         global rsun
         rsun = rsun_in
         
-        rstart = params[2]
+        rstart = params[3]
         self.AWratio = AWratio
  
         # Initial CME mass
@@ -62,6 +62,7 @@ class CME:
         # Set up the CME shape parameters
         self.deltaAx = params[0]
         self.deltaCS = params[1]
+        self.deltaCSAx = params[2]
         self.AW = user_exp(rstart)* dtor # initial angular width
         self.AWp = self.AWratio(rstart) * self.AW 
         # initial nose position
@@ -148,29 +149,15 @@ class CME:
 
 	# Programs typically called only within this class
     def calc_lens(self):
-        # take AWs, deltas, and rs and get Ls and rs        
-        self.alpha = np.sqrt(1 + 16 * self.deltaAx**2) / 4 / self.deltaAx
-        self.Delta = np.tan(self.AWp) / (1 + self.deltaCS * np.tan(self.AWp)) #diff by deltacs from b4
-        self.rp = self.Delta * self.points[idcent][1,0]
-        self.Lp = (np.tan(self.AW) * (1 - self.deltaCS * self.Delta) - self.alpha * self.deltaCS * self.Delta) / (1 + self.deltaAx * np.tan(self.AW)) * self.points[idcent][1,0]
-        self.Lr = self.deltaAx * self.Lp
+        self.rp = np.tan(self.AWp) / (1 + self.deltaCS * np.tan(self.AWp)) * self.points[idcent][1,0]
         self.rr = self.deltaCS * self.rp
+        self.Lp = self.rr / self.deltaCSAx 
+        self.Lr = self.deltaAx * self.Lp
         self.cone[1,:] = self.points[idcent][1,:]
         self.cone[1,0] += -self.Lr - self.rr # new version
         self.cone[0,:] = FC.SPH2CART(self.cone[1,:])
 
-    def calc_rho(self):
-        # need to calculate half length of ellipse which is surprisingly hard
-        # gives length along toroidal dimension which we multiply by circular
-        # cross section
-        a = self.Lr 
-        b = self.rp 
-        c = self.Lp 
-        h =  (a - c)**2 / (a + c)**2
-        length = 0.5 * np.pi * (a + c) * (1. + 3. * h / (10. + np.sqrt(4. - 3. * h)))
-        vol = np.pi * b**2 * length
-        self.rho = self.M / vol / rsun**3
-                
+    def calc_rho(self):        
         # Initiate CME density
         vol = math.pi*self.rr*self.rp * lenFun(self.Lr/self.Lp)*self.Lp
         self.rho = self.M / vol / rsun**3
@@ -217,7 +204,6 @@ class CME:
         # include rotation if desired
         if FC.rotCME: self.calc_torque()
 		
-
     def calc_torque(self):
         # Use the deflection forces to calculate the average torque about the CME nose
         # which we can use to determine the rotation which changes the tilt
@@ -324,6 +310,7 @@ class CME:
         self.tilt += self.angvel * dt  
 		        
         # Update the angular width using user_exp from ForeCAT.py
+        # could eventually replace this forces updating CME lens
         self.AW = user_exp(self.points[idcent][1,0]) * dtor
         self.AWp = self.AWratio(self.points[idcent][1,0]) * self.AW 
         self.calc_lens()

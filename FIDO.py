@@ -36,17 +36,19 @@ inps[5]  = 45.      # Angular Width
 inps[6]  = 15.
 inps[7]  = 0.7     # deltaAx
 inps[8]  = 0.5     # deltaCS
-inps[9]  = 25.      # CME B0
-inps[10] = 1.       # CME Polarity (+ = RH, - = LH)
-inps[11] = 0.       # t Shift (rel. to CME start)
-inps[12] = 0.       # CME start
+inps[9] = 0.3
+inps[10]  = 25.      # CME B0
+inps[11] = 1.       # CME Polarity (+ = RH, - = LH)
+inps[12] = 0.       # t Shift (rel. to CME start)
+inps[13] = 0.       # CME start
 vExp = 0.       # CME expansion velocity
-inps[13] = 213.     # Satellite radius
-inps[14] = 1.141e-5 # Satellite orbital rate
-inps[15] = 212      # CME starting radius (Rs)
-inps[16] = 1.927    # cnm
-inps[17] = 1        # tau
+inps[14] = 213.     # Satellite radius
+inps[15] = 1.141e-5 # Satellite orbital rate
+inps[16] = 212      # CME starting radius (Rs)
+inps[17] = 1.927    # cnm
+inps[18] = 1        # tau
 
+# default to no expansion, vfront is same as vbulk
 vExps = np.array([440., 0, 440, 0, 0, 0, 0])
 CMEvr = 440.
 
@@ -209,7 +211,6 @@ def new_isinCME(vec_in, CMElens, deltaAx, deltaCS):
     mythetaT = temp[0]
     myb = np.sqrt(myb2)
     CME_crossrad = CMElens[4] 
-    
     # Return if outside -> misses the satellite
     if (myb > CME_crossrad):
         myb = -9999.
@@ -280,26 +281,18 @@ def getFRprofile():
     # determining when/where it is within the CME, and getting the magnetic field vector
     
     # Unpack the parameters from inps
-    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMEAWp, deltaAx, deltaCS, CMEB, CMEH, tshift, CMEstart, FFr, rotspeed, CMEr, cnm, tau = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16], inps[17]
+    FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMEAWp, deltaAx, deltaCS, deltaCSAx, CMEB, CMEH, tshift, CMEstart, FFr, rotspeed, CMEr, cnm, tau = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16], inps[17], inps[18]
                 
     # new shape things
-    alpha = np.sqrt(1 + 16 * deltaAx**2) / 4 / deltaAx
-    Delta = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) 
-    rp = Delta * CMEr    
-    Lp = (np.tan(CMEAW*dtor) * (1 - deltaCS * Delta) - alpha * deltaCS * Delta) / (1 + deltaAx * np.tan(CMEAW*dtor)) * CMEr
-    Lr = deltaAx * Lp
-    rr = deltaCS * rp
-    rCent = CMEr - Lr - rr
     #CMElens = [CMEnose, rEdge, d, br, bp, a, c]
     CMElens = np.zeros(7)
     CMElens[0] = CMEr#0.999*FFr # start just in front of sat dist, can't hit any closer 
-    CMElens[3] = rr
-    CMElens[6]  = Lp
-    CMElens[5]  = Lr
-    CMElens[4] = rp
-    CMElens[2]  = rCent
+    CMElens[4] = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) * CMElens[0]
+    CMElens[3] = deltaCS * CMElens[4]
+    CMElens[6] = CMElens[3] / deltaCSAx 
+    CMElens[5] = deltaAx * CMElens[6]
+    CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
     CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
-    
     # things for scaling the magnetic field as CME changes shape/size
     B0 = CMEB / deltaCS / tau
     B0scaler = B0 * deltaCS**2 * CMElens[4]**2 
@@ -409,7 +402,7 @@ def run_case(inpsIn, shinpsIn, vExpIn):
     vExps = vExpIn
     
     # use to set sheath end
-    CMEstart = inps[12] + inps[11]/24.
+    CMEstart = inps[13] + inps[12]/24.
     
     # run the simulation    
     Bout, tARR, isHit, ImpParam, radfrac = getFRprofile()
@@ -469,7 +462,7 @@ def make_sheath(jumpvec, Bout, CMEstart, shinps):
     # Function that takes the B vectors at the front and back of the sheath
     # and pretty much makes a straight line between.
     # Place the sheath at the appropriate time before the CME
-    tSheath = np.linspace(CMEstart-shinps[1]/24.,CMEstart,20)
+    tSheath = np.linspace(CMEstart-shinps[1]/24.,CMEstart,100)
     BUsheath = [[],[],[],[]]
     # Flux rope vector
     iFRvec = [Bout[3][0], Bout[0][0], Bout[1][0], Bout[2][0]]
@@ -662,26 +655,28 @@ def assignInps(input_values):
         inps[7] = float(input_values['deltaAx'])
     if 'deltaCS' in input_names:
         inps[8] = float(input_values['deltaCS'])
+    if 'deltaCSAx' in input_names:
+        inps[9] = float(input_values['deltaCSAx'])
     if 'FR_B0' in input_names:
-        inps[9] = float(input_values['FR_B0'])
+        inps[10] = float(input_values['FR_B0'])
     if 'FR_pol' in input_names:
-        inps[10] = float(input_values['FR_pol'])
+        inps[11] = float(input_values['FR_pol'])
     if 'tshift' in input_names:
-        inps[11] = float(input_values['tshift'])
+        inps[12] = float(input_values['tshift'])
     if 'CME_start' in input_names:
-        inps[12] = float(input_values['CME_start'])
+        inps[13] = float(input_values['CME_start'])
     if 'Sat_rad' in input_names:
-        inps[13] = float(input_values['Sat_rad'])
+        inps[14] = float(input_values['Sat_rad'])
     if 'Sat_rot' in input_names:
-        inps[14] = float(input_values['Sat_rot'])  
+        inps[15] = float(input_values['Sat_rot'])  
     if 'ImpCMEr' in input_names:
-        inps[15] = float(input_values['ImpCMEr'])
+        inps[16] = float(input_values['ImpCMEr'])
     if 'cnm' in input_names:
-        inps[16] = float(input_values['cnm'])
+        inps[17] = float(input_values['cnm'])
     elif 'Cnm' in input_names:
-        inps[16] = float(input_values['Cnm'])
+        inps[17] = float(input_values['Cnm'])
     if 'tau' in input_names:
-        inps[17] = float(input_values['tau'])
+        inps[18] = float(input_values['tau'])
                 
     if 'CME_vr' in input_names:
         CMEvr = float(input_values['CME_vr'])
@@ -690,11 +685,10 @@ def assignInps(input_values):
     if 'CME_vExp' in input_names:
         vExp = float(input_values['CME_vExp']) / inps[8] # vExp_rr is vExp * deltaCS so convert to just vExp
         # vExps = [CMEnose, rEdge, d, br, bp, a, c]
-    vExps = np.array([CMEvr, 0, CMEvr-inps[8]*vExp, inps[8]*vExp, vExp, 0, 0])
+    vExps = np.array([CMEvr, 0, 0., inps[8]*vExp, vExp, vExp/inps[9]*inps[7], vExp/inps[9]])    
+    vExps[2] = vExps[0] - vExps[3] - vExps[5]
     vExps[1] = vExps[2]*np.tan(inps[5]*dtor)
-    vExps[6] = vExps[1] - vExps[4]
-    
-        
+            
     # Can either take sheath inputs from file or calculate from 
     # given parameters
     if 'hasSheath' in input_names:
@@ -723,7 +717,7 @@ def assignInps(input_values):
         if input_values['calcSheath'] == 'True':
             calcSheath = True
     # set start of sheath based on CME_start and sheathTime        
-    shinps[0] = inps[12]-shinps[1]/24.
+    shinps[0] = inps[13]-shinps[1]/24.
     # Pull in parameters needed to calculate the sheath if needed
     global moreShinps
     if calcSheath:
@@ -750,9 +744,9 @@ def assignInps(input_values):
         vels =  [CMEvr, vExp, vTransit, vSW]
         if countBsIn == 3:
             Bvec = [shinps[4], shinps[5], shinps[6]]
-            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[13], B=Bvec, cs=cs, vA=vA)    
+            shinps = calcSheathInps(inps[13], vels, nSW, BSW, inps[14], B=Bvec, cs=cs, vA=vA)    
         else:
-            shinps = calcSheathInps(inps[12], vels, nSW, BSW, inps[13], cs=cs, vA=vA)    
+            shinps = calcSheathInps(inps[13], vels, nSW, BSW, inps[14], cs=cs, vA=vA)    
             
 def saveResults(Bout, tARR, Bsheath, tsheath, radfrac, t_res=1):
     # Save a file with the data
@@ -803,13 +797,13 @@ def saveRestartFile():
     FIDOfile.write('shapeA: '+str(inps[6])+'\n')
     FIDOfile.write('shapeB: '+str(inps[8])+'\n')
     FIDOfile.write('CME_vr: '+str(vs[0])+'\n')
-    FIDOfile.write('FR_B0: '+str(inps[9])+'\n')
-    FIDOfile.write('FR_pol: '+str(inps[10])+'\n')
-    FIDOfile.write('tshift: '+str(inps[11])+'\n')
-    FIDOfile.write('CME_start: '+str(inps[12])+'\n')
+    FIDOfile.write('FR_B0: '+str(inps[10])+'\n')
+    FIDOfile.write('FR_pol: '+str(inps[11])+'\n')
+    FIDOfile.write('tshift: '+str(inps[12])+'\n')
+    FIDOfile.write('CME_start: '+str(inps[13])+'\n')
     FIDOfile.write('CME_vExp: '+str(vExp)+'\n')
-    FIDOfile.write('Sat_rad: '+str(inps[13])+'\n')
-    FIDOfile.write('Sat_rot: '+str(inps[14])+'\n')
+    FIDOfile.write('Sat_rad: '+str(inps[14])+'\n')
+    FIDOfile.write('Sat_rot: '+str(inps[15])+'\n')
     FIDOfile.write('Expansion_Model: '+expansion_model+'\n')
     FIDOfile.write('hasSheath: ' + str(hasSheath)+'\n')
     if hasSheath:
@@ -831,22 +825,25 @@ def saveRestartFile():
 
 if __name__ == '__main__':
     # order is sat_lat [0], Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
-    # CMEAWp[6], CMEdeltaAx [7], CMEdeltaCS [8], CMEvr [9], CMEB0 [10], CMEH [11], tshift [12], 
-    # tstart [13], Sat_rad [14], Sat_rot [15], CMEr[16], cnm [17], tau [18]
+    # CMEAWp[6], CMEdeltaAx [7], CMEdeltaCS [8], CMEdeltaCSAx [9], CMEvr [10], CMEB0 [11], CMEH [12],  
+    # tshift [13], tstart [14], Sat_rad [15], Sat_rot [16], CMEr[17], cnm [18], tau [19]
     
-    startFromText()    
+    #startFromText()    
+        
+    inps = np.array([ 4.13100000e+00,  8.29735933e+01, -2.21405196e+01,  8.29348608e+01,      4.14900851e+01,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.25544766e+02,      2.18096115e+00,  1.00000000e+00])
+    shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
+    vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
     
-    # this makes a sharp jump.... why?
-    #inps = [ 4.13100000e+00,  8.28002788e+01, -1.22800002e+01,  9.09999996e+01,  3.83700000e+01,  6.68545079e+01,  3.57232989e+01 , 3.92054678e-01,  4.06685521e-01, -7.00000000e+01,  1.00000000e+00,  0.00000000e+00,  1.99861111e+00 , 2.13000000e+02 , 1.14100000e-05 , 2.11018573e+02 , 4.06381253e+00 , 1.50000000e+00]
 
     
     Bout, tARR, Bsheath, tsheath, radfrac, isHit = run_case(inps, shinps, vExps)
+    print (np.mean(Bout))
     #print(Bout)
-    import matplotlib.pyplot as plt
+    '''import matplotlib.pyplot as plt
     fig = plt.figure()
     plt.plot(tARR, Bout[-1], 'k')
     plt.plot(tARR, Bout[0], 'r')
     plt.plot(tARR, Bout[1], 'b')
     plt.plot(tARR, Bout[2], 'g')
-    plt.show()
+    plt.show()'''
     #print(Bsheath)

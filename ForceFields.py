@@ -288,7 +288,9 @@ def getBCPU(Rin, lat, lon, scangs, printit=False):
 		Bmag[aboveSS,1] = By[aboveSS]
 		Bmag[aboveSS,2] = Bz[aboveSS]
 		Bmag[aboveSS,3] = BmagPS[aboveSS]
-	return Bmag 
+        
+    # return field scaled by PFSSscale    
+	return Bmag*FC.PFSSscale   
 
 
 def calc_torqueCPU(CME):
