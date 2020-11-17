@@ -458,7 +458,7 @@ def goANTEATR():
 
 
     # ANTEATR takes inputs
-    # invec = [CMElat, CMElon, CMEtilt, CMEvel0, CMEmass, CMEAW, CMEA, CMEB, vSW, SWrho0, Cd]
+    # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
     # SatVars0 = [Satlat, Satlon, Satradius] -> technically doesn't have to be Earth!
     # which we can generate from the ForeCAT data
 
