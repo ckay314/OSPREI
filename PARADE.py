@@ -312,6 +312,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     outdelCAs = []
     outBs     = []
     outCnms   = []
+    outns    = []
             
     while not inCME:
     #while CMElens[0] <= 0.9*Er:
@@ -371,6 +372,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             outdelCAs.append(deltaCSAx)
             outBs.append(B0)
             outCnms.append(cnm)
+            outns.append(rho/1.67e-24)
             # print to file (if doing)
             if writeFile:
                 fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm] 
@@ -428,6 +430,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     outdelCAs.append(deltaCSAx)
                     outBs.append(B0)
                     outCnms.append(cnm)
+                    outns.append(rho/1.67e-24)
                     if writeFile:
                         fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm] 
                         outstuff2 = ''
@@ -443,13 +446,13 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     print ('Earth longitude:  ', Elon)
                     
                 inCME = True                
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms]), Elon, vs, estDur  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns]), Elon, vs, estDur  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
             else:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
         
 
 if __name__ == '__main__':
