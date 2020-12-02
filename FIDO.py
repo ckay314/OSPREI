@@ -306,6 +306,7 @@ def getFRprofile():
     tARR = []
     rCME = []
     radfrac = []
+    vIS  = []
     
     # Initialize time
     t = 0
@@ -331,7 +332,7 @@ def getFRprofile():
         temp2 = roty(temp, CMElat)
         FF_CMExyz = rotx(temp2, (90.-CMEtilt))
         
-        minb, thetaT, thetaP, flagit, CME_crossrad = new_isinCME(FF_CMExyz, CMElens, deltaAx, deltaCS)
+        minb, thetaT, thetaP, flagit, CME_crossrad = new_isinCME(FF_CMExyz, CMElens, deltaAx, deltaCS)        
 	           
         # Check if currently in the CME and get position within
         # Track the minimum distance from center -> Impact Parameter
@@ -356,13 +357,23 @@ def getFRprofile():
             temp = rotx(Btot, -(90.-CMEtilt))
             temp2 = roty(temp, CMElat - FFlat) 
             BSC = rotz(temp2, CMElon - FFlon)
+            
+            
+            # get accurate velocity vector
+            vCMEframe, vExpCME = getvCMEframe(minb/CME_crossrad, thetaT, thetaP, CMElens[5] / CMElens[6], CMElens[3] / CMElens[4], vExps)
+            # rot B to s/c frame -> take - of x&y but this correct for x away from sun
+            temp = rotx(vCMEframe, -(90.-CMEtilt))
+            temp2 = roty(temp, CMElat - FFlat) 
+            vInSitu = rotz(temp2, CMElon - FFlon)
+            
             # Append to output arrays
             obsBx.append(-BSC[0])
             obsBy.append(-BSC[1])
             obsBz.append(BSC[2])
             tARR.append(t/3600.)
             rCME.append(CMElens[0])
-            radfrac.append(minb/CME_crossrad)   
+            radfrac.append(minb/CME_crossrad)
+            vIS.append(vInSitu[0])   
             
         else:
             # stop checking if exit CME
@@ -391,7 +402,7 @@ def getFRprofile():
     except:
         isHit = False
     Bout = np.array([obsBx, obsBy, obsBz, obsB])   
-    return Bout, tARR, isHit, ImpParam, np.array(radfrac)
+    return Bout, tARR, isHit, ImpParam, np.array(radfrac), np.array(vIS)
     
 # -------------------------------------------------------------------------------------- #
 def run_case(inpsIn, shinpsIn, vExpIn):
@@ -405,7 +416,7 @@ def run_case(inpsIn, shinpsIn, vExpIn):
     CMEstart = inps[13] + inps[12]/24.
     
     # run the simulation    
-    Bout, tARR, isHit, ImpParam, radfrac = getFRprofile()
+    Bout, tARR, isHit, ImpParam, radfrac, vIS = getFRprofile()
     # execute extra functions as needed
     Bsheath = []
     tsheath = []
@@ -422,7 +433,7 @@ def run_case(inpsIn, shinpsIn, vExpIn):
     # No impact case
     else:
         if canPrint: print ('No impact expected')
-    return Bout, tARR, Bsheath, tsheath, radfrac, isHit 
+    return Bout, tARR, Bsheath, tsheath, radfrac, isHit, vIS 
 
 # -------------------------------------------------------------------------------------- #
 def radfrac2vprofile(radfrac, vAvg, vExp):
@@ -436,6 +447,37 @@ def radfrac2vprofile(radfrac, vAvg, vExp):
     vProf = vAvg + vExp*newfrac
     vProf[centID:] = vAvg - vExp*newfrac[centID:]
     return vProf
+    
+# -------------------------------------------------------------------------------------- #
+def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
+    # CMElens/vExps = [CMEnose, rEdge, d, br, bp, a, c]
+    aTT = np.abs(thetaT)
+    pmTT = np.sign(thetaT)
+    
+    # can take out the Lp part in calc xAx and zAx
+    xAx = delAx * np.cos(thetaT)
+    zAx = 0.5 * (np.sin(aTT) + np.sqrt(1 - np.cos(aTT))) * pmTT
+    thisL = np.sqrt(xAx**2 + zAx**2)
+    vAx = thisL * vExps[6]
+    nAx = np.array([0.5 * (np.cos(aTT) + 0.5 * np.sin(aTT)/np.sqrt(1-np.cos(aTT))) * pmTT, 0, delAx * np.sin(thetaT)])
+    normN = np.sqrt(np.sum(nAx**2))
+    nAx = nAx / normN
+    vAxVec = vAx * nAx
+    
+    xCS = delCS * rbar * np.cos(thetaP)
+    yCS = rbar * np.sin(thetaP)
+    thisr = np.sqrt(xCS**2 + yCS**2)
+    vCS = thisr * vExps[4]
+    nCS = np.array([np.cos(thetaP)/delCS, np.sin(thetaP), 0.])
+    normN2 = np.sqrt(np.sum(nCS**2))
+    nCS = nCS / normN2
+    nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
+    vCSVec = vCS * nCSatAx
+    
+    vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
+    
+    return vCMEframe, vCSVec
+    
 
 # -------------------------------------------------------------------------------------- #
 def hourify(tARR, vecin):
@@ -588,8 +630,6 @@ def determineR(vS, vSheath, vSW, cs, vA):
     else:
         return 1.
 
-
-    
 # -------------------------------------------------------------------------------------- #
 # -------------------------------------------------------------------------------------- #
 
@@ -830,13 +870,17 @@ if __name__ == '__main__':
     
     #startFromText()    
         
-    inps = np.array([ 4.13100000e+00,  8.29735933e+01, -2.21405196e+01,  8.29348608e+01,      4.14900851e+01,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.25544766e+02,      2.18096115e+00,  1.00000000e+00])
+    #inps = np.array([ 4.13100000e+00,  8.29735933e+01, -2.21405196e+01,  8.29348608e+01,      4.14900851e+01,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.25544766e+02,      2.18096115e+00,  1.00000000e+00])
+    #shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
+    #vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
+
+    inps = np.array([ 4,  2, 0, 0, 10,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.10544766e+02,      2.18096115e+00,  1.00000000e+00])
     shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
     vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
     
 
     
-    Bout, tARR, Bsheath, tsheath, radfrac, isHit = run_case(inps, shinps, vExps)
+    Bout, tARR, Bsheath, tsheath, radfrac, isHit, vIS = run_case(inps, shinps, vExps)
     print (np.mean(Bout))
     #print(Bout)
     '''import matplotlib.pyplot as plt

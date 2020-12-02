@@ -65,6 +65,7 @@ class EnsRes:
             self.ANTAWps    = None
             self.ANTdelAxs  = None
             self.ANTdelCSs  = None
+            self.ANTdelCSAxs = None
             self.ANTvFs     = None
             self.ANTvBs     = None
             self.ANTvEs     = None
@@ -85,6 +86,7 @@ class EnsRes:
             self.FIDOKps    = None
             self.FIDOnormrs = None
             self.isSheath   = None
+            self.hasSheath  = False 
             
             # flags for misses -> no ANT/FIDOdata
             self.miss = True
@@ -204,10 +206,12 @@ def txt2obj():
         ids = FIDOdata[:,0].astype(int)
         unFIDOids = np.unique(ids)
         
+        
         if OSP.includeSIT:
             SITfile = OSP.Dir+'/SITresults'+OSP.thisName+'.dat'
             SITdata = np.genfromtxt(SITfile, dtype=float, encoding='utf8')
-            
+            SITids = SITdata[:,0].astype(int)
+        
         for i in unFIDOids:
             if OSP.doFC or OSP.doANT:
                 thisRes = ResArr[i]
@@ -228,26 +232,32 @@ def txt2obj():
             Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
             Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
             thisRes.FIDOKps   = Kp
-            if OSP.includeSIT:  
+            if (OSP.includeSIT) and (i in SITids):  
+                thisRes.hasSheath = True
+                myID = np.where(SITids == i)[0][0]
                 isSheath = FIDOdata[myidxs,7]
                 thisRes.SITidx = np.where(isSheath==0)[0]
-                thisRes.SITdur = SITdata[i, 1] #thisRes.FIDOtimes[thisRes.SITidx[-1]]-thisRes.FIDOtimes[0] 
-                thisRes.SITcomp = SITdata[i, 2]
-                thisRes.SITMach = SITdata[i, 3]
-                thisRes.SITn    = SITdata[i, 4]
-                thisRes.SITvSheath = SITdata[i, 5]
-                thisRes.SITB    = SITdata[i, 6]     
-                thisRes.SITvShock = SITdata[i,7]           
+                thisRes.SITdur = SITdata[myID, 1] #thisRes.FIDOtimes[thisRes.SITidx[-1]]-thisRes.FIDOtimes[0] 
+                thisRes.SITcomp = SITdata[myID, 2]
+                thisRes.SITMach = SITdata[myID, 3]
+                thisRes.SITn    = SITdata[myID, 4]
+                thisRes.SITvSheath = SITdata[myID, 5]
+                thisRes.SITB    = SITdata[myID, 6]     
+                thisRes.SITvShock = SITdata[myID,7]    
                 thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
                 thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
                 thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
-            
-            
+                       
             ResArr[i] = thisRes
-            # If want dur/max Kp for single case uncomment
-            #print(ResArr[0].FIDOtimes[-1]-ResArr[0].FIDOtimes[0])
-            #print (np.min(thisRes.FIDOBzs))
-            #print(np.max(Kp))
+            
+    # if haven't run FC may have fewer CMEs in ResArr than total runs if have misses
+    for j in range(OSP.nRuns):
+        if j not in ResArr.keys():
+            thisRes = EnsRes(OSP.thisName)
+            thisRes.miss = True
+            ResArr[j] = thisRes
+            
+            
             
     # if we ran an ensemble load up the initial parameters for each member        
     if len(ResArr.keys()) > 1:
@@ -257,9 +267,10 @@ def txt2obj():
         varied = ENSdata[0][1:] 
         nvar = len(varied) 
         for i in range(len(ENSdata)-1):
+            row = ENSdata[i+1].astype(float)
             for j in range(nvar):
-                row = ENSdata[i+1].astype(float)
-                ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
+                if int(row[0]) in ResArr.keys():
+                    ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
         myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))      
@@ -719,7 +730,7 @@ def makeAThisto(ResArr):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.png')
      
 def makeISplot(ResArr):
-    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(8,10))
+    fig, axes = plt.subplots(6, 1, sharex=True, figsize=(8,12))
     mindate = None
     maxdate = None
     for key in ResArr.keys():
@@ -740,6 +751,7 @@ def makeISplot(ResArr):
             axes[2].plot(dates, ResArr[key].FIDOBys, linewidth=2, color='DarkGray')
             axes[3].plot(dates, ResArr[key].FIDOBzs, linewidth=2, color='DarkGray')
             axes[4].plot(dates, ResArr[key].FIDOKps, linewidth=2, color='DarkGray')
+            axes[5].plot(dates, ResArr[key].FIDOvs, linewidth=2, color='DarkGray')
             if np.min(dates) < mindate: mindate = np.min(dates)
             if np.max(dates) > maxdate: maxdate = np.max(dates)        
     
@@ -750,6 +762,7 @@ def makeISplot(ResArr):
     axes[2].plot(dates, ResArr[0].FIDOBys, linewidth=4, color='b')
     axes[3].plot(dates, ResArr[0].FIDOBzs, linewidth=4, color='b')
     axes[4].plot(dates, ResArr[0].FIDOKps, linewidth=4, color='b')
+    axes[5].plot(dates, ResArr[0].FIDOvs, linewidth=4, color='b')
     # Make Kps integers only
     Kpmin, Kpmax = int(np.min(ResArr[0].FIDOKps)), int(np.max(ResArr[0].FIDOKps))+1
     axes[4].set_yticks(range(Kpmin, Kpmax+2))
@@ -760,6 +773,7 @@ def makeISplot(ResArr):
     axes[2].set_ylabel('B$_y$ (nT)')
     axes[3].set_ylabel('B$_z$ (nT)')
     axes[4].set_ylabel('Kp')
+    axes[5].set_ylabel('v (km/s)')
     
     # Set up date format
     maxduration = (maxdate - mindate).days+(maxdate - mindate).seconds/3600./24.
@@ -787,8 +801,9 @@ def makeISplot(ResArr):
         axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=4, color='m')
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='m')
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='m')
-        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')
-        
+        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')    
+        # get in situ v data and uncomment....   
+        # axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')
 
     
     fig.autofmt_xdate()
@@ -798,12 +813,14 @@ def makeISplot(ResArr):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.png')    
     
 def makeFIDOhistos(ResArr):
-    fig, axes = plt.subplots(2, 2, figsize=(6,7), sharey=True)
-    axes = [axes[0,0], axes[0,1], axes[1,0], axes[1,1]]
+    fig, axes = plt.subplots(2, 3, figsize=(9,7), sharey=True)
+    axes = [axes[0,0], axes[1,0], axes[1,1], axes[1,2], axes[0,1], axes[0,2]]
     all_dur = []
     all_B   = []
     all_Bz  = []
     all_Kp  = []
+    all_vF  = []
+    all_vE  = []
     
     # Collect the ensemble results
     for key in ResArr.keys(): 
@@ -812,6 +829,8 @@ def makeFIDOhistos(ResArr):
             all_Bz.append(np.min(ResArr[key].FIDOBzs))
             all_Kp.append(np.max(ResArr[key].FIDOKps))
             all_B.append(np.max(ResArr[key].FIDOBs))
+            all_vF.append(ResArr[key].FIDOvs[0])
+            all_vE.append(0.5*(ResArr[key].FIDOvs[0] - ResArr[key].FIDOvs[-1]))
             
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
@@ -819,7 +838,9 @@ def makeFIDOhistos(ResArr):
     n2, bins, patches = axes[1].hist(all_Bz, bins=10, color='#882255')
     n3, bins, patches = axes[2].hist(all_B, bins=10, color='#882255')
     n4, bins, patches = axes[3].hist(all_Kp, bins=10, color='#882255')
-    maxcount = np.max([np.max(n1), np.max(n2), np.max(n3), np.max(n4)])
+    n5, bins, patches = axes[4].hist(all_vF, bins=10, color='#882255')
+    n6, bins, patches = axes[5].hist(all_vE, bins=10, color='#882255')
+    maxcount = np.max([np.max(n1), np.max(n2), np.max(n3), np.max(n4), np.max(n5), np.max(n6)])
     axes[0].set_ylim(0, maxcount*1.1)
     
     # Add the mean and sigma from a normal fit
@@ -827,17 +848,23 @@ def makeFIDOhistos(ResArr):
     fitBz = norm.fit(all_Bz)
     fitB  = norm.fit(all_B)
     fitKp = norm.fit(all_Kp)
+    fitvF  = norm.fit(all_vF)
+    fitvE  = norm.fit(all_vE)
     axes[0].text(0.97, 0.95, '{:4.2f}'.format(fitDur[0])+'$\pm$'+'{:4.2f}'.format(fitDur[1])+' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
     axes[1].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
     axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
     axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvF[0])+'$\pm$'+'{:4.1f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitvE[0])+'$\pm$'+'{:4.1f}'.format(fitvE[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
     
     # Labels
     axes[0].set_xlabel('Duration (days)')
     axes[1].set_xlabel('Minimum B$_z$ (nT)')
     axes[2].set_xlabel('Maximum B (nT)')
     axes[3].set_xlabel('Maximum Kp')
-    for i in range(4): axes[i].set_ylabel('Counts')    
+    axes[4].set_xlabel('v$_F$ (km/s)')
+    axes[5].set_xlabel('v$_{Exp}$ (km/s)')
+    for i in range(6): axes[i].set_ylabel('Counts')    
     
     plt.subplots_adjust(wspace=0.15, hspace=0.25,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_FIDOhist.png')
@@ -857,7 +884,7 @@ def makeSIThistos(ResArr):
         
     # Collect the ensemble results
     for key in ResArr.keys(): 
-        if ResArr[key].FIDOtimes is not None:
+        if ResArr[key].hasSheath:
             all_dur.append(ResArr[key].SITdur)
             all_comp.append(ResArr[key].SITcomp)
             all_Mach.append(ResArr[key].SITMach)
@@ -867,17 +894,19 @@ def makeSIThistos(ResArr):
             all_Bz.append(ResArr[key].SITminBz)
             all_vSheath.append(ResArr[key].SITvSheath)
             all_Kp.append(ResArr[key].SITmaxKp)
+            
                         
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
     n1, bins, patches = axes[0].hist(all_dur, bins=10, color='#882255')
     n2, bins, patches = axes[1].hist(all_comp, bins=10, color='#882255')
-    n3, bins, patches = axes[2].hist(all_Mach, bins=10, color='#882255')
-    n4, bins, patches = axes[3].hist(all_n, bins=10, color='#882255')
-    n5, bins, patches = axes[4].hist(all_vShock, bins=10, color='#882255')
-    n6, bins, patches = axes[5].hist(all_B, bins=10, color='#882255')
-    n7, bins, patches = axes[6].hist(all_Bz, bins=10, color='#882255')
-    n8, bins, patches = axes[7].hist(all_vSheath, bins=10, color='#882255')
+    n3, bins, patches = axes[2].hist(all_n, bins=10, color='#882255')
+    n4, bins, patches = axes[3].hist(all_vShock, bins=10, color='#882255')
+    n5, bins, patches = axes[4].hist(all_vSheath, bins=10, color='#882255')
+    n6, bins, patches = axes[5].hist(all_Mach, bins=10, color='#882255')
+    n7, bins, patches = axes[6].hist(all_B, bins=10, color='#882255')
+    # Bz might be peaked at 0 if has no neg values
+    n8, bins, patches = axes[7].hist(all_Bz, bins=10, color='#882255')
     n9, bins, patches = axes[8].hist(all_Kp, bins=10, color='#882255')
     maxcount = np.max([np.max(n1), np.max(n2), np.max(n3), np.max(n4), np.max(n5), np.max(n6), np.max(n7), np.max(n8), np.max(n9)])
     axes[0].set_ylim(0, maxcount*1.1)
@@ -895,24 +924,25 @@ def makeSIThistos(ResArr):
 
     axes[0].text(0.97, 0.95, '{:4.2f}'.format(fitDur[0])+'$\pm$'+'{:4.2f}'.format(fitDur[1])+' hours', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
     axes[1].text(0.97, 0.95, '{:4.2f}'.format(fitComp[0])+'$\pm$'+'{:4.2f}'.format(fitComp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitMach[0])+'$\pm$'+'{:4.1f}'.format(fitMach[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitn[0])+'$\pm$'+'{:4.1f}'.format(fitn[1])+' cm$^{-3}$', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
     axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitvShock[0])+'$\pm$'+'{:4.1f}'.format(fitvShock[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvSheath[0])+'$\pm$'+'{:4.1f}'.format(fitvSheath[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)    
-    axes[6].text(0.97, 0.95, '{:4.1f}'.format(fitn[0])+'$\pm$'+'{:4.1f}'.format(fitn[1])+' cm$^{-3}$', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-    axes[7].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-    axes[8].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
+    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvSheath[0])+'$\pm$'+'{:4.1f}'.format(fitvSheath[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
+    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitMach[0])+'$\pm$'+'{:4.1f}'.format(fitMach[1]), horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+    axes[6].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+    axes[7].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+    axes[8].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)    
     
     # Labels
     axes[0].set_xlabel('Duration (hours)')
     axes[1].set_xlabel('Compression Ratio')
-    axes[2].set_xlabel('Mach Number')
+    axes[2].set_xlabel('Density (cm$^{-3}$)')
     axes[3].set_xlabel('v$_{Shock}$ (km/s)')
     axes[4].set_xlabel('v$_{Sheath}$ (km/s)')
-    axes[5].set_xlabel('Kp')
-    axes[6].set_xlabel('Density (cm$^{-3}$)')
-    axes[7].set_xlabel('B (nT)')
-    axes[8].set_xlabel('min Bz (nT)')
+    axes[5].set_xlabel('Mach Number')
+    axes[6].set_xlabel('B (nT)')
+    axes[7].set_xlabel('min Bz (nT)')
+    axes[8].set_xlabel('Kp')
+    
     for i in range(9): axes[i].set_ylabel('Counts')    
     
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
@@ -936,7 +966,6 @@ def makeEnsplot(ResArr):
     nVertDict = {100:9, 110:13, 111:15, 11:12, 10:10, 1:4}
     nVert = nVertDict[configID]
     outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
-
     # number of vertical plots depends on num params varied
     nHoriz = len(varied)
     
@@ -945,7 +974,6 @@ def makeEnsplot(ResArr):
     for i in range(nEns):
         if not ResArr[i].miss:
             hits.append(i)
-    
     
     # group EnsRes once to avoid doing in each plot
     nRuns = len(hits) # might need to change to throw out misses
@@ -1034,9 +1062,10 @@ def makeEnsplot(ResArr):
         
                 
     print ('Number of hits: ', len(goodIDs)) 
+    
     for item in outDict[configID]:
         OSPres[item] = np.array(OSPres[item])
-        print (item, np.mean(OSPres[item][goodIDs]), np.std(OSPres[item][goodIDs]))  
+        print (item, np.mean(OSPres[item]), np.std(OSPres[item]))  
 
     f, a = plt.subplots(1, 1)
     img = a.imshow(np.array([[0,1]]), cmap="cool")

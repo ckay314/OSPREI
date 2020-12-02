@@ -126,7 +126,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -158,11 +158,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'SWn', 'SWv']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'IVDf1', 'IVDf2']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'SWn', 'SWv']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'CMEvExp', 'IVDf1', 'IVDf2']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -269,6 +269,8 @@ def genEnsMem(runnum=0):
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
     if 'FRBscale' in input_values: CME.Bscale = float(input_values['FRBscale'])
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
+    if 'IVDf1' in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
+    if 'IVDf2' in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
         if item == 'SWCd':
@@ -305,12 +307,15 @@ def genEnsMem(runnum=0):
         if item == 'CMEvExp':
             CME.vExp = np.random.normal(loc=float(input_values['CMEvExp']), scale=EnsInputs['CMEvExp'])
             outstr += '{:6.2f}'.format(CME.vExp) + ' '
+        if item == 'IVDf1':
+            CME.IVDfs[0] = np.random.normal(loc=float(input_values['IVDf1']), scale=EnsInputs['IVDf1'])
+            outstr += '{:6.2f}'.format(CME.IVDfs[0]) + ' '
+        if item == 'IVDf2':
+            CME.IVDfs[1] = np.random.normal(loc=float(input_values['IVDf2']), scale=EnsInputs['IVDf2'])
+            outstr += '{:6.2f}'.format(CME.IVDfs[1]) + ' '
     ensembleFile.write(outstr+'\n')  
-    CME.vs[3] = CME.vExp    
-    CME.vs[2] = CME.vs[0] - CME.vs[3]
-    CME.vs[1] = CME.vs[2]*np.tan(CME.AW)
-    CME.vs[4] = CME.vs[3]/CME.deltaCS
-    CME.vs[6] = CME.vs[1] - CME.vs[4]
+    
+    # used to set CME.vs here, seems unnecessary b/c done in other parts of code
         
     return CME
                         
@@ -399,7 +404,7 @@ def makeCMEarray():
     FC.user_exp  = lambda x: float(input_values['CMEAW'])
     FC.AWratio   = lambda x: float(input_values['CMEAWp']) / float(input_values['CMEAW'])
     # initiate the CME
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], ipos)
     # add non ForeCAT vars
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
@@ -409,16 +414,11 @@ def makeCMEarray():
     if 'FRBscale'  in input_values: CME.Bscale = float(input_values['FRBscale'])
     if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
     if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
+    if 'IVDf1'  in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
+    if 'IVDf2'  in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
-    # modify rest of vs = [CMEnose, rEdge, d, br, bp, a, c]
-    # CME.vs[0] = CME.v1AU*1e5
-    CME.vs[3] = CME.vExp    
-    CME.vs[2] = CME.vs[0] - CME.vs[3]
-    CME.vs[1] = CME.vs[2]*np.tan(CME.AW)
-    CME.vs[4] = CME.vs[3]/CME.deltaCS
-    CME.vs[6] = CME.vs[1] - CME.vs[4]
-        
+         
     global CMEarray
     CMEarray = [CME]
     
@@ -495,6 +495,7 @@ def goANTEATR():
         deltax = CME.deltaAx
         deltap = CME.deltaCS
         deltaCA = CME.deltaCSAx
+        IVDfs = CME.IVDfs
  
         # Check if passed SW variables
         if -9999 in mySW:
@@ -516,8 +517,19 @@ def goANTEATR():
         # Package up invec, run ANTEATR        
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, np.abs(Bscale), nSW, vSW, BSW, Cd, tau, cnm]
         # high fscales = more convective like
-        ATresults, Elon, CME.vs, estDur = getAT(invec, myParams, fscales=[0.5,0.5], silent=True)
-                
+        ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=True)
+        # get improved v estimates using FIDO code
+        vFvec, vExvec = FIDO.getvCMEframe(1., thetaT, thetaP, ATresults[5][-1], ATresults[6][-1], CME.vs)
+        temp = rotx(vFvec, -(90.-tilt))
+        temp2 = roty(temp, CMElat - myParams[0]) 
+        vInSitu = rotz(temp2, CMElon - myParams[1])
+        vF = vInSitu[0] / 1e5
+        # this is vExp for axis and cs not the same as measured vexp....
+        temp = rotx(vExvec, -(90.-tilt))
+        temp2 = roty(temp, CMElat - myParams[0]) 
+        vExVec = rotz(temp2, CMElon - myParams[1])
+        vEx = vExVec[0] / 1e5
+        
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
@@ -535,6 +547,7 @@ def goANTEATR():
             deltaCA  = ATresults[7][-1]
             B0       = ATresults[8][-1]
             cnm      = ATresults[9][-1]
+            CMEn     = ATresults[10][-1]
             # Store things to pass to FIDO ensembles
             ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
             # update CME if has that variable
@@ -547,13 +560,14 @@ def goANTEATR():
             CME.B0 = B0 * 1e5 * np.sign(Bscale) * deltap * CME.tau # in nT now
             CME.cnm   = cnm
             CME.vTrans = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
+            CME.impV = vF
+            CME.impVE = vEx
             CME.t = TotTime
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(CMEvs[0])+' km/s (expansion velocity ' +"{:.2f}".format(CMEvs[3])+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
+            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
-                        
-    
+                            
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
             for j in range(len(ATresults[0])):
@@ -644,8 +658,8 @@ def goFIDO():
         # Sheath stuff
         if includeSIT:
             # check if front velocity greater than SW
-            if vs[0] > CME.vSW:
-                vels = [vs[0]-vs[3], vs[3], vtrans, CME.vSW]
+            if CME.impV > CME.vSW:
+                vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
                 sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
                 actuallySIT = True
             # If not tell FIDO not to do sheath this time
@@ -660,8 +674,9 @@ def goFIDO():
             
         flagit = False
         try:
-            Bout, tARR, Bsheath, tsheath, radfrac, isHit = FIDO.run_case(inps, sheathParams, vs)
-            vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
+            Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs)
+            # Old version of getting velocity profile just using radfrec (less accurate than new)
+            # vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
             # turn the sheath back on if we turned it off for a low case
             if includeSIT: FIDO.hasSheath = True
             
@@ -669,6 +684,7 @@ def goFIDO():
             # sometimes get a miss even though ANTEATR says hit?
             # for now just flag and skip
             flagit = True
+            print ('done')
         
         if not flagit:  
             # Down sample B resolution
@@ -681,10 +697,12 @@ def goFIDO():
             if actuallySIT:
                 tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
                 BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
+                # make a linear velocity profile from sheath front to CME front
+                delV = (vProfDS[0] - sheathParams[3])/len(tsheathDS)
                 for j in range(len(BsheathDS[0])):
                     outprint = str(i)
                     outprint = outprint.zfill(4) + '   '
-                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3], 0]
+                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]+j*delV, 0]
                     for iii in outstuff:
                         outprint = outprint +'{:6.3f}'.format(iii) + ' '
                     FIDOfile.write(outprint+'\n')
@@ -716,7 +734,7 @@ def goFIDO():
                 if actuallySIT: plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
                 plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
             plt.show() 
-        print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT)')
+        print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT), vFront ', vProfDS[0], ' km/s')
     if includeSIT: SITfile.close()
     FIDOfile.close()
     

@@ -446,7 +446,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     print ('Earth longitude:  ', Elon)
                     
                 inCME = True                
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns]), Elon, vs, estDur  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns]), Elon, vs, estDur, thisPsi, parat  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
@@ -487,6 +487,6 @@ if __name__ == '__main__':
     
     
         
-    #outs, Elon, vs, estDur = getAT(invecF, satParams, name='temp')
-    #outs, Elon, vs, estDur = getAT(invecF, satParams, pan=True, name='temp')
+    #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, name='temp')
+    #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, pan=True, name='temp')
 

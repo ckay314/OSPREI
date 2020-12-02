@@ -141,6 +141,9 @@ class CME:
         self.vs   = np.array([vrmag, 0, 0, 0, 0, 0, 0]) 
         self.getvs(vrmag)
         self.vTrans = 0.
+        self.IVDfs = [0.5, 0.5]
+        self.impV = 0.
+        self.impVE = 0.
         
         # redefine dt in secs and as short name variable for convenience
         global dt
@@ -335,6 +338,3 @@ class CME:
             self.points[idcent][1,0] = 999999 # stop simulation
             print ("Hit pole, stopped simulation")
             print (self.cone[1,:])
-
-
-

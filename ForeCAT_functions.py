@@ -31,7 +31,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'FRB', 'CMEvExp', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -52,6 +52,8 @@ def get_inputs(inputs):
     input_values['FRtau'] = 1.
     input_values['FRCnm'] = 1.927
     input_values['FRpol'] = 1
+    input_values['IVDf1'] = 0.5
+    input_values['IVDf2'] = 0.5
     
              
     for i in range(len(inputs)):
@@ -387,5 +389,3 @@ def rotz(vec, ang):
 	xout = np.cos(ang) * vec[0] - np.sin(ang) * vec[1]
 	yout = np.sin(ang) * vec[0] + np.cos(ang) * vec[1]
 	return [xout, yout, vec[2]]
-
-
