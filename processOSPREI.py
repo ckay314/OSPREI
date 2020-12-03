@@ -802,8 +802,7 @@ def makeISplot(ResArr):
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='m')
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='m')
         axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')    
-        # get in situ v data and uncomment....   
-        # axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='m')
+        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='m')
 
     
     fig.autofmt_xdate()
