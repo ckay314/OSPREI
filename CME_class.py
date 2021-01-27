@@ -65,6 +65,7 @@ class CME:
         self.deltaCSAx = params[2]
         self.AW = user_exp(rstart)* dtor # initial angular width
         self.AWp = self.AWratio(rstart) * self.AW 
+        self.deltaCSAx = self.AWp / self.AW / self.deltaCS
         # initial nose position
         self.points[idcent][1,:] = [rstart, pos[0], pos[1]]
         self.calc_lens()
@@ -144,6 +145,7 @@ class CME:
         self.IVDfs = [0.5, 0.5]
         self.impV = 0.
         self.impVE = 0.
+        self.Tscale = 2.
         
         # redefine dt in secs and as short name variable for convenience
         global dt
@@ -316,6 +318,7 @@ class CME:
         # could eventually replace this forces updating CME lens
         self.AW = user_exp(self.points[idcent][1,0]) * dtor
         self.AWp = self.AWratio(self.points[idcent][1,0]) * self.AW 
+        self.deltaCSAx = self.AWp / self.AW / self.deltaCS
         self.calc_lens()
                		
         # determine new mass

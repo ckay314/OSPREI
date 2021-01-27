@@ -31,7 +31,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'IVDf1', 'IVDf2', 'suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -238,12 +238,13 @@ def printstep(CME):
     vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
     vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
     # outdata is [t, lat, lon, tilt, vCME, vDef, AW, A, B]
-    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS]
+    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS, CME.deltaCSAx, CME.B0, CME.vs[4]/1e5]
     outprint = ''
     for i in outdata:
         outprint = outprint +'{:7.3f}'.format(i) + ' '  
     if printData: print (outprint)  
     if saveData: outfile.write(outprint+'\n')
+    
 
 def calc_drag(CME):
 #only calculate nonradial drag (ignore CME propagation)
@@ -253,8 +254,8 @@ def calc_drag(CME):
 	HCSdist = calc_dist(CME.cone[1,1], CME.cone[1,2]) 
 
 	# determine SW speed
-	global SW_v
-	SW_rho, SW_v = calc_SW(CME.cone[1,0], HCSdist)
+	global SW_v, SW_rho, varCd
+	SW_rho, SW_v = calc_SW(CME.points[CC.idcent][1,0]-CME.rr, HCSdist)
 
 	# get total CME velocity vector (def+drag, not propagation)
 	vr = np.sqrt(np.sum(CME.vels[0,:]**2))

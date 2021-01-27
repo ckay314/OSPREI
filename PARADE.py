@@ -149,6 +149,30 @@ def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
     return aBr
     
+def getThermF(CMElens, temCME, nCME, nSW):
+    # Get temperatures
+    temSW = 6.2e4 * np.power((CMElens[0] - CMElens[3]) / 213. / rsun, -0.58)
+    temSWf = 6.2e4 * np.power(CMElens[0] / 213. / rsun, -0.58)
+    temSWb = 6.2e4 * np.power((CMElens[0] - 2*CMElens[3]) / 213. / rsun, -0.58)
+    #temSWr = 0.5 * (temSWf + temSWb)
+    rE = np.sqrt((CMElens[0] - CMElens[3])**2 + CMElens[4]**2)
+    temSWe = 6.2e4 * np.power(rE / 212. / rsun, -0.58)    
+    # Scale densities
+    nE = nSW * (CMElens[0] / rE)**2
+    #nC = nSW * ((CMElens[0] / (CMElens[0] - CMElens[3])))**2
+    nB = nSW * ((CMElens[0] / (CMElens[0] - 2*CMElens[3])))**2
+    # average n*T of front and back
+    avgNT = 0.5 * (nB * temSWb + nSW * temSWf)    
+    # Calc difference in pressure
+    #delP = 1.38e-16 * (nCME * temCME - 2 * nSW * temSW)
+    #delPr = 2 * 1.38e-16 * (nCME * temCME - 2 * nC* temSWr)
+    delPr =  1.38e-16 * 2*(nCME * temCME - avgNT)
+    delPp =  1.38e-16 * 2*(nCME * temCME - nE * temSWe)
+    # Calc gradients
+    gradPr = delPr / CMElens[3]
+    gradPp = delPp / CMElens[4]
+    return gradPr, gradPp
+    
 def getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz):
     # dragAccels = [dragR, dragEdge, bulk, dragBr, dragBp, dragA, dragC]
     dragAccels = np.zeros(7)
@@ -201,7 +225,6 @@ def initCMEparams(deltaAx, deltaCS, deltaCSAx, AW, AWp, CMElens, Mass, printNow=
     CMElens[5] = deltaAx * CMElens[6]
     CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
     CMElens[1] = CMElens[2] * np.tan(AW)
-    
     # alpha is scaling of rr to rE - Lp
     alpha = (CMElens[1]-CMElens[6])/CMElens[3]
     ndotz = 4*deltaAx / np.sqrt(1 + 16 * deltaAx**2)
@@ -236,7 +259,7 @@ def updateCME(CMElens, Mass):
     
 
 # -------------- main function ------------------
-def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff=False, axisOff=False, dragOff=False, name='nosave'):
+def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave'):
     
     Elat      = Epos[0]
     Elon      = Epos[1]
@@ -260,6 +283,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     Cd         = invec[15]
     tau        = invec[16] # 1 to mimic Lundquist
     cnm        = invec[17] # 1.927 for Lundquist
+    temScale   = invec[18] 
     
     writeFile = False
     if name != 'nosave':
@@ -288,6 +312,11 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
 
+    # get CME temperature based on expected SW temp at center of nose CS
+    temSW = 6.2e4 * np.power((CMElens[0] - CMElens[3]) / 212. / rsun, -0.58)
+    temCME = temScale * temSW
+    temscaler = np.power(CMElens[3] * CMElens[4] * initlen, 2./3) * temCME
+
     # Set up the initial velocities
     if fscales == None:
         if pan: 
@@ -312,13 +341,15 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
     outdelCAs = []
     outBs     = []
     outCnms   = []
-    outns    = []
+    outns     = []
+    outTems   = []
             
     while not inCME:
     #while CMElens[0] <= 0.9*Er:
         # Accels order = [Front, Edge, Center, CSr, CSp, Axr, Axp,]
         totAccels = np.zeros(7)
-        magAccels = np.zeros(7)  
+        magAccels = np.zeros(7)
+        thermAccels = np.zeros(7)  
         # Calculate forces
         # Internal flux rope forces
         if not axisOff:
@@ -326,17 +357,25 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             if (aTotNose != 9999) & (aTotEdge != 9999):
                 magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
             else:
-                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888 
+                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888, 8888, 8888 
                 
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
-            magAccels += [aBr, aBr * alpha, 0, aBr, aBr/deltap, 0., 0.] 
-        totAccels += magAccels        
+            magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 
+        totAccels += magAccels 
+        
+        # Thermal Expansion
+        if not thermOff:
+            aPTr, aPTp = getThermF(CMElens, temCME, rho/1.67e-24, rhoSWe/1.627e-24)/rho
+            thermAccels += [aPTr, aPTr * ndotz, 0, aPTr, aPTp, 0., 0.] 
+        totAccels += thermAccels
+               
         # Drag Force
         if not dragOff:
             dragAccels = getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz)
             # Update accels to include drag forces
             totAccels += dragAccels
+                    
         # Update CME shape
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
@@ -347,6 +386,9 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         
         # Calc shape params and new AWs
         deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
+        if alpha < 0: 
+            #print (CMElens/rsun)
+            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888 
                 
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
@@ -354,14 +396,19 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
         cnm = cnmscaler * lenNow  / CMElens[4] / (deltap**2+1)
         Btor = deltap * tau * B0
         Bpol = 2*deltap*B0/cnm/(deltap**2+1)
+        # Update temperature
+        temCME = temscaler / np.power(CMElens[3] * CMElens[4] * lenNow, 2./3)
                 
         # Update solar wind properties
         Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
             
         Elon += Erotrate * dt
         t += dt
-        if (CMElens[0]>printR): 
-            printR += 5*7e10
+        if (CMElens[0]>printR):
+            if CMElens[0] < 50*7e10: 
+                printR += 7e10
+            else:
+                printR += 5*7e10
             outTs.append(t/3600./24.)
             outRs.append(CMElens[0]/7e10)
             outvs.append(vs/1e5)
@@ -373,9 +420,17 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             outBs.append(B0)
             outCnms.append(cnm)
             outns.append(rho/1.67e-24)
+            outTems.append(np.log10(temCME))
+            if True:
+                printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, temCME, rho/1.67e-24, B0*1e5]
+                if not silent:
+                    printThis = ''
+                    for item in printStuff:
+                        printThis = printThis + '{:6.2f}'.format(item) + ' '
+                    print (printThis)
             # print to file (if doing)
             if writeFile:
-                fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm] 
+                fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME)] 
                 outstuff2 = ''
                 for item in fullstuff:
                     outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
@@ -399,18 +454,20 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
             thismin = np.min(dists2)
             thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
             sn = np.sign(thisPsi)
+            if sn == 0: sn = 1
             thisPsi = np.abs(thisPsi)
-            thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[2] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
+            thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[6] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
             vp = np.array(Epos2) - np.array(thisAx)
             # Get the normal vector
             if thisPsi == 0: thisPsi = 0.00001
             Nvec = [0.5 * sn*(np.cos(thisPsi) + 0.5*np.sin(thisPsi)/np.sqrt(1-np.cos(thisPsi))), 0., deltax * np.sin(thisPsi)] 
             Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
             norm = np.array(Nvec) / Nmag
+            thisPsi *= sn
 
             # Find the sat position within the CS
             vpmag = np.sqrt(np.sum(vp**2))
-            CSpol = np.arccos(np.dot(vp, norm) / vpmag)
+            CSpol = np.arccos(np.dot(vp, norm) / vpmag) 
             CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
             parat = np.arctan(np.tan(CSpol)*deltap)
             # Get the max R for that parametric t
@@ -431,11 +488,12 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     outBs.append(B0)
                     outCnms.append(cnm)
                     outns.append(rho/1.67e-24)
+                    outTems.append(np.log10(temCME))
                     if writeFile:
-                        fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm] 
+                        fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME)] 
                         outstuff2 = ''
                         for item in fullstuff:
-                            outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
+                            outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' ' 
                     
                 if writeFile: f1.write(outstuff2+'\n')
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
@@ -444,49 +502,26 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, csOff
                     print ('Final Velocity:   ', vs[0]/1e5)
                     print ('CME nose dist:    ', CMElens[0]/7e10)
                     print ('Earth longitude:  ', Elon)
+                    print ('Est. Duration:    ', estDur)
                     
-                inCME = True                
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns]), Elon, vs, estDur, thisPsi, parat  
+                inCME = True   
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems]), Elon, vs, estDur, thisPsi, parat  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
-            else:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, 9999, 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999 
+            else:                
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999  
         
 
 if __name__ == '__main__':
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth!
-    invec = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 0.3, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
-    satParams = np.array([0, 0, 213.0, 1.141e-05])
-    
-    invecS = [0, 0, 0, 600, 2, 30, 5, 0.7,  1, 0.333, 10, 1.33, 6.9, 440, 5.7, 1,  1, 1.927]
-    invecF = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 0.333, 10, 3, 6.9, 440, 5.7, 1, 1, 1.927]
-    invecE = [0, 0, 0, 2000, 50, 60, 15, 0.7, 1, 0.333, 10, 8, 6.9, 440, 5.7, 1, 1, 1.927]
-    lets = ['S','F','E']
-    invecs = [invecS, invecF, invecE]
-    
-    i = 2
-    getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=True, name=lets[i]+'S10')
-    getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=False, name=lets[i]+'S1D')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=True, name=lets[i]+'S20')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=False, name=lets[i]+'S2D')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=True, name=lets[i]+'S30')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=False, name=lets[i]+'S3D')
-    getAT(invecs[i], satParams, pan=False, dragOff=True, name=lets[i]+'S40')
-    getAT(invecs[i], satParams, pan=False, dragOff=False, name=lets[i]+'S4D')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=True, name=lets[i]+'P10')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=False, name=lets[i]+'P1D')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=True, name=lets[i]+'P20')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=False, name=lets[i]+'P2D')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=True, name=lets[i]+'P30')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=False, name=lets[i]+'P3D')
-    getAT(invecs[i], satParams, pan=True, dragOff=True, name=lets[i]+'P40')
-    getAT(invecs[i], satParams, pan=True, dragOff=False, name=lets[i]+'P4D')
-    
-    
+    invecF = [0, 0, 0, 1250, 10, 45, 10, 0.7, 1, 0.3, 10, 3, 6.9, 440, 5.7, 1., 1, 1.927]
+    satParams = np.array([0, 0, 213.0, 0*1.141e-05])
         
-    #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, name='temp')
+    #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, fscales=[0.5,0.5], name='temp')
+    #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, pan=True, name='temp')
     #outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, pan=True, name='temp')
 
+    outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, fscales=[0.5,0.5], name='temp')
