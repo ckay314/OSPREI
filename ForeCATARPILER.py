@@ -22,7 +22,7 @@ dtor = math.pi/180.
 def getsubB(date, x1,x2,y1,y2, height):
     # Input is idxs, should correspond to 0.5 deg resolution.
     # Origin for y is lower -> 0 is colat 180, 181 is colat 0 
-    fname = '/Users/ckay/PickleJar/PFSS'+ date + 'a.pkl'
+    fname = '/Users/ckay/PickleJar/PFSS'+ date + 'a3.pkl'
     
     # Load slice from pickle pickle
     f1 = open(fname, 'rb')
@@ -114,8 +114,8 @@ def extractPIL(date, x1,x2,y1,y2, height):
             id2 = len(xs)
             id1 = startIdx - (len(xs)-stopIdx-1)
         else:
-            id1 = startIdx - dist
-            id2 = stopIdx + dist + 1
+            id1 = int(startIdx - dist)
+            id2 = int(stopIdx + dist + 1)
         # Force it to be a distance "pad" from the edges
         pad = int(0.25 * dist)
         for d0 in range(startIdx+pad,stopIdx-pad):
@@ -134,7 +134,7 @@ def extractPIL(date, x1,x2,y1,y2, height):
 
     return PILxs, PILxs2, ys
 
-def fitPIL(PILxs,PILxs2,ys, plotit=False):
+def fitPIL(PILxs,PILxs2,ys, plotit=True):
     # Determine when the two PIL fits are "close enough"
     # to a match and only use those points
     PILdiff = np.abs(PILxs-PILxs2)
@@ -243,7 +243,7 @@ def fitPIL(PILxs,PILxs2,ys, plotit=False):
     if plotit:
         ax.set_aspect('equal')
         plt.show()
-    print '  ', len(all_segs), 'with lengths ', [len(i) for i in all_segs]
+    print( '  ', len(all_segs), 'with lengths ', [len(i) for i in all_segs])
     return outlats, outlons, outtilts, outAWs, outBs
 
 
@@ -275,20 +275,20 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
             i -= 1
         else:
             i = -9999
-    print ''
+    print( '')
     
     for i in range(finalnumber):
-        print 'PIL number ', i
-        print 'Height ', 'Lat ', 'Lon ', 'Tilt ', 'AW ', 'B  '
+        print( 'PIL number ', i)
+        print ('Height ', 'Lat ', 'Lon ', 'Tilt ', 'AW ', 'B  ')
         temp = np.zeros([len(ids),5])
         counter = 0
         for j in ids:
-            print heights[j], lats[j][i], lons[j][i], tilts[j][i], AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5
+            print( heights[j], lats[j][i], lons[j][i], tilts[j][i], AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5)
             temp[counter,:] = [lats[j][i], lons[j][i], tilts[j][i], AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5]
             counter +=1
-        print 'Average PIL lat/lon/tilt/AW/B'
-        print np.mean(temp[:,0]), np.mean(temp[:,1]), np.mean(temp[:,2]), np.mean(temp[:,3]), np.mean(temp[:,4])
-        print ' ' 
+        print( 'Average PIL lat/lon/tilt/AW/B')
+        print(np.mean(temp[:,0]), np.mean(temp[:,1]), np.mean(temp[:,2]), np.mean(temp[:,3]), np.mean(temp[:,4]))
+        print( ' ' )
     #PILxs, PILxs1, ys = extractPIL(date,x1,x2,y1,y2,1.15)
     #outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=True)
     #for i in range(len(outlats)):

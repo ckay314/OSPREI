@@ -4,14 +4,15 @@ import pickle
 import CME_class as CC
 import ForeCAT_functions as FC
 
+global dtor, radeg
+dtor  = 0.0174532925   # degrees to radians
+radeg = 57.29577951    # radians to degrees
+
 def init_CPU(CR, Ntor, Npol):
-	global rsun, dtor, radeg, kmRs, RSS, dR, RsR
+	global rsun, kmRs, RSS, dR, RsR
 	rsun  = FC.rsun
 	RSS   = FC.Rss
 	RsR = rsun/7e10 # star radius in solar radii
-
-	dtor  = 0.0174532925   # degrees to radians
-	radeg = 57.29577951    # radians to degrees
 	kmRs  = 1.0e5 / rsun   # km (/s) divided by rsun (in cm)
 	dR = (RSS - 1.0) / 150.
 

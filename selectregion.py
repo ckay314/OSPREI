@@ -8,7 +8,7 @@ import matplotlib.cm as cm
 # read in inputs from command line
 date = str(sys.argv[1]) 
 pickle_path = '/Users/ckay/PickleJar/' #MTMYS
-fname = pickle_path+'PFSS'+ date + 'a.pkl'
+fname = pickle_path+'PFSS'+ date + 'a3.pkl'
 
 
 # init figure
@@ -19,7 +19,7 @@ ax = plt.axes([0.1, 0.3, 0.8, 0.4])
 f1 = open(fname, 'rb')
 B = pickle.load(f1)
 f1.close()
-Bslice = B[10,:,:,:]
+Bslice = B[0,:,:,:]
 
 # calc Br
 f3 = open('/Users/ckay/PickleJar/xyz.pkl', 'rb')

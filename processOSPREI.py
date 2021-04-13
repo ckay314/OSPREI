@@ -49,6 +49,7 @@ class EnsRes:
             self.FCAWps     = None
             self.FCdelAxs   = None
             self.FCdelCSs   = None
+            self.FCdelCAs   = None
             self.FCvFs      = None
             self.FCvBs      = None
             self.FCvEs      = None
@@ -123,6 +124,8 @@ def txt2obj():
             thisRes = EnsRes(OSP.thisName)
             thisRes.myID = i
             myidxs = np.where(ids==i)[0]
+            if FCdata[myidxs[-1],2] == FCdata[myidxs[-2],2]:
+                myidxs = myidxs[:-1]
             thisRes.FCtimes = FCdata[myidxs,1]
             thisRes.FCrs    = FCdata[myidxs,2]
             thisRes.FClats  = FCdata[myidxs,3]
@@ -140,6 +143,7 @@ def txt2obj():
             thisRes.FCdefs  = FCdata[myidxs,15]
             thisRes.FCdelAxs = FCdata[myidxs,16]
             thisRes.FCdelCSs = FCdata[myidxs,17]
+            thisRes.FCdelCAs = FCdata[myidxs,18]
         
             # Put it in the results array        
             ResArr[i] = thisRes
@@ -181,6 +185,8 @@ def txt2obj():
             thisRes.ANTCnms  = ANTdata[myidxs,16]
             # tau is constant for now
             thisRes.ANTtaus  = ANTdata[myidxs,17]
+            thisRes.ANTns    = ANTdata[myidxs,18]
+            thisRes.ANTlogTs = ANTdata[myidxs,19] 
             # assuming [m,n] = [0,1]
             thisRes.ANTBtors = thisRes.ANTdelCSs * thisRes.ANTB0s * thisRes.ANTtaus
             thisRes.ANTBpols = 2 * thisRes.ANTdelCSs * thisRes.ANTB0s / (thisRes.ANTdelCSs**2+1) / thisRes.ANTCnms
@@ -194,11 +200,11 @@ def txt2obj():
             # Mays/Savani expression, best behaved for high Kp
             thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
             # calc density 
-            thisRes.ANTrp = thisRes.ANTrr / thisRes.ANTdelCSs[-1]
+            '''thisRes.ANTrp = thisRes.ANTrr / thisRes.ANTdelCSs[-1]
             alpha = np.sqrt(1+16*thisRes.ANTdelAxs[-1]**2)/4/thisRes.ANTdelAxs[-1]
             thisRes.ANTLp = (np.tan(thisRes.ANTAWs[-1]*dtor)*(1-Deltabr) - alpha*Deltabr)/(1+thisRes.ANTdelAxs[-1]*np.tan(np.tan(thisRes.ANTAWs[-1]*dtor))) * thisRes.ANTrs[-1]
             vol = math.pi*thisRes.ANTrr*thisRes.ANTrp *  lenFun(thisRes.ANTdelAxs[-1])*thisRes.ANTrs[-1]
-            thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3
+            thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3'''
 
     if OSP.doFIDO:
         FIDOfile = OSP.Dir+'/FIDOresults'+OSP.thisName+'.dat'
@@ -210,7 +216,11 @@ def txt2obj():
         if OSP.includeSIT:
             SITfile = OSP.Dir+'/SITresults'+OSP.thisName+'.dat'
             SITdata = np.genfromtxt(SITfile, dtype=float, encoding='utf8')
-            SITids = SITdata[:,0].astype(int)
+            if len(SITdata.shape) > 1:
+                SITids = SITdata[:,0].astype(int)
+            else:
+                SITids = np.array([0]) # single case
+                SITdata = SITdata.reshape([1,-1])
         
         for i in unFIDOids:
             if OSP.doFC or OSP.doANT:
@@ -272,7 +282,7 @@ def txt2obj():
                 if int(row[0]) in ResArr.keys():
                     ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
-        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
+        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'Gamma', 'IVDf1', 'IVDf2', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))      
     return ResArr
 
@@ -310,8 +320,9 @@ def calcKp(Bout, CMEstart, CMEv):
 
 def makeCPAplot(ResArr):
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=(10,10))
+    maxr = ResArr[0].FCrs[-1]
     if nEns > 1:
-        fakers = np.linspace(1.1,10.05,100, endpoint=True)
+        fakers = np.linspace(1.1,maxr+0.05,100, endpoint=True)
         splineVals = np.zeros([nEns, 100, 3])
         means = np.zeros([100, 3])
         stds  = np.zeros([100, 3])
@@ -321,6 +332,8 @@ def makeCPAplot(ResArr):
         # Repackage profiles
         for key in ResArr.keys():
             # Fit a spline to data since may be different lengths since take different times
+            #print (ResArr[key].FCrs)
+            #print (ResArr[key].FClats)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FClats,bc_type='natural')
             splineVals[i,:, 0] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FClons,bc_type='natural')
@@ -359,29 +372,32 @@ def makeCPAplot(ResArr):
     else:
         axes[0].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FClats[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FClons[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-        axes[2].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FClons[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[2].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FCtilts[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
                   
     # Labels
     axes[0].set_ylabel('Latitude ('+degree+')')
     axes[1].set_ylabel('Longitude ('+degree+')')
     axes[2].set_ylabel('Tilt ('+degree+')')
     axes[2].set_xlabel('Distance (R$_S$)')
-    axes[0].set_xlim([1.01,10.15])
+    axes[0].set_xlim([1.01,maxr+0.15])
     plt.subplots_adjust(hspace=0.1,left=0.13,right=0.95,top=0.95,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.png')
     
 def makeADVplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
-    axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[1,0], axes[1,0], axes[2,0], axes[2,0], axes[1,1], axes[1,1], axes[2,1]]
-    c1   = ['LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue','LightGray', 'lightblue', 'LightGray']
-    c2   = ['DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue','DarkGray', 'dodgerblue', 'DarkGray']
+    axes = [axes[0,0], axes[0,0], axes[0,1], axes[1,0], axes[1,0], axes[2,0], axes[2,0], axes[1,1], axes[1,1], axes[2,1]]
+    c1   = ['LightGray', 'lightblue', 'LightGray', 'LightGray', 'lightblue', 'LightGray', 'lightblue','LightGray', 'lightblue', 'LightGray']
+    c2   = ['DarkGray', 'dodgerblue', 'DarkGray', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue','DarkGray', 'dodgerblue', 'DarkGray']
+    maxr = ResArr[0].FCrs[-1]
+
     if nEns > 1:
-        fakers = np.linspace(1.1,10.05,100, endpoint=True)
+        fakers = np.linspace(1.1,maxr+0.05,100, endpoint=True)
         splineVals = np.zeros([nEns, 100, 11])
         means = np.zeros([100, 11])
         stds  = np.zeros([100, 11])
         lims  = np.zeros([100, 2, 11])
+        
     
         i = 0
         # Repackage profiles
@@ -391,27 +407,27 @@ def makeADVplot(ResArr):
             splineVals[i,:, 0] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCAWps,bc_type='natural')
             splineVals[i,:, 1] = thefit(fakers)
-            thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCdelAxs,bc_type='natural')
+            thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCdelCAs,bc_type='natural')
             splineVals[i,:, 2] = thefit(fakers)   
-            thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCdelCSs,bc_type='natural')
-            splineVals[i,:, 3] = thefit(fakers)
+            #thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCdelCSs,bc_type='natural')
+            #splineVals[i,:, 3] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvFs,bc_type='natural')
-            splineVals[i,:, 4] = thefit(fakers)
+            splineVals[i,:, 3] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvEs,bc_type='natural')
-            splineVals[i,:, 5] = thefit(fakers)
+            splineVals[i,:, 4] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvCSrs,bc_type='natural')
-            splineVals[i,:, 6] = thefit(fakers)
+            splineVals[i,:, 5] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvCSps,bc_type='natural')
-            splineVals[i,:, 7] = thefit(fakers)
+            splineVals[i,:, 6] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvAxrs,bc_type='natural')
-            splineVals[i,:, 8] = thefit(fakers)
+            splineVals[i,:, 7] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCvAxps,bc_type='natural')
-            splineVals[i,:, 9] = thefit(fakers)
+            splineVals[i,:, 8] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].FCrs,ResArr[key].FCdefs,bc_type='natural')
-            splineVals[i,:, 10] = thefit(fakers)
+            splineVals[i,:, 9] = thefit(fakers)
                          
             i += 1
-        for i in range(11):
+        for i in range(10):
             means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
             stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
             lims[:,0,i] = np.max(splineVals[:,:,i], axis=0) 
@@ -422,26 +438,26 @@ def makeADVplot(ResArr):
     # Plot the seed profile
     axes[0].plot(ResArr[0].FCrs, ResArr[0].FCAWs, linewidth=4, color='k', zorder=3)
     axes[1].plot(ResArr[0].FCrs, ResArr[0].FCAWps, linewidth=4, color='b', zorder=3)
-    axes[2].plot(ResArr[0].FCrs, ResArr[0].FCdelAxs, linewidth=4, color='k', zorder=3)
-    axes[3].plot(ResArr[0].FCrs, ResArr[0].FCdelCSs, linewidth=4, color='b', zorder=3)
-    axes[4].plot(ResArr[0].FCrs, ResArr[0].FCvFs, linewidth=4, color='k', zorder=3)
-    axes[5].plot(ResArr[0].FCrs, ResArr[0].FCvEs, linewidth=4, color='b', zorder=3)
-    axes[6].plot(ResArr[0].FCrs, ResArr[0].FCvCSrs, linewidth=4, color='k', zorder=3)
-    axes[7].plot(ResArr[0].FCrs, ResArr[0].FCvCSps, linewidth=4, color='b', zorder=3)
-    axes[8].plot(ResArr[0].FCrs, ResArr[0].FCvAxrs, linewidth=4, color='k', zorder=3)
-    axes[9].plot(ResArr[0].FCrs, ResArr[0].FCvAxps, linewidth=4, color='b', zorder=3)
-    axes[10].plot(ResArr[0].FCrs, ResArr[0].FCdefs, linewidth=4, color='k', zorder=3)
+    axes[2].plot(ResArr[0].FCrs, ResArr[0].FCdelCAs, linewidth=4, color='k', zorder=3)
+    #axes[3].plot(ResArr[0].FCrs, ResArr[0].FCdelCSs, linewidth=4, color='b', zorder=3)
+    axes[3].plot(ResArr[0].FCrs, ResArr[0].FCvFs, linewidth=4, color='k', zorder=3)
+    axes[4].plot(ResArr[0].FCrs, ResArr[0].FCvEs, linewidth=4, color='b', zorder=3)
+    axes[5].plot(ResArr[0].FCrs, ResArr[0].FCvCSrs, linewidth=4, color='k', zorder=3)
+    axes[6].plot(ResArr[0].FCrs, ResArr[0].FCvCSps, linewidth=4, color='b', zorder=3)
+    axes[7].plot(ResArr[0].FCrs, ResArr[0].FCvAxrs, linewidth=4, color='k', zorder=3)
+    axes[8].plot(ResArr[0].FCrs, ResArr[0].FCvAxps, linewidth=4, color='b', zorder=3)
+    axes[9].plot(ResArr[0].FCrs, ResArr[0].FCdefs, linewidth=4, color='k', zorder=3)
     
     degree = '$^\circ$'
     
     # Add the final position as text
     if nEns > 1:
-        all_AWs, all_AWps, all_delAxs, all_delCSs, all_vFs, all_vEs, all_vCSrs, all_vCSps, all_vAxrs, all_vAxps, all_defs = [], [], [], [], [], [], [], [], [], [], []
+        all_AWs, all_AWps, all_delCAs, all_vFs, all_vEs, all_vCSrs, all_vCSps, all_vAxrs, all_vAxps, all_defs = [], [], [], [], [], [], [], [], [], []
         for key in ResArr.keys():
             all_AWs.append(ResArr[key].FCAWs[-1])
             all_AWps.append(ResArr[key].FCAWps[-1])
-            all_delAxs.append(ResArr[key].FCdelAxs[-1])
-            all_delCSs.append(ResArr[key].FCdelCSs[-1])
+            all_delCAs.append(ResArr[key].FCdelCAs[-1])
+            #all_delCSs.append(ResArr[key].FCdelCSs[-1])
             all_vFs.append(ResArr[key].FCvFs[-1])
             all_vEs.append(ResArr[key].FCvEs[-1])
             all_vCSrs.append(ResArr[key].FCvCSrs[-1])
@@ -451,8 +467,8 @@ def makeADVplot(ResArr):
             all_defs.append(ResArr[key].FCdefs[-1])
         fitAWs = norm.fit(all_AWs)
         fitAWps = norm.fit(all_AWps)
-        fitdelAxs = norm.fit(all_delAxs)
-        fitdelCSs = norm.fit(all_delCSs)
+        fitdelCAs = norm.fit(all_delCAs)
+        #fitdelCSs = norm.fit(all_delCSs)
         fitvFs = norm.fit(all_vFs)
         fitvEs = norm.fit(all_vEs)
         fitvCSrs = norm.fit(all_vCSrs)
@@ -464,39 +480,39 @@ def makeADVplot(ResArr):
         
         axes[0].text(0.97, 0.15, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
-        axes[2].text(0.97, 0.15, '$\delta_{Ax}$'+'{:4.1f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
-        axes[8].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
-        axes[9].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
-        axes[10].text(0.97, 0.15, 'v$_{def}$: '+'{:4.1f}'.format(fitdefs[0])+'$\pm$'+'{:4.1f}'.format(fitdefs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[10].transAxes)              
+        #axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
+        axes[2].text(0.97, 0.05, '$\delta_{CA}: $' + '{:4.2f}'.format(fitdelCAs[0]) + '$\pm$'+'{:4.2f}'.format(fitdelCAs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        #axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[3].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+        axes[4].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color='b')
+        axes[5].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+        axes[6].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
+        axes[7].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+        axes[8].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
+        axes[9].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(fitdefs[0])+'$\pm$'+'{:4.1f}'.format(fitdefs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes)              
     else:
         axes[0].text(0.97, 0.15, 'AW: '+'{:4.1f}'.format(ResArr[0].FCAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].FCAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].text(0.97, 0.15, '$\delta_{Ax}$'+'{:4.1f}'.format(ResArr[0].FCdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(ResArr[0].FCdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].FCvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(ResArr[0].FCvEs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(ResArr[0].FCvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
-        axes[8].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(ResArr[0].FCvAxrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
-        axes[9].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
-        axes[10].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(ResArr[0].FCdefs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[10].transAxes)
+        axes[2].text(0.97, 0.05, '$\delta_{CA}: $'+'{:4.2f}'.format(ResArr[0].FCdelCAs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        #axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(ResArr[0].FCdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[3].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].FCvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+        axes[4].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(ResArr[0].FCvEs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color='b')
+        axes[5].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(ResArr[0].FCvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+        axes[6].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
+        axes[7].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(ResArr[0].FCvAxrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+        axes[8].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
+        axes[9].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(ResArr[0].FCdefs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes)
                   
     # Labels
     axes[0].set_ylabel('AW, AW$_{\perp}$ ('+degree+')')
-    axes[2].set_ylabel('$\delta_{Ax}$, $\delta_{\perp}$')
-    axes[4].set_ylabel('v$_F$, v$_E$ (km/s)')
-    axes[6].set_ylabel('v$_{Ax,r}$, v$_{Ax,\perp}$ (km/s)')
-    axes[8].set_ylabel('v$_{CS,r}$, v$_{CS,\perp}$ (km/s)')
-    axes[10].set_ylabel('v$_{def}$ (km/s)')
-    axes[6].set_xlabel('Distance (R$_S$)')
-    axes[10].set_xlabel('Distance (R$_S$)')
-    axes[0].set_xlim([1.01,10.15])
+    axes[2].set_ylabel('$\delta_{CA}$')
+    axes[3].set_ylabel('v$_F$, v$_E$ (km/s)')
+    axes[5].set_ylabel('v$_{Ax,r}$, v$_{Ax,\perp}$ (km/s)')
+    axes[7].set_ylabel('v$_{CS,r}$, v$_{CS,\perp}$ (km/s)')
+    axes[9].set_ylabel('v$_{def}$ (km/s)')
+    axes[5].set_xlabel('Distance (R$_S$)')
+    axes[9].set_xlabel('Distance (R$_S$)')
+    axes[0].set_xlim([1.01,maxr+0.15])
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.95,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ADV.png')
@@ -613,7 +629,7 @@ def makeDragplot(ResArr):
         
         
         axes[0].text(0.97, 0.95, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.85,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
         axes[2].text(0.97, 0.95, '$\delta_{Ax}$'+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
         axes[3].text(0.97, 0.85, '$\delta_{CS}$'+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
@@ -641,7 +657,7 @@ def makeDragplot(ResArr):
                   
     # Labels
     axes[0].set_ylabel('AW, AW$_{\perp}$ ('+degree+')')
-    axes[2].set_ylabel('$\delta_{Ax}$, $\delta_{\perp}$')
+    axes[2].set_ylabel('$\delta_{Ax}$, $\delta_{CS}$')
     axes[4].set_ylabel('v$_F$, v$_E$ (km/s)')
     axes[6].set_ylabel('v$_{Ax,r}$, v$_{Ax,\perp}$ (km/s)')
     axes[8].set_ylabel('v$_{CS,r}$, v$_{CS,\perp}$ (km/s)')
@@ -655,9 +671,9 @@ def makeDragplot(ResArr):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.png')
 
 def makeAThisto(ResArr):
-    fig, axes = plt.subplots(4, 2, figsize=(8,12), sharey=True)
-    axes = [axes[0,0], axes[0,1], axes[1,0], axes[1,1], axes[2,0], axes[2,1], axes[3,0], axes[3,1]]
-    all_vFs, all_vExps, all_TTs, all_durs, all_Bfs, all_Bms, all_ns, all_Kps  = [], [], [], [], [], [], [], []
+    fig, axes = plt.subplots(3, 3, figsize=(10,10), sharey=True)
+    axes = [axes[0,0], axes[0,1], axes[0,2], axes[1,0], axes[1,1], axes[1,2], axes[2,0], axes[2,1], axes[2,2]]
+    all_vFs, all_vExps, all_TTs, all_durs, all_Bfs, all_Bms, all_ns, all_Kps, all_Ts  = [], [], [], [], [], [], [], [], []
     # Collect the ensemble results
     for key in ResArr.keys(): 
         if not ResArr[key].miss:
@@ -667,64 +683,40 @@ def makeAThisto(ResArr):
             all_durs.append(ResArr[key].ANTdur)
             all_Bfs.append(ResArr[key].ANTBpols[-1])
             all_Bms.append(ResArr[key].ANTBtors[-1])
-            all_ns.append(ResArr[key].ANTn)
+            all_ns.append(ResArr[key].ANTns[-1])
             all_Kps.append(ResArr[key].ANTKp0)
-    
-    # Determine the maximum bin height so we can add extra padding for the 
-    # mean and uncertainty
-    n1, bins, patches = axes[0].hist(all_vFs, bins=10, color='#882255')
-    n2, bins, patches = axes[1].hist(all_vExps, bins=10, color='#882255')
-    n3, bins, patches = axes[2].hist(all_TTs, bins=10, color='#882255')
-    n4, bins, patches = axes[3].hist(all_durs, bins=10, color='#882255')
-    n5, bins, patches = axes[4].hist(all_Bfs, bins=10, color='#882255')
-    n6, bins, patches = axes[5].hist(all_Bms, bins=10, color='#882255')
-    n7, bins, patches = axes[6].hist(all_ns, bins=10, color='#882255')
-    n8, bins, patches = axes[7].hist(all_Kps, bins=10, color='#882255')
-    maxcount = np.max(np.max([n1, n2, n3, n4, n5, n6, n7, n8]))
-    for i in range(8): axes[i].set_ylim(0, maxcount*1.2)
-    
-    # Add the mean and sigma from a normal fit
-    fitvExps = norm.fit(all_vExps)
-    fitvFs = norm.fit(all_vFs)
-    fitTTs = norm.fit(all_TTs)
-    fitdurs = norm.fit(all_durs)
-    fitBfs = norm.fit(all_Bfs)
-    fitBms = norm.fit(all_Bms)
-    fitns = norm.fit(all_ns)
-    fitKps = norm.fit(all_Kps)
-    
-    axes[0].text(0.97, 0.89, '{:4.2f}'.format(fitvFs[0])+'$\pm$'+'{:4.2f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)    
-    axes[1].text(0.97, 0.89, str(int(fitvExps[0]))+'$\pm$'+str(int(fitvExps[1]))+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.85, '{:4.2f}'.format(fitTTs[0])+'$\pm$'+'{:4.2f}'.format(fitTTs[1])+' days', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-    base = datetime.datetime(yr, 1, 1, 0, 0)
-    date = base + datetime.timedelta(days=(DoY+fitTTs[0]))   
-    dateLabel = date.strftime('%Y %b %d %H:%M ')
-    axes[2].text(0.97, 0.94, dateLabel+'$\pm$'+'{:3.1f}'.format(fitTTs[1]*24)+' hrs', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-    axes[3].text(0.97, 0.89, str(int(fitdurs[0]))+'$\pm$'+str(int(fitdurs[1]))+' hrs', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-    axes[4].text(0.97, 0.89, str(int(fitBfs[0]))+'$\pm$'+str(int(fitBfs[1]))+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-    axes[5].text(0.97, 0.89, str(int(fitBms[0]))+'$\pm$'+str(int(fitBms[1]))+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
-    axes[6].text(0.97, 0.89, str(int(fitns[0]))+'$\pm$'+str(int(fitns[1]))+' cm$^{-3}$', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-    axes[7].text(0.97, 0.89, str(int(fitKps[0]))+'$\pm$'+str(int(fitKps[1])), horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-
-    
-    
-    # Take out half the ticks for readability
-    '''for i in range(8):
-        xticks = axes[i].xaxis.get_major_ticks()
-        ticks2hide = np.array(range(len(xticks)-1))[::2]+1
-        for j in ticks2hide:
-            xticks[j].label1.set_visible(False)'''
-    
-    # Labels
-    axes[0].set_xlabel('v$_F$ (km/s)')
-    axes[1].set_xlabel('v$_{Exp}$ (km/s)')
-    axes[2].set_xlabel('Transit Time (days)')
-    axes[3].set_xlabel('Duration (hours)')
-    axes[4].set_xlabel('B$_F$ (nT)')
-    axes[5].set_xlabel('B$_M$ (nT)')
-    axes[6].set_xlabel('n (cm$^{-3}$)')
-    axes[7].set_xlabel('Kp')
-    for i in range(8): axes[i].set_ylabel('Counts')
+            all_Ts.append(ResArr[key].ANTlogTs[-1])
+            
+    # Ordered Data
+    ordData = [all_vFs, all_vExps, all_TTs, all_Bfs, all_Bms, all_durs, all_Ts, all_ns, all_Kps] 
+    names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_M$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
+    fmts = ['{:.0f}','{:.0f}','{:.2f}','{:.2f}','{:.1f}','{:.1f}','{:.1f}','{:.2f}','{:.2f}']
+    #fmtsB = ['{:.0f}','{:.0f}','{:4.2f}','{:4.2f}','{:4.1f}','{:4.1f}','{:4.1f}','{:4.2f}','{:4.2f}']
+    maxcount = 0
+    for i in range(9):
+        theseData = np.array(ordData[i])
+        mean, std = np.mean(theseData), np.std(theseData)
+        cutoff = 5 *std
+        if i in [3,4]: cutoff = 3 * std
+        newData = theseData[np.where(np.abs(theseData - mean) < cutoff)[0]]
+        n, bins, patches = axes[i].hist(newData, bins=10, color='#882255')
+        axes[i].set_xlabel(names[i])
+        maxn = np.max(n)
+        if maxn > maxcount: maxcount = maxn
+        if i != 2:
+            axes[i].text(0.97, 0.89, fmts[i].format(mean)+'$\pm$'+fmts[i].format(std), horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+        else:
+            base = datetime.datetime(yr, 1, 1, 0, 0)
+            date = base + datetime.timedelta(days=(DoY+mean))   
+            dateLabel = date.strftime('%b %d %H:%M ')
+            axes[i].text(0.97, 0.89, dateLabel+'$\pm$'+fmts[i].format(std), horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+            axes[i].text(0.97, 0.79, fmts[i].format(mean)+'$\pm$'+fmts[i].format(std), horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+                       
+    for i in range(9): axes[i].set_ylim(0, maxcount*1.2)
+        
+    axes[0].set_ylabel('Counts')
+    axes[3].set_ylabel('Counts')
+    axes[6].set_ylabel('Counts')
     plt.subplots_adjust(hspace=0.35, left=0.1,right=0.95,top=0.98,bottom=0.06)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.png')
@@ -953,18 +945,18 @@ def makeEnsplot(ResArr):
     # duration, Bz, Kp (8 vals) but depends on what we ran
     deg = '('+'$^\circ$'+')'
 
-    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp'}
+    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f_1$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
     
     nVert = 0
     configID = 0
     if OSP.doFC: configID += 100
     if OSP.doANT: configID += 10
     if OSP.doFIDO: configID += 1
-    nVertDict = {100:9, 110:13, 111:15, 11:12, 10:10, 1:4}
+    nVertDict = {100:10, 110:14, 111:16, 11:13, 10:11, 1:4}
     nVert = nVertDict[configID]
-    outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
+    outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS','CMEdelCSAx', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx','CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT','Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'logT', 'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
     # number of vertical plots depends on num params varied
     nHoriz = len(varied)
     
@@ -1022,6 +1014,11 @@ def makeEnsplot(ResArr):
                     OSPres[item].append(ResArr[key].ANTdelCSs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCdelCSs[-1])
+            if item == 'CMEdelCSAx':
+                if OSP.doANT:
+                    OSPres[item].append(ResArr[key].ANTdelCSAxs[-1])
+                else:
+                    OSPres[item].append(ResArr[key].FCdelCAs[-1])
             if item == 'CMEvF':
                 if OSP.doANT:
                     OSPres[item].append(ResArr[key].ANTvFs[-1])
@@ -1041,7 +1038,9 @@ def makeEnsplot(ResArr):
                     else:
                         OSPres[item].append(ResArr[key].ANTdur)
                 if item == 'n':
-                    OSPres[item].append(ResArr[key].ANTn)                    
+                    OSPres[item].append(ResArr[key].ANTns[-1])   
+                if item == 'logT':
+                    OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
                 if item == 'Kp':
                     if OSP.doFIDO:
                         OSPres[item].append(np.max(ResArr[key].FIDOKps))
@@ -1051,13 +1050,14 @@ def makeEnsplot(ResArr):
                     OSPres[item].append(np.max(ResArr[key].FIDOBs))                                
                 if item == 'Bz':
                     OSPres[item].append(np.min(ResArr[key].FIDOBzs))
-            else:                    
+            '''else:                    
                 if item == 'TT': None                  
                 if item == 'Dur': None
                 if item == 'n': None                   
                 if item == 'Kp': None
                 if item == 'B': None                              
-                if item == 'Bz': None
+                if item == 'Bz': None'''
+                
         
                 
     print ('Number of hits: ', len(goodIDs)) 
@@ -1225,6 +1225,7 @@ def makeImpContours(ResArr):
         thisR     = ResArr[key].FCrs[-1]
         thisDelAx = ResArr[key].FCdelAxs[-1]
         thisDelCS = ResArr[key].FCdelCSs[-1]
+        thisDelCA = ResArr[key].FCdelCAs
 
         # option to replace AW/del with ANT values as may make difference
         if OSP.doANT:
@@ -1233,33 +1234,32 @@ def makeImpContours(ResArr):
             thisR     = ResArr[key].ANTrs[-1]
             thisDelAx = ResArr[key].ANTdelAxs[-1]
             thisDelCS = ResArr[key].ANTdelCSs[-1]
+            thisDelCA = ResArr[key].ANTdelCSAxs[-1]
             
-
         # calculate widths in Rs
-        alpha = np.sqrt(1+16*thisDelAx**2)/4/thisDelAx
-        # normal vector dot z
-        ndotz = 1./alpha
-        Deltabr = thisDelCS * np.tan(thisAWp*dtor) / (1 + thisDelCS * np.tan(thisAWp*dtor))
+        #CMElens = [CMEnose, rEdge, d, br, bp, a, c]
         CMElens = np.zeros(7)
         CMElens[0] = thisR
-        CMElens[3] = Deltabr * CMElens[0]
-        CMElens[6]  = (np.tan(thisAW*dtor)*(1-Deltabr) - alpha*Deltabr)/(1+thisDelAx*np.tan(thisAW*dtor)) * CMElens[0]
-        CMElens[5]  = thisDelAx * CMElens[6]
-        CMElens[4] = CMElens[3] / thisDelCS
-        CMElens[2]  = CMElens[0] - CMElens[5] - CMElens[3]
-        rCent = CMElens[2] + CMElens[5]
-        CMElens[1] = CMElens[6] + CMElens[3]*alpha
+        CMElens[4] = np.tan(thisAWp*dtor) / (1 + thisDelCS * np.tan(thisAWp*dtor)) * CMElens[0]
+        CMElens[3] = thisDelCS * CMElens[4]
+        CMElens[6] = (np.tan(thisAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + thisDelAx * np.tan(thisAW*dtor))          
+        CMElens[5] = thisDelAx * CMElens[6]
+        CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
+        CMElens[1] = CMElens[2] * np.tan(thisAW*dtor)
+        
         fullWid = CMElens[1]
         crossWid = CMElens[4]
                 
         # find max and min lat for each CME
         nosePoint = cart2cart([thisR,0.,0.], thisLat, thisLon, thisTilt)
-        topPoint  = cart2cart([thisR,0.,fullWid], thisLat, thisLon, thisTilt)
-        botPoint  = cart2cart([thisR,0,-fullWid], thisLat, thisLon, thisTilt)
+        topPoint  = cart2cart([thisR-CMElens[5],0.,fullWid], thisLat, thisLon, thisTilt)
+        botPoint  = cart2cart([thisR-CMElens[5],0,-fullWid], thisLat, thisLon, thisTilt)
         topPoint  = CART2SPH(topPoint)
         botPoint  = CART2SPH(botPoint)
         minY, maxY = int(botPoint[1]), int(topPoint[1])
-        
+        if minY > maxY:
+            minY, maxY = maxY, minY
+                    
         # find how many cells up and down we can go within plot
         if minY < lats[0]: minY = lats[0]
         if maxY > lats[-1]: maxY = lats[-1]
@@ -1273,10 +1273,10 @@ def makeImpContours(ResArr):
         
         sns = np.sign(thetas)
         xFR = CMElens[2] + thisDelAx * CMElens[6] * np.cos(thetas)
-        zFR = 0.5 * sns * CMElens[2] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas))))            
+        zFR = 0.5 * sns * CMElens[2] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas))))    
         
         points =  CART2SPH(cart2cart([xFR,0.,zFR], thisLat, thisLon, thisTilt))
-        
+                
         # check if x increasing or not, reverse if need to
         if points[1][-1] < points[1][0]:
             points[0] = points[0][::-1]
@@ -1284,15 +1284,21 @@ def makeImpContours(ResArr):
             points[2] = points[2][::-1]
         
         # Fit a spline to lon as function of lat and r as function of lat
-        theLonfit = CubicSpline(points[1],points[2],bc_type='natural')
-        theRfit = CubicSpline(points[1],points[0],bc_type='natural')
+        try:
+            theLonfit = CubicSpline(points[1],points[2],bc_type='natural')
+            theRfit = CubicSpline(points[1],points[0],bc_type='natural')
+        except:
+            sortIdx = np.argsort(points[1])
+            theLonfit = CubicSpline(points[1][sortIdx],points[2][sortIdx],bc_type='natural')
+            theRfit = CubicSpline(points[1][sortIdx],points[0][sortIdx],bc_type='natural')
+                
         # calculate center lons for each lat
         myXs = theLonfit(toCheck)
         myRs = theRfit(toCheck)
 
         # Fill in the impact points
         # calc width based on tilt
-        xWid = crossWid / np.sin(thisTilt*dtor)
+        xWid = np.abs(crossWid / np.sin(thisTilt*dtor))
         for i in range(len(myXs)):
             thisPoint = SPH2CART([myRs[i],toCheck[i], myXs[i]])
             unitLon = np.array([-np.sin(myXs[i]*dtor), np.cos(myXs[i]*dtor), 0.])

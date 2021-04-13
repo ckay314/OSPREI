@@ -45,7 +45,7 @@ class CME:
         global rsun
         rsun = rsun_in
         
-        rstart = params[3]
+        rstart = params[2]
         self.AWratio = AWratio
  
         # Initial CME mass
@@ -62,13 +62,13 @@ class CME:
         # Set up the CME shape parameters
         self.deltaAx = params[0]
         self.deltaCS = params[1]
-        self.deltaCSAx = params[2]
         self.AW = user_exp(rstart)* dtor # initial angular width
         self.AWp = self.AWratio(rstart) * self.AW 
-        self.deltaCSAx = self.AWp / self.AW / self.deltaCS
         # initial nose position
         self.points[idcent][1,:] = [rstart, pos[0], pos[1]]
         self.calc_lens()
+        self.deltaCSAx = self.rr / self.Lp
+        
         # convenient for serial version to have r/lat/lon/x/y/z in arrays
         self.rs = np.zeros(Npoints)
         self.lats = np.zeros(Npoints)
@@ -105,7 +105,7 @@ class CME:
         # have a 3D cartesian velocity for center (both radial velocity, def vel, and drag vel)
         self.vels = np.zeros([3,3])
         # want to express deflection/drag velocity in terms of a lat and lon component
-        self.vdefLL = np.array([0.e5, 00.e5]) #can change this to initiate CME with nonzero vdef (in cm/s)
+        self.vdefLL = np.array([0.e5, 0.e5]) #can change this to initiate CME with nonzero vdef (in cm/s)
         self.vdragLL = np.array([0., 0.])
         # have a 3D cartesian acceleration for center (keep deflection and drag separate)
         self.acc = np.zeros([2,3])
@@ -146,6 +146,7 @@ class CME:
         self.impV = 0.
         self.impVE = 0.
         self.Tscale = 2.
+        self.gamma = 1.3333
         
         # redefine dt in secs and as short name variable for convenience
         global dt
@@ -156,7 +157,7 @@ class CME:
     def calc_lens(self):
         self.rp = np.tan(self.AWp) / (1 + self.deltaCS * np.tan(self.AWp)) * self.points[idcent][1,0]
         self.rr = self.deltaCS * self.rp
-        self.Lp = self.rr / self.deltaCSAx 
+        self.Lp = (np.tan(self.AW) * (self.points[idcent][1,0] - self.rr) - self.rr) / (1 + self.deltaAx * np.tan(self.AW)) 
         self.Lr = self.deltaAx * self.Lp
         self.cone[1,:] = self.points[idcent][1,:]
         self.cone[1,0] += -self.Lr - self.rr # new version
@@ -318,8 +319,9 @@ class CME:
         # could eventually replace this forces updating CME lens
         self.AW = user_exp(self.points[idcent][1,0]) * dtor
         self.AWp = self.AWratio(self.points[idcent][1,0]) * self.AW 
-        self.deltaCSAx = self.AWp / self.AW / self.deltaCS
+        #self.deltaCSAx = self.AWp / self.AW / self.deltaCS
         self.calc_lens()
+        self.deltaCSAx = self.rr / self.Lp
                		
         # determine new mass
         self.M = user_mass(self.points[idcent][1,0])

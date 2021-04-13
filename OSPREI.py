@@ -23,7 +23,7 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
-np.random.seed(120150)
+np.random.seed(20201026)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -39,17 +39,18 @@ def setupOSPREI():
     # Pull in other values from allinputs
     # possible_vars = ['suffix', 'nRuns']   
     # Set defaults for these values
-    global suffix, nRuns
+    global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW
     suffix = ''
     nRuns  = 1
     models = 'ALL'
     satPos = [0,0,213]
     shape  = [1,0.15] 
-    Sat_rot = 360./365.25
+    Sat_rot = 360./365.25/24/60/60.
     ObsDataFile = None
     includeSIT = False
+    useFCSW = False
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -77,6 +78,10 @@ def setupOSPREI():
                 includeSIT = True
         elif temp[0][:-1] == 'CMEM':
             mass = float(temp[1])
+        elif temp[0][:-1] == 'useFCSW':
+            if temp[1] == 'True':
+                useFCSW = True
+        
             
             
     # get the actual time for the given string
@@ -125,7 +130,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -157,11 +162,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -197,9 +202,6 @@ def genEnsMem(runnum=0):
         if item == 'CMEdelCS':
             FC.deltaCS = np.random.normal(loc=float(input_values['CMEdelCS']), scale=EnsInputs['CMEdelCS'])
             outstr += '{:5.4f}'.format(FC.deltaCS) + ' '
-        if item == 'CMEdelCSAx':
-            FC.deltaCSAx = np.random.normal(loc=float(input_values['CMEdelCSAx']), scale=EnsInputs['CMEdelCSAx'])
-            outstr += '{:5.4f}'.format(FC.deltaCSAx) + ' '
         if item == 'CMEr':
             FC.rstart = np.random.normal(loc=float(input_values['CMEr']), scale=EnsInputs['CMEr'])
             outstr += '{:5.4f}'.format(FC.rstart) + ' '
@@ -256,7 +258,7 @@ def genEnsMem(runnum=0):
         FC.AWratio = lambda R_nose: (FC.AWp/FC.awM)*(1. - np.exp(-(R_nose-1.)/FC.awR))
             
             
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], new_pos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], new_pos)
 
     # add non ForeCAT vars
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
@@ -273,6 +275,7 @@ def genEnsMem(runnum=0):
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
     if 'IVDf1' in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2' in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
+    if 'Gamma' in input_values: CME.IVDfs[1] = float(input_values['Gamma'])
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
         if item == 'SWCd':
@@ -314,17 +317,22 @@ def genEnsMem(runnum=0):
             outstr += '{:6.2f}'.format(CME.vExp) + ' '
         if item == 'IVDf1':
             CME.IVDfs[0] = np.random.normal(loc=float(input_values['IVDf1']), scale=EnsInputs['IVDf1'])
+            # force f2 to match f1 unless reset by explicitly including IVDf2 in ensemble
+            if 'IVDf2' not in EnsInputs.keys():
+                CME.IVDfs[1] = CME.IVDfs[0]
             outstr += '{:6.2f}'.format(CME.IVDfs[0]) + ' '
         if item == 'IVDf2':
             CME.IVDfs[1] = np.random.normal(loc=float(input_values['IVDf2']), scale=EnsInputs['IVDf2'])
             outstr += '{:6.2f}'.format(CME.IVDfs[1]) + ' '
+        if item == 'Gamma':
+            CME.gamma = np.random.normal(loc=float(input_values['Gamma']), scale=EnsInputs['Gamma'])
+            outstr += '{:6.2f}'.format(CME.gamma) + ' '
     ensembleFile.write(outstr+'\n')  
     
-    # used to set CME.vs here, seems unnecessary b/c done in other parts of code
-        
+    # used to set CME.vs here, seems unnecessary b/c done in other parts of code       
     return CME
                         
-def goForeCAT():
+def goForeCAT(makeRestart=False):
     # ForeCAT portion --------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -338,15 +346,21 @@ def goForeCAT():
     global iparams, ipos
     ipos, rmax = initForeCAT(input_values)
 
-    if ('SWB' in input_values) & (('PFSSscale' not in input_values)):
-        latID = int(satPos[0]*2 + 179)
-        lonID = int(satPos[1]*2)%720
-        fullBvec = ForceFields.B_high[-1,latID,lonID]
-        BSS = fullBvec[3] * (2.5/satPos[2])**2 *1e5
-        FC.PFSSscale = float(input_values['SWB']) / BSS   
+    # option to force PFSS so that it will scale as R^2 from 2.5 to satPos
+    if True:
+        if ('SWB' in input_values) & (('PFSSscale' not in input_values)):
+            latID = int(satPos[0]*2 + 179)
+            lonID = int(satPos[1]*2)%720
+            fullBvec = ForceFields.B_high[-1,latID,lonID][3]
+            fullBvec = np.mean(np.abs(ForceFields.B_high[-1,latID-10:latID+11,lonID-20:lonID+21][3]))
+            BSS = fullBvec * (2.5/satPos[2])**2 *1e5
+            FC.PFSSscale = float(input_values['SWB']) / BSS  
         
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     # add any ANTEATR/FIDO params to the seed case (genEnsMem will add for other cases)
+    if 'SWn' in input_values: CME.nSW = float(input_values['SWn'])
+    if 'SWv' in input_values: CME.vSW = float(input_values['SWv'])
+    if 'SWB' in input_values: CME.BSW = float(input_values['SWB'])
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
@@ -354,6 +368,10 @@ def goForeCAT():
     if 'FRtau'  in input_values: CME.tau = float(input_values['FRtau'])
     if 'FRCnm'  in input_values: CME.cnm = float(input_values['FRCnm'])
     if 'FRTscale'  in input_values: CME.Tscale = float(input_values['FRTscale'])
+    if 'IVDf1'  in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
+    if 'IVDf2'  in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
+    if 'Gamma'  in input_values: CME.gamma = float(input_values['Gamma'])
+    
     
     for i in range(nRuns):
         
@@ -374,19 +392,20 @@ def goForeCAT():
         CME, path = runForeCAT(CME, rmax, path=True)
         
         # add a few useful 1 AU SW parameters to the CME object
-        HCSdist = calc_dist(CME.cone[1,1],CME.cone[1,2])
-        SWnv = calc_SW(213,HCSdist)
-        nSW, vSW = SWnv[0]/1.6727e-24, SWnv[1]/1e5
-        CME.nSW = nSW 
-        CME.vSW = vSW 
-        # get B
-        latID = int(CME.cone[1,1]*2 + 179)
-        lonID = int(CME.cone[1,2]*2)%720
-        fullBvec = FC.PFSSscale*ForceFields.B_high[-1,latID,lonID]
-        inorout = np.sign(np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
-        CME.BSW = inorout*fullBvec[3] * (2.5/213)**2 *1e5
-        # calc alfven speed
-        CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
+        if useFCSW:
+            HCSdist = calc_dist(CME.cone[1,1],CME.cone[1,2])
+            SWnv = calc_SW(213,HCSdist)
+            nSW, vSW = SWnv[0]/1.6727e-24, SWnv[1]/1e5
+            CME.nSW = nSW 
+            CME.vSW = vSW 
+            # get B
+            latID = int(CME.cone[1,1]*2 + 179)
+            lonID = int(CME.cone[1,2]*2)%720
+            fullBvec = FC.PFSSscale*ForceFields.B_high[-1,latID,lonID]
+            inorout = np.sign(np.dot(CME.rhat,fullBvec[:3])/fullBvec[3])
+            CME.BSW = inorout*fullBvec[3] * (2.5/213)**2 *1e5
+            # calc alfven speed
+            CME.vA = np.abs(CME.BSW/1e5) / np.sqrt(4*3.14159 * CME.nSW * 1.67e-24) / 1e5
         # Save the CME in the array
         CMEarray.append(CME)
         # Write the simulation results to a file
@@ -395,21 +414,42 @@ def goForeCAT():
             outprint = outprint.zfill(4) + '   '
             outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j][0],  path[7,j][1],  path[7,j][2],  path[7,j][3],  path[7,j][4],  path[7,j][5],  path[7,j][6], path[8,j], path[9,j], path[10,j], path[11,j]]
             for iii in outstuff:
-                outprint = outprint +'{:4.2f}'.format(iii) + ' '
-            ForeCATfile.write(outprint+'\n')        
+                outprint = outprint +'{:4.3f}'.format(iii) + ' '
+            ForeCATfile.write(outprint+'\n')   
+        
+        # write a file to restart ANTEATR/FIDO from current CME values
+        if makeRestart:      
+            # update current inps with things that have changed in ForeCAT to pass to
+            currentInps['CMEr']   = path[1,-1]
+            currentInps['CMElat'] = CME.cone[1,1]
+            currentInps['CMElon'] = CME.cone[1,2]
+            currentInps['CMEtilt'] = CME.tilt
+            currentInps['CMEAW']  = path[5,-1]
+            currentInps['CMEAWp'] = path[6,-1]
+            currentInps['SatLon'] = satPos[1]+Sat_rot*CME.t
+            nowTime = dObj + datetime.timedelta(seconds=CME.t*60)
+            currentInps['date'] = nowTime.strftime('%Y')+nowTime.strftime('%m')+nowTime.strftime('%d')
+            currentInps['time'] = nowTime.strftime("%H:%M")
+            # SW params if using those...
+            genNXTtxt(CME, num=str(i), tag='IP')
+               
     ForeCATfile.close()
     
 
 def makeCMEarray():
     # Called if FC not ran
     global ipos
-    ipos, rmax = initForeCAT(input_values)
+    if models == 'FIDO':
+        ipos, rmax = initForeCAT(input_values, skipPkl=True)  
+        rmax = float(input_values['CMEr'])
+    else:
+        ipos, rmax = initForeCAT(input_values)
     # wipe the FC functions to constants, assume we're above height of variations
     FC.user_mass = lambda x: float(input_values['CMEM']) * 1e15
     FC.user_exp  = lambda x: float(input_values['CMEAW'])
     FC.AWratio   = lambda x: float(input_values['CMEAWp']) / float(input_values['CMEAW'])
     # initiate the CME
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS,  FC.rstart], ipos)
     # add non ForeCAT vars
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
@@ -422,6 +462,10 @@ def makeCMEarray():
     if 'FRTscale'  in input_values: CME.Tscale = float(input_values['FRTscale'])
     if 'IVDf1'  in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2'  in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
+    if 'Gamma'  in input_values: CME.gamma = float(input_values['Gamma'])
+    if 'SWn'    in input_values: CME.nSW = float(input_values['SWn'])
+    if 'SWv'    in input_values: CME.vSW = float(input_values['SWv'])
+    if 'SWB'    in input_values: CME.BSW = float(input_values['SWB'])
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
          
@@ -454,7 +498,7 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
-def goANTEATR():
+def goANTEATR(makeRestart=False):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -464,7 +508,7 @@ def goANTEATR():
 
 
     # ANTEATR takes inputs
-    # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
+    # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
     # SatVars0 = [Satlat, Satlon, Satradius] -> technically doesn't have to be Earth!
     # which we can generate from the ForeCAT data
 
@@ -502,23 +546,16 @@ def goANTEATR():
         deltap = CME.deltaCS
         deltaCA = CME.deltaCSAx
         IVDfs = CME.IVDfs
-        
-        # Check if passed SW variables
-        if -9999 in mySW[:3]:
-            nSW, vSW, BSW = CME.nSW, CME.vSW, np.abs(CME.BSW)
-        else:
-            # reset back to defaults before ensembling again
-            nSW, vSW, BSW = mySW[0], mySW[1], mySW[2]
-            # Add in ensemble variation if desired
-            if i > 0:
-                if 'SWn' in EnsInputs: nSW = np.random.normal(loc=nSW, scale=EnsInputs['SWn'])
-                if 'SWv' in EnsInputs: vSW = np.random.normal(loc=vSW, scale=EnsInputs['SWv'])
-                if 'SWB' in EnsInputs: BSW = np.random.normal(loc=BSW, scale=EnsInputs['SWB'])                 
-                CME.nSW, CME.vSW = nSW, vSW
-                #CME.Bscale, CME.BSW, CME.tau, CME.cnm, CME.Tscale = Bscale, BSW, tau, cnm, Tscale
+                
+        # Add in ensemble variation if desired
+        if (i > 0) and useFCSW:
+            if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
+            if 'SWv' in EnsInputs: CME.vSW = np.random.normal(loc=CME.vSW, scale=EnsInputs['SWv'])
+            if 'SWB' in EnsInputs: CME.BSW = np.random.normal(loc=CME.BSW, scale=EnsInputs['SWB'])              
         Bscale, tau, cnm, Tscale = CME.Bscale, CME.tau, CME.cnm, CME.Tscale
         # Package up invec, run ANTEATR        
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, np.abs(Bscale), nSW, vSW, BSW, Cd, tau, cnm, Tscale]
+        gamma = CME.gamma
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), CME.nSW, CME.vSW, np.abs(CME.BSW), Cd, tau, cnm, Tscale, gamma]
         # high fscales = more convective like
         ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=True)
 
@@ -542,7 +579,7 @@ def goANTEATR():
             # Can add in ForeCAT time to ANTEATR time
             # but usually don't because assume have time stamp of
             # when in outer corona=start of ANTEATR
-            TotTime  = ATresults[0][-1]#+CME.t/60./24
+            TotTime  = ATresults[0][-1]+CME.t/60./24
             rCME     = ATresults[1][-1]
             CMEvs    = ATresults[2][-1]
             CMEAW    = ATresults[3][-1]
@@ -588,6 +625,25 @@ def goANTEATR():
             print ('ANTEATR-PARADE forces unstable')
         else:
             print('Miss')
+        # write a file to restart ANTEATR/FIDO from current CME values
+        # write a file to restart ANTEATR/FIDO from current CME values
+        if makeRestart:      
+            # update current inps with things that have changed in ForeCAT to pass to
+            currentInps['CMEr'] = rCME
+            currentInps['CMEvExp'] = CME.vs[3] / 1e5
+            currentInps['CMEvr'] = CME.vs[0] /1e5
+            currentInps['CMEAW']  = CMEAW
+            currentInps['CMEAWp'] = CMEAWp
+            currentInps['CMEdelAx'] = deltax
+            currentInps['CMEdelCS'] = deltap
+            currentInps['FRB'] = CME.B0
+            currentInps['FRCnm'] = CME.cnm
+            currentInps['SatLon'] = Elon
+            currentInps['date'] = dImp.strftime('%Y')+dImp.strftime('%m')+dImp.strftime('%d')
+            currentInps['time'] = dImp.strftime("%H:%M")
+            # SW params if using those...
+            genNXTtxt(CME, num=str(i), tag='FIDO')
+        
     ANTEATRfile.close()  
      
     
@@ -650,15 +706,14 @@ def goFIDO():
         
         # Sat parameters
         inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
-        inps[14], inps[15] =  SatVars0[2],  SatVars0[3]  # R/rot
-        
+        inps[14], inps[15] =  SatVars0[2],  SatVars0[3]  # R/rot        
          
         if doANT: 
             inps[1] = ANTsatLons[i] 
             vtrans = CME.vTrans
         else:
             # check if is trying to load FIDO CME at 10 Rs because rmax not change in input
-            if (inps[14] > 200) & (inps[16] < 25.): inps[15] = 0.95*inps[14]
+            if (inps[14] > 200) & (inps[16] < 25.): inps[14] = 0.95*inps[14]
             if includeSIT:
                 vtrans = float(input_values['CMEvTrans'])
         
@@ -691,7 +746,6 @@ def goFIDO():
             # sometimes get a miss even though ANTEATR says hit?
             # for now just flag and skip
             flagit = True
-            print ('done')
         
         if not flagit:  
             # Down sample B resolution
@@ -745,6 +799,18 @@ def goFIDO():
     if includeSIT: SITfile.close()
     FIDOfile.close()
     
+def genNXTtxt(CME, num='', tag=''):
+    # Create a file that could be used to restart a run from a midpoint location
+    print ('Saving restart in nxt'+tag+thisName+num+'.txt')
+    NXTtxt = open(Dir+'/nxt'+tag+thisName+num+'.txt', 'w')
+    for key in currentInps:
+        if key == 'models':
+            NXTtxt.write('models: '+ tag+' \n')
+        else:
+            NXTtxt.write(key+': '+str(currentInps[key])+' \n')
+    NXTtxt.close()
+    
+
 def runOSPREI():
     setupOSPREI()
 
@@ -752,16 +818,20 @@ def runOSPREI():
 
     global CMEarray
     CMEarray = []
+    
+    global currentInps
+    currentInps = {}
+    for key in input_values: currentInps[key] = input_values[key]
 
     if doFC:
-        goForeCAT()        
+        goForeCAT(makeRestart=True)        
     else:
         # Fill in CME array for ANTEATR or FIDO
         makeCMEarray()
     
     #readMoreInputs()
         
-    if doANT: goANTEATR()
+    if doANT: goANTEATR(makeRestart=True)
     
     if doFIDO: goFIDO()
 

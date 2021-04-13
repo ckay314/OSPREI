@@ -9,7 +9,7 @@ import ForeCAT_functions as FC
 import CME_class as CC
 import ForceFields as FF
 
-def initForeCAT(input_values):
+def initForeCAT(input_values, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     # Read in the filename from the command line and load the parameters -------------------|
     #---------------------------------------------------------------------------------------|
@@ -20,11 +20,12 @@ def initForeCAT(input_values):
     # Simulation set up --------------------------------------------------------------------|
     #---------------------------------------------------------------------------------------|
 
-    # Initialize magnetic field data
-    FF.init_CPU(FC.CR, Ntor, Npol)
+    if not skipPkl: # option to skip this part if just using getInps for FIDO only
+        # Initialize magnetic field data
+        FF.init_CPU(FC.CR, Ntor, Npol)
 
-    # Initialize magnetic field and distance pickles
-    FC.initdefpickle(FC.CR)
+        # Initialize magnetic field and distance pickles
+        FC.initdefpickle(FC.CR)
     return ipos, rmax
 
 def initCME(CME_params, ipos):
@@ -42,7 +43,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Set up empty arrays if output path
     if path:
-        outts, outRs, outlats, outlons, outtilts, outvs, outAWs, outAWps, outvdefs, outdeltaAxs, outdeltaCSs, = [], [], [], [], [], [], [], [], [], [], []
+        outts, outRs, outlats, outlons, outtilts, outvs, outAWs, outAWps, outvdefs, outdeltaAxs, outdeltaCSs, outdeltaCAs = [], [], [], [], [], [], [], [], [], [], [], []
     
     # Run until nose hits rmax
     while CME.points[CC.idcent][1,0] <= rmax:
@@ -79,6 +80,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
                 outAWps.append(CME.AWp*FC.radeg)
                 outdeltaAxs.append(CME.deltaAx)
                 outdeltaCSs.append(CME.deltaCS)
+                outdeltaCAs.append(CME.deltaCSAx)
             # Reset print counter        
             dtprint = CME.dt	
 
@@ -110,6 +112,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
             outAWps.append(CME.AWp*FC.radeg)
             outdeltaAxs.append(CME.deltaAx)
             outdeltaCSs.append(CME.deltaCS)
+            outdeltaCAs.append(CME.deltaCSAx)
             
             
     # Clean up things        
@@ -124,7 +127,7 @@ def runForeCAT(CME, rmax, silent=False, path=False):
     
     # Return the path data if needed, else just return final CME 
     if path:
-        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvs, outvdefs, outdeltaAxs, outdeltaCSs])
+        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvs, outvdefs, outdeltaAxs, outdeltaCSs, outdeltaCAs])
     else:
         return CME
 
@@ -133,5 +136,5 @@ def runForeCAT(CME, rmax, silent=False, path=False):
 if __name__ == '__main__':
     input_values, allinputs = FC.readinputfile()
     ipos, rmax = initForeCAT(input_values)
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.deltaCSAx, FC.rstart], ipos)
+    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     CME = runForeCAT(CME, rmax, path=True)

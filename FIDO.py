@@ -232,9 +232,13 @@ def new_isinCME(vec_in, CMElens, deltaAx, deltaCS):
         vpmag = np.sqrt(np.sum(vp**2))
         vpn = vp / vpmag
         dotIt = np.dot(vp, norm)
-        CSpol = np.arccos(np.abs(dotIt) / vpmag)
+        CSpol = np.arccos(dotIt / vpmag)
         CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
-        parat = np.arctan2(np.tan(CSpol)*deltaCS, np.sign(dotIt))
+        parat = np.arctan(np.tan(CSpol)*deltaCS)
+        if vec_in[0] < thisAx[0]:
+            if vec_in[1] < 0:
+                parat = -math.pi + parat
+            # need a case for vec_in[1] > 0?
         # Get the max R for that parametric t
         maxr = np.sqrt(deltaCS**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]  
         if myb < maxr:
@@ -293,6 +297,7 @@ def getFRprofile():
     CMElens[5] = deltaAx * CMElens[6]
     CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
     CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
+    
     # things for scaling the magnetic field as CME changes shape/size
     B0 = CMEB / deltaCS / tau
     B0scaler = B0 * deltaCS**2 * CMElens[4]**2 
@@ -455,11 +460,11 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     pmTT = np.sign(thetaT)
     
     # can take out the Lp part in calc xAx and zAx
-    xAx = delAx * np.cos(thetaT)
+    xAx = delAx * np.cos(aTT)
     zAx = 0.5 * (np.sin(aTT) + np.sqrt(1 - np.cos(aTT))) * pmTT
     thisL = np.sqrt(xAx**2 + zAx**2)
     vAx = thisL * vExps[6]
-    nAx = np.array([0.5 * (np.cos(aTT) + 0.5 * np.sin(aTT)/np.sqrt(1-np.cos(aTT))) * pmTT, 0, delAx * np.sin(thetaT)])
+    nAx = np.array([0.5 * (np.cos(aTT) + 0.5 * np.sin(aTT)/np.sqrt(1-np.cos(aTT))), 0, delAx * np.sin(thetaT)])
     normN = np.sqrt(np.sum(nAx**2))
     nAx = nAx / normN
     vAxVec = vAx * nAx
