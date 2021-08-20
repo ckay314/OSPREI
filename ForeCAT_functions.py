@@ -41,10 +41,10 @@ def get_inputs(inputs):
     input_values['SWCdp'] = 1.   
     input_values['CMEr'] = 1.1
     input_values['FCraccel1'] = 1.3
-    input_values['FCraccel2'] = 4.0
-    input_values['FCvrmin'] = 70*1.e5
+    input_values['FCraccel2'] = 5.0
+    input_values['FCvrmin'] = 50#*1.e5
     input_values['FCAWmin'] = 5.
-    input_values['FCAWr'] = 1.5
+    input_values['FCAWr'] = 1.
     input_values['FCrmaxM'] = 10.
     input_values['CMEdelAx'] = 1.
     input_values['CMEdelCS'] = 1.

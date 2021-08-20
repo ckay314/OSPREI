@@ -117,7 +117,7 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     gammaN = bp / RcNose        
     dg = deltap * gammaN
     dg2 = deltap**2 * gammaN**2 
-    coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+    coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6) 
     toAccN = deltap * pi * bp**2 * RcNose * rho
     coeff2N = - deltap**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
     aTotNose = (coeff2N+coeff1N) * B0**2 * RcNose * bp / toAccN 
@@ -128,10 +128,11 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     dg = deltap*gammaE
     dg2 = deltap**2 * gammaE**2 
     if dg2 < 1:
-        coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6)
+        coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6) 
         coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
         toAccE = deltap * pi * bp**2 * RcEdge * rho
         aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE       
+        #print (coeff1N, coeff2N, coeff1E, coeff2E)
         return aTotNose, aTotEdge
     else:
         return 9999, 9999
@@ -147,16 +148,17 @@ def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     RcNose = 1./kNose   
     toAccN = deltap * pi * bp**2 * RcNose * rho
     aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
+    #print (coeff3, coeff4, coeff4sw, coeff3 + coeff4 - coeff4sw)
     return aBr
     
 def getThermF(CMElens, temCME, nCME, nSW):
     # Get temperatures
-    temSW = 6.2e4 * np.power((CMElens[0] - CMElens[3]) / 213. / rsun, -0.58)
-    temSWf = 6.2e4 * np.power(CMElens[0] / 213. / rsun, -0.58)
-    temSWb = 6.2e4 * np.power((CMElens[0] - 2*CMElens[3]) / 213. / rsun, -0.58)
+    temSW = coeffTSW * np.power((CMElens[0] - CMElens[3]) / 215. / rsun, -0.58)
+    temSWf = coeffTSW * np.power(CMElens[0] / 215. / rsun, -0.58)
+    temSWb = coeffTSW * np.power((CMElens[0] - 2*CMElens[3]) / 215. / rsun, -0.58)
     #temSWr = 0.5 * (temSWf + temSWb)
     rE = np.sqrt((CMElens[0] - CMElens[3])**2 + CMElens[4]**2)
-    temSWe = 6.2e4 * np.power(rE / 213. / rsun, -0.58)    
+    temSWe = coeffTSW * np.power(rE / 215. / rsun, -0.58)    
     # Scale densities
     nE = nSW * (CMElens[0] / rE)**2
     #nC = nSW * ((CMElens[0] / (CMElens[0] - CMElens[3])))**2
@@ -264,7 +266,7 @@ def updateCME(CMElens, Mass):
     
 
 # -------------- main function ------------------
-def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave'):
+def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None):
     
     Elat      = Epos[0]
     Elon      = Epos[1]
@@ -311,15 +313,20 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
     Bsw0 = Br1AU * (Er/CMElens[0])**2 / 1e5    
     Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
     
+        
     # Set up factors for scaling B through conservation
-    B0 = Bscale * Bsw0 / deltap / tau
+    # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
+    B0 = Bscale * np.sqrt(Btot2) / deltap / tau
+    #B0 = Bscale * Bsw0 / deltap / tau
     B0scaler = B0 * deltap**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
     initcs = CMElens[3] * CMElens[4]
 
     # get CME temperature based on expected SW temp at center of nose CS
-    temSW = 6.2e4 * np.power((CMElens[0] - CMElens[3]) / 213. / rsun, -0.58)
+    global coeffTSW 
+    coeffTSW = .62e5 #6.2e4 is default 2.5e4 for PSP
+    temSW = coeffTSW * np.power((CMElens[0] - CMElens[3]) / 215. / rsun, -0.58)
     temCME = temScale * temSW
     temscaler = np.power(CMElens[3] * CMElens[4] * initlen , fT) * temCME
 
@@ -331,7 +338,16 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
             fscales = [0., 0.]
     vs = IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales)    
             
-    # calculate any E rot between the time given and the start of the ANTEATR simulation
+    # set up whether using path functions or simple orbit
+    if satfs == None:
+        doPath = False
+    else:
+        doPath = True
+        fLat = satfs[0]
+        fLon = satfs[1]
+        fR   = satfs[2]
+    
+    
     printR = rFront
     inCME = False
     prevmin = 9999.
@@ -370,6 +386,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
             magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 
         totAccels += magAccels
         
+        
         # Thermal Expansion
         if not thermOff:
             aPTr, aPTp = getThermF(CMElens, temCME, rho/1.67e-24, rhoSWe/1.627e-24)/rho
@@ -381,7 +398,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
             dragAccels = getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz)
             # Update accels to include drag forces
             totAccels += dragAccels
-                    
+                            
         # Update CME shape
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
@@ -408,8 +425,14 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
                 
         # Update solar wind properties
         Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
-            
-        Elon += Erotrate * dt
+        
+        if not doPath:    
+            Elon += Erotrate * dt
+        else:
+            Elat = fLat(t)
+            Elon = fLon(t)
+            Er   = fR(t)*7e10
+                        
         t += dt
         if (CMElens[0]>printR):
             if CMElens[0] < 50*7e10: 
@@ -530,7 +553,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
 if __name__ == '__main__':
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth
-    invecS = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 2, 1.333]
+    '''invecS = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 2, 1.333]
     invecSiso = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 0.095, 1]
     invecSad = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 36, 1.6667]
     
@@ -551,7 +574,7 @@ if __name__ == '__main__':
     outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, fscales=[0.5,0.5], name='temp')
     
     lets = ['newS','newF','newE']
-    invecs = [invecS, invecF, invecE]
+    invecs = [invecS, invecF, invecE]'''
     i = 0
     '''getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'S10T')
     getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'S1DT')
@@ -604,4 +627,8 @@ if __name__ == '__main__':
     getAT(invecs[i], satParams, fscales=[0.5,0.5], axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'M3D0')
     getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=True, thermOff=True, name=lets[i]+'M400')
     getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=False, thermOff=True, name=lets[i]+'M4D0')'''
+    
+    invecs = [-10.75800288670112, 67.99505519449038, 31.037849604399085, 500.0, 2.0, 29.999999824046416, 13.99999988532493, 0.5, 0.7, 20.00007302455604, 1.5, 5.0, 400, 6.9, 1.0, 1.5, 1.927, 3.0, 1.33]
+    satParams = [0.0, 70.0, 212.0, 0.0]
+    getAT(invecs, satParams, fscales=[0.5,0.5])  
     

@@ -232,13 +232,22 @@ def new_isinCME(vec_in, CMElens, deltaAx, deltaCS):
         vpmag = np.sqrt(np.sum(vp**2))
         vpn = vp / vpmag
         dotIt = np.dot(vp, norm)
-        CSpol = np.arccos(dotIt / vpmag)
-        CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
-        parat = np.arctan(np.tan(CSpol)*deltaCS)
-        if vec_in[0] < thisAx[0]:
-            if vec_in[1] < 0:
-                parat = -math.pi + parat
-            # need a case for vec_in[1] > 0?
+        CSpol = np.abs(np.arccos(dotIt / vpmag))
+        #CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
+        parat = np.abs(np.arctan(np.tan(CSpol)*deltaCS))
+        ogParat = np.arctan(np.tan(CSpol)*deltaCS)
+        # need to make sure parat is in right quadrant
+        zone = 1
+        if (vp[1] < 0):
+            if vp[0] <0:
+                parat = -(math.pi - parat)
+                zone = 4
+            else:
+                parat = -parat
+                zone = 3
+        elif (vp[0]<0): # y pos, x neg
+            parat = math.pi - parat
+            zone=2
         # Get the max R for that parametric t
         maxr = np.sqrt(deltaCS**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]  
         if myb < maxr:
@@ -266,7 +275,8 @@ def new_getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
     # Normal direction for that theta along axis
     sn = np.sign(mythetaT)
     mythetaT = np.abs(mythetaT)
-    Nvec = [0.5 * sn*(np.cos(mythetaT) + 0.5*np.sin(mythetaT)/np.sqrt(1-np.cos(mythetaT))), 0., deltaAx * np.sin(mythetaT)] 
+    # took out sn from Nvec[0], pretty sure this fixes weird jumps
+    Nvec = [0.5 * (np.cos(mythetaT) + 0.5*np.sin(mythetaT)/np.sqrt(1-np.cos(mythetaT))), 0., deltaAx * np.sin(mythetaT)] 
     Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
     norm = np.array(Nvec) / Nmag
     axAng = np.arccos(np.abs(norm[0]))
@@ -280,7 +290,7 @@ def new_getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
     
 
 # -------------------------------------------------------------------------------------- #
-def getFRprofile():
+def getFRprofile(satfs=None):
     # Main function for getting the flux rope profile by propagating a CME outward, 
     # determining when/where it is within the CME, and getting the magnetic field vector
     
@@ -293,7 +303,7 @@ def getFRprofile():
     CMElens[0] = CMEr#0.999*FFr # start just in front of sat dist, can't hit any closer 
     CMElens[4] = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) * CMElens[0]
     CMElens[3] = deltaCS * CMElens[4]
-    CMElens[6] = CMElens[3] / deltaCSAx 
+    CMElens[6] = (np.tan(CMEAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + deltaAx * np.tan(CMEAW*dtor))    
     CMElens[5] = deltaAx * CMElens[6]
     CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
     CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
@@ -325,6 +335,16 @@ def getFRprofile():
     flagExp = False
     # Variable to keep track of closest approach
     ImpParam = 9999.
+    ImpThetaT = 9999.
+    
+    # set up whether using path functions or simple orbit
+    if satfs == None:
+        doPath = False
+    else:
+        doPath = True
+        fLat = satfs[0]
+        fLon = satfs[1]
+        fR   = satfs[2]
     
     # Start simulation, run until reach some tmax so doesn't loop forever
     while t < tmax:  
@@ -337,8 +357,8 @@ def getFRprofile():
         temp2 = roty(temp, CMElat)
         FF_CMExyz = rotx(temp2, (90.-CMEtilt))
         
-        minb, thetaT, thetaP, flagit, CME_crossrad = new_isinCME(FF_CMExyz, CMElens, deltaAx, deltaCS)        
-	           
+        minb, thetaT, thetaP, flagit, CME_crossrad = new_isinCME(FF_CMExyz, CMElens, deltaAx, deltaCS)    
+               
         # Check if currently in the CME and get position within
         # Track the minimum distance from center -> Impact Parameter
         if np.abs(minb/CME_crossrad) < ImpParam: ImpParam = np.abs(minb/CME_crossrad)
@@ -351,7 +371,7 @@ def getFRprofile():
             Btor = B0 * deltaCS * (tau - (minb/CME_crossrad)**2)
             ecH  = np.sqrt(deltaCS**2 * np.sin(thetaP)**2 + np.cos(thetaP)**2)
             Bpol = - 2 * deltaCS * B0 * CMEH * ecH / (deltaCS**2 + 1) / cnm * (minb/CME_crossrad) 
-            
+            #print (np.abs(minb/CME_crossrad),thetaT,thetaT*radeg)
             # Convert this into CME Cartesian coordinates
             tdir, pdir = new_getBvector(CMElens, minb, thetaT, thetaP, deltaAx, deltaCS) 
             
@@ -363,14 +383,14 @@ def getFRprofile():
             temp2 = roty(temp, CMElat - FFlat) 
             BSC = rotz(temp2, CMElon - FFlon)
             
-            
             # get accurate velocity vector
             vCMEframe, vExpCME = getvCMEframe(minb/CME_crossrad, thetaT, thetaP, CMElens[5] / CMElens[6], CMElens[3] / CMElens[4], vExps)
+
             # rot B to s/c frame -> take - of x&y but this correct for x away from sun
             temp = rotx(vCMEframe, -(90.-CMEtilt))
             temp2 = roty(temp, CMElat - FFlat) 
             vInSitu = rotz(temp2, CMElon - FFlon)
-            
+
             # Append to output arrays
             obsBx.append(-BSC[0])
             obsBy.append(-BSC[1])
@@ -393,7 +413,13 @@ def getFRprofile():
         cnm = cnmscaler * lenNow  / CMElens[4] / (deltaCS**2+1)
                      
 	    # Include the orbit of the satellite/Earth
-        FFlon += dt * rotspeed
+        if not doPath:
+            FFlon += dt * rotspeed
+        else:
+            FFlat = fLat(t)
+            FFlon = fLon(t)
+            FFr   = fR(t)
+            
         
     # Clean up the result and package to return
     obsBx, obsBy, obsBz, tARR = np.array(obsBx), np.array(obsBy), np.array(obsBz), np.array(tARR)
@@ -410,7 +436,7 @@ def getFRprofile():
     return Bout, tARR, isHit, ImpParam, np.array(radfrac), np.array(vIS)
     
 # -------------------------------------------------------------------------------------- #
-def run_case(inpsIn, shinpsIn, vExpIn):
+def run_case(inpsIn, shinpsIn, vExpIn, satfs=None):
     # Take the values passed in and set to globals for convenience
     global inps, shinps, vExps
     inps = inpsIn
@@ -421,7 +447,7 @@ def run_case(inpsIn, shinpsIn, vExpIn):
     CMEstart = inps[13] + inps[12]/24.
     
     # run the simulation    
-    Bout, tARR, isHit, ImpParam, radfrac, vIS = getFRprofile()
+    Bout, tARR, isHit, ImpParam, radfrac, vIS = getFRprofile(satfs=satfs)
     # execute extra functions as needed
     Bsheath = []
     tsheath = []
@@ -457,8 +483,7 @@ def radfrac2vprofile(radfrac, vAvg, vExp):
 def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     # CMElens/vExps = [CMEnose, rEdge, d, br, bp, a, c]
     aTT = np.abs(thetaT)
-    pmTT = np.sign(thetaT)
-    
+    pmTT = np.sign(thetaT)    
     # can take out the Lp part in calc xAx and zAx
     xAx = delAx * np.cos(aTT)
     zAx = 0.5 * (np.sin(aTT) + np.sqrt(1 - np.cos(aTT))) * pmTT
@@ -478,9 +503,8 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     nCS = nCS / normN2
     nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
     vCSVec = vCS * nCSatAx
-    
+        
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
-    
     return vCMEframe, vCSVec
     
 
@@ -879,20 +903,23 @@ if __name__ == '__main__':
     #shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
     #vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
 
-    inps = np.array([ 4,  2, 0, 0, 10,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.10544766e+02,      2.18096115e+00,  1.00000000e+00])
-    shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
-    vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
+    #inps = np.array([ 4,  2, 0, 0, 10,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.10544766e+02,      2.18096115e+00,  1.00000000e+00])
+    #shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
+    #vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
     
+    inps = np.array([ 2.41913440e+00,  3.34644031e+02, -1.98498080e+00,  3.36247187e+02,      1.13041108e+01 , 2.56405640e+01 , 1.11406022e+01 , 3.44152732e-01 ,     4.46205290e-01,  2.66446241e-01, -2.53424676e+01, -1.00000000e+00  ,    0.00000000e+00 , 3.77881944e+00 , 1.10770431e+02,  2e-5 ,     1.11344490e+02  ,2.81156186e+00 , 1.00000000e+00])
+    shinps = []
+    vExps = np.array([251.36686641,  97.23989514, 226.15032099,   4.95635432,  72.12133565, 20.26019111,  88.34122117])
 
     
     Bout, tARR, Bsheath, tsheath, radfrac, isHit, vIS = run_case(inps, shinps, vExps)
     print (np.mean(Bout))
     #print(Bout)
-    '''import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
     fig = plt.figure()
     plt.plot(tARR, Bout[-1], 'k')
     plt.plot(tARR, Bout[0], 'r')
     plt.plot(tARR, Bout[1], 'b')
     plt.plot(tARR, Bout[2], 'g')
-    plt.show()'''
+    plt.show()
     #print(Bsheath)
