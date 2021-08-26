@@ -39,7 +39,7 @@ def getsubB(date, x1,x2,y1,y2, height):
     for i in range(361):
     	for j in range(720):
 		    Br[i,j] = (Bslice[i,j,0] * xyz[i,j,0] +  Bslice[i,j,1] * xyz[i,j,1] 
-				+  Bslice[i,j,2] * xyz[i,j,2]) / 1.05
+				+  Bslice[i,j,2] * xyz[i,j,2])# / 1.05
     
     # Take a sub portion of Br                
     subB = Br[y1:y2+1,x1:x2+1]
@@ -114,8 +114,9 @@ def extractPIL(date, x1,x2,y1,y2, height):
             id2 = len(xs)
             id1 = startIdx - (len(xs)-stopIdx-1)
         else:
-            id1 = int(startIdx - dist)
-            id2 = int(stopIdx + dist + 1)
+            id1 = startIdx - dist
+            id2 = stopIdx + dist + 1
+        id1, id2 = int(id1), int(id2)
         # Force it to be a distance "pad" from the edges
         pad = int(0.25 * dist)
         for d0 in range(startIdx+pad,stopIdx-pad):
@@ -134,7 +135,7 @@ def extractPIL(date, x1,x2,y1,y2, height):
 
     return PILxs, PILxs2, ys
 
-def fitPIL(PILxs,PILxs2,ys, plotit=True):
+def fitPIL(PILxs,PILxs2,ys, plotit=False):
     # Determine when the two PIL fits are "close enough"
     # to a match and only use those points
     PILdiff = np.abs(PILxs-PILxs2)
@@ -243,7 +244,7 @@ def fitPIL(PILxs,PILxs2,ys, plotit=True):
     if plotit:
         ax.set_aspect('equal')
         plt.show()
-    print( '  ', len(all_segs), 'with lengths ', [len(i) for i in all_segs])
+    print ('  ', len(all_segs), 'with lengths ', [len(i) for i in all_segs])
     return outlats, outlons, outtilts, outAWs, outBs
 
 
@@ -256,10 +257,10 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
     Bs = []
     # CR, x,x,y,y, height
     for i in range(16):
-        height = 1.05 + i*0.01 
+        height = 1.1 + i*0.01 
         heights.append(height)
         PILxs, PILxs1, ys = extractPIL(date,x1,x2,y1,y2,height)
-        outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys)
+        outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=True)
         lats.append(outlats)
         lons.append(outlons)
         tilts.append(outtilts)
@@ -278,25 +279,41 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
     print( '')
     
     for i in range(finalnumber):
-        print( 'PIL number ', i)
-        print ('Height ', 'Lat ', 'Lon ', 'Tilt ', 'AW ', 'B  ')
-        temp = np.zeros([len(ids),5])
+        print ('PIL number ', i)
+        print ('Height ', 'Lat ', 'Lon ', 'Tilt ')#, 'AW ', 'B  ')
+        temp = np.zeros([len(ids),3])
         counter = 0
         for j in ids:
-            print( heights[j], lats[j][i], lons[j][i], tilts[j][i], AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5)
-            temp[counter,:] = [lats[j][i], lons[j][i], tilts[j][i], AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5]
+            print (heights[j], lats[j][i], lons[j][i], tilts[j][i])#, AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5)
+            temp[counter,:] = [lats[j][i], lons[j][i], tilts[j][i]]#, AWs[j][i], Bs[j][i]*(heights[j]/213.)**2*1e5]
             counter +=1
-        print( 'Average PIL lat/lon/tilt/AW/B')
-        print(np.mean(temp[:,0]), np.mean(temp[:,1]), np.mean(temp[:,2]), np.mean(temp[:,3]), np.mean(temp[:,4]))
-        print( ' ' )
+        print ('Average PIL lat/lon/tilt')#'/AW/B')
+        print (np.mean(temp[:,0]), np.mean(temp[:,1]), np.mean(temp[:,2]))#, np.mean(temp[:,3])), np.mean(temp[:,4]))
+        print (' ' )
     #PILxs, PILxs1, ys = extractPIL(date,x1,x2,y1,y2,1.15)
     #outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=True)
     #for i in range(len(outlats)):
     #    print outlats[i], outlons[i], outtilts[i], outAWs[i], outBs[i]*(1.15/213.)**2*1e5
         
-ForeCATARPILER('20120712',125,250,110,170)        
+#ForeCATARPILER('20120712',125,250,110,170)    
+#ForeCATARPILER('20100801', 120,185,185,240)    
+#ForeCATARPILER('20130411', 135,190,175,235)  
+
+#ForeCATARPILER('20200621', 600,700,220,270) 
+#ForeCATARPILER('20200621', 630,720,105,185)    
+   
+#ForeCATARPILER('20201026', 105,185,215,270)    
+
+# new recent test cases
+#ForeCATARPILER('20210422', 510,540,118,143)    
+#ForeCATARPILER('20210422', 510,540,118,143)    
+
+  
 #fitPIL('20120712',125,250,110,170,1.15, plotit=True)        
 
 #fitPIL('20120712',370,430,130,165,1.13)    
 # fitPIL('20120712',125,250,110,170,height)
 # fitPIL('20120712',370,430,130,170,height)
+
+ForeCATARPILER('20210222', 60,220,85,160)    
+

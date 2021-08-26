@@ -9,7 +9,7 @@ import numpy as np
 
 # pull in the magnetogram, set for my naming convention but can adjust
 # as desired and make this match your system
-date = 20120712
+date = 20130411
 myfits = fits.open('/Users/ckay/PickleJar/HMI' + str(date) + 'sync.fits')  #MTMYS
 
 # determine Carrington lon of Earth at time of observation
