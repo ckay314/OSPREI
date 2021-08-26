@@ -1,6 +1,6 @@
 date:		20210421
 time:		22:00
-suffix:		new100
+suffix:		papercase
 models:		ALL
 nRuns:		100
 PFSSscale:	1.
@@ -30,4 +30,4 @@ SatLat:		-5.033
 SatLon:		258.374
 SatR:		213.
 includeSIT: True
-ObsDataFile: OSPtestcase2b.omni
+ObsDataFile: OSPtestcase.omni

@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import sys
 import os
 import datetime
+from scipy.interpolate import CubicSpline
+
 
 # Import all the OSPREI files, make this match your system
 mainpath = '/Users/ckay/OSPREI/' #MTMYS
@@ -23,7 +25,7 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
-np.random.seed(20201026)
+np.random.seed(202104211)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -275,7 +277,8 @@ def genEnsMem(runnum=0):
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
     if 'IVDf1' in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2' in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
-    if 'Gamma' in input_values: CME.IVDfs[1] = float(input_values['Gamma'])
+    if 'Gamma' in input_values: CME.gamma = float(input_values['Gamma'])
+
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
         if item == 'SWCd':
@@ -284,6 +287,7 @@ def genEnsMem(runnum=0):
             outstr += '{:5.3f}'.format(CME.Cd) + ' '
         if item == 'SWn':
             CME.nSW = np.random.normal(loc=float(input_values['SWn']), scale=EnsInputs['SWn'])
+            if CME.nSW < 0: CME.nSW = 0
             outstr += '{:6.2f}'.format(CME.nSW) + ' '
         if item == 'SWv':
             CME.vSW = np.random.normal(loc=float(input_values['SWv']), scale=EnsInputs['SWv'])
@@ -328,10 +332,35 @@ def genEnsMem(runnum=0):
             CME.gamma = np.random.normal(loc=float(input_values['Gamma']), scale=EnsInputs['Gamma'])
             outstr += '{:6.2f}'.format(CME.gamma) + ' '
     ensembleFile.write(outstr+'\n')  
-    
     # used to set CME.vs here, seems unnecessary b/c done in other parts of code       
     return CME
                         
+def makeSatPaths(fname, tzero, Clon0=0):
+    # tzero is a date time object for whenever 0 simulation time is
+    # Clon0 is the Carrington longitude at time 0 
+    # it allows us to given lons in reference to the CME lon which is given
+    # with respect to the noninertial Carrington coord system at t0
+    # (basically a way to shift the inertial frame in lon)
+    data = np.genfromtxt(fname, dtype=str, encoding='utf8')
+    delts = []
+    for i in range(len(data)):
+        thisdatestr = str(data[i][0])+' '+str(data[i][1])
+        thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M:%S')
+        delts.append((thisdate - tzero).total_seconds())
+    satrs   = np.array(data[:,2]).astype(np.float) * 1.49e13 / rsun # convert to cm then rsun
+    satlats = np.array(data[:,3]).astype(np.float)
+    satlons = np.array(data[:,4]).astype(np.float) % 360.
+    idx = np.where(np.abs(delts) == np.min(np.abs(delts)))[0]
+    lon0 = satlons[idx]
+    satlons -= lon0 # sat lons now shifted to movement in lon from t0
+    satlons += Clon0 # sat lons now relative to Clon at t0
+    fR = CubicSpline(delts, satrs)
+    fLat = CubicSpline(delts, satlats)
+    fLon = CubicSpline(delts, satlons)
+    # return functions that are R, lat, lon as a function of seconds since start of sim
+    return fR, fLat, fLon
+    
+
 def goForeCAT(makeRestart=False):
     # ForeCAT portion --------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -498,7 +527,7 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
-def goANTEATR(makeRestart=False):
+def goANTEATR(makeRestart=False, satPath=False):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -527,12 +556,16 @@ def goANTEATR(makeRestart=False):
     impactIDs = []
         
     for i in range(nRuns):
-        myParams = SatVars0
-        myParams[1] = SatLons[i]
         # CME parameters from CME object
         CME = CMEarray[i]
         # CME position
         CMEr0, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
+        # reset path functions for t0 at start of ANTEATR
+        if satPath:
+            satLatf2 = lambda x: satLatf(x + CME.t*60)
+            satLonf2 = lambda x: satLonf(x + CME.t*60)
+            satRf2   = lambda x: satRf(x + CME.t*60)
+        
         # Tilt 
         tilt = CME.tilt
         # Calculate vr
@@ -546,6 +579,14 @@ def goANTEATR(makeRestart=False):
         deltap = CME.deltaCS
         deltaCA = CME.deltaCSAx
         IVDfs = CME.IVDfs
+        
+        # get sat pos using simple orbit
+        myParams = SatVars0
+        myParams[1] = SatLons[i]
+        # replace with the correct sat position for this time if using path
+        if satPath:
+            myParams = [satLatf(CMEarray[0].t*60), satLonf(CMEarray[0].t*60), satRf(CMEarray[0].t*60),0]
+        
                 
         # Add in ensemble variation if desired
         if (i > 0) and useFCSW:
@@ -557,9 +598,10 @@ def goANTEATR(makeRestart=False):
         gamma = CME.gamma
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), CME.nSW, CME.vSW, np.abs(CME.BSW), Cd, tau, cnm, Tscale, gamma]
         # high fscales = more convective like
-        ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=True)
-
-        
+        if satPath:
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2])
+        else:
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=False)
         
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
@@ -577,8 +619,6 @@ def goANTEATR(makeRestart=False):
             vEx = vExVec[0] / 1e5
         
             # Can add in ForeCAT time to ANTEATR time
-            # but usually don't because assume have time stamp of
-            # when in outer corona=start of ANTEATR
             TotTime  = ATresults[0][-1]+CME.t/60./24
             rCME     = ATresults[1][-1]
             CMEvs    = ATresults[2][-1]
@@ -611,7 +651,9 @@ def goANTEATR(makeRestart=False):
             # prev would take comp of v's in radial direction, took out for now !!!!
             dImp = dObj + datetime.timedelta(days=TotTime)
             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
-                            
+            print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
+            
+                             
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
             for j in range(len(ATresults[0])):
@@ -623,6 +665,12 @@ def goANTEATR(makeRestart=False):
                 ANTEATRfile.write(outprint+'\n')
         elif ATresults[0][0] == 8888:
             print ('ANTEATR-PARADE forces unstable')
+            outprint = str(i)
+            outprint = outprint.zfill(4) + '   '
+            outstuff = np.zeros(19)+8888
+            for iii in outstuff:
+                outprint = outprint +'{:6.3f}'.format(iii) + ' '
+            ANTEATRfile.write(outprint+'\n')
         else:
             print('Miss')
         # write a file to restart ANTEATR/FIDO from current CME values
@@ -647,7 +695,7 @@ def goANTEATR(makeRestart=False):
     ANTEATRfile.close()  
      
     
-def goFIDO():
+def goFIDO(satPath=False):
     # FIDO portion -----------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -703,13 +751,25 @@ def goFIDO():
         inps[16] = CME.points[CC.idcent][1,0]
         inps[17] = CME.cnm
         inps[18] = CME.tau
-        
+        print (SatVars0)
         # Sat parameters
-        inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
-        inps[14], inps[15] =  SatVars0[2],  SatVars0[3]  # R/rot        
+        if not satPath:
+            inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
+            inps[14], inps[15] =  SatVars0[2],  SatVars0[3]  # R/rot      
+        else:
+            inps[0]  = satLatf(CME.t*3600*24)
+            inps[1]  = satLonf(CME.t*3600*24)
+            inps[14] = satRf(CME.t*3600*24)
+            inps[15] = 0
+            # redefine functions to f(0) at start of impact so do not
+            # have to pass time to FIDO
+            satLatf3 = lambda x: satLatf(x + CME.t*3600*24)
+            satLonf3 = lambda x: satLonf(x + CME.t*3600*24)
+            satRf3   = lambda x: satRf(x + CME.t*3600*24)
          
         if doANT: 
-            inps[1] = ANTsatLons[i] 
+            if not satPath: inps[1] = ANTsatLons[i] 
+            print (inps[1])
             vtrans = CME.vTrans
         else:
             # check if is trying to load FIDO CME at 10 Rs because rmax not change in input
@@ -736,7 +796,13 @@ def goFIDO():
             
         flagit = False
         try:
-            Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs)
+            #print (inps)
+            #print (sheathParams)
+            #print (vs)
+            if satPath:
+                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs, satfs=[satLatf3, satLonf3, satRf3])
+            else:
+                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs)
             # Old version of getting velocity profile just using radfrec (less accurate than new)
             # vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
             # turn the sheath back on if we turned it off for a low case
@@ -753,7 +819,6 @@ def goFIDO():
             tARRDS = FIDO.hourify(t_res*tARR, tARR)
             BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
             vProfDS = FIDO.hourify(t_res*tARR, vProf)
-        
             # Write sheath stuff first if needed
             if actuallySIT:
                 tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
@@ -789,7 +854,7 @@ def goFIDO():
         # quick plotting script to check things for ~single case
         # will plot each run individually
         if False:
-            cols = ['r', 'b','g', 'k']  
+            cols = ['k', 'b','r', 'k']  # ISWA colors
             fig = plt.figure()
             for i2 in range(len(Bout)):
                 if actuallySIT: plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
@@ -823,17 +888,21 @@ def runOSPREI():
     currentInps = {}
     for key in input_values: currentInps[key] = input_values[key]
 
+    #global satRf, satLatf, satLonf
+    #satRf, satLatf, satLonf = makeSatPaths('psp_coord_suninertial.txt', dObj, Clon0=326.62)
+    #satRf, satLatf, satLonf = makeSatPaths('psp_coord_suninertial.txt', dObj, Clon0=327.12)
+    
     if doFC:
-        goForeCAT(makeRestart=True)        
+        goForeCAT(makeRestart=False)        
     else:
         # Fill in CME array for ANTEATR or FIDO
         makeCMEarray()
     
     #readMoreInputs()
         
-    if doANT: goANTEATR(makeRestart=True)
+    if doANT: goANTEATR(makeRestart=False, satPath=False)
     
-    if doFIDO: goFIDO()
+    if doFIDO: goFIDO(satPath=False)
 
     if nRuns > 1: ensembleFile.close()
 

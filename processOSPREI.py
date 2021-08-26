@@ -7,6 +7,7 @@ import sys
 import os
 from scipy.interpolate import CubicSpline
 from scipy.stats import norm, pearsonr
+from scipy import ndimage
 import datetime
 import matplotlib.dates as mdates
 
@@ -27,7 +28,6 @@ import OSPREI  as OSP
 from ForeCAT_functions import rotx, roty, rotz, SPH2CART, CART2SPH
 from CME_class import cart2cart
 from PARADE import lenFun
-
 
 # object that will hold all the results for an individual ensemble member
 class EnsRes:
@@ -96,8 +96,7 @@ class EnsRes:
             # Dictionary for ensemble things
             self.EnsVal = {}
  
-
-def txt2obj():
+def txt2obj(GCStime):
     ResArr = {}
     
     global yr, mon, day, DoY
@@ -131,7 +130,6 @@ def txt2obj():
             thisRes.FCrs    = FCdata[myidxs,2]
             thisRes.FClats  = FCdata[myidxs,3]
             thisRes.FClons  = FCdata[myidxs,4]
-            GCStime         = 6.75 # need to pull this in from txt
             thisRes.FClonsS = thisRes.FClons - (OSP.satPos[1] - (360./27.2753) * (GCStime/24.))
             thisRes.FCtilts = FCdata[myidxs,5]
             thisRes.FCAWs   = FCdata[myidxs,6]
@@ -395,7 +393,7 @@ def makeCPAplot(ResArr):
     axes[0].set_xlim([1.01,maxr+0.15])
     plt.subplots_adjust(hspace=0.1,left=0.13,right=0.95,top=0.95,bottom=0.1)
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.png')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.'+figtag)
     
 def makeCPAhist(ResArr):
     fig = plt.figure(constrained_layout=True, figsize=(12,8))
@@ -471,10 +469,8 @@ def makeCPAhist(ResArr):
     ax1[0].set_xlim([1.01,maxr+0.15])
     ax2[2].set_xlabel('Counts')
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPAhist.png')
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPAhist.pdf')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPAhist.'+figtag)
 
-    
 def makeADVplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
     axes = [axes[0,0], axes[0,0], axes[0,1], axes[1,0], axes[1,0], axes[2,0], axes[2,0], axes[1,1], axes[1,1], axes[2,1]]
@@ -606,7 +602,7 @@ def makeADVplot(ResArr):
     axes[0].set_xlim([1.01,maxr+0.15])
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.95,top=0.98,bottom=0.1)
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ADV.png')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ADV.'+figtag)
     
 def makeDragless(ResArr):
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(10,10))
@@ -735,9 +731,7 @@ def makeDragless(ResArr):
     axes[6].set_yscale('log')
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.93,top=0.98,bottom=0.1)
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.png')
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.pdf')
-
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.'+figtag)
 
 def makeDragplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
@@ -902,8 +896,7 @@ def makeDragplot(ResArr):
     axes[10].set_yscale('log')
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.95,top=0.98,bottom=0.1)
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.png')
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.pdf')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.'+figtag)
 
 def makeAThisto(ResArr):
     fig, axes = plt.subplots(3, 3, figsize=(10,10), sharey=True)
@@ -927,7 +920,7 @@ def makeAThisto(ResArr):
             
     # Ordered Data
     ordData = [all_vFs, all_vExps, all_TTs, all_Bfs, all_Bms, all_durs, all_Ts, all_ns, all_Kps] 
-    names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_M$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
+    names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_C$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
     units = ['km/s', 'km/s', 'days', 'nT', 'nT', 'hr', 'log$_{10}$ K','cm$^{-3}$', '']
     fmts = ['{:.0f}','{:.0f}','{:.1f}','{:.1f}','{:.1f}','{:.1f}','{:.1f}','{:.1f}','{:.1f}']
     #fmtsB = ['{:.0f}','{:.0f}','{:4.2f}','{:4.2f}','{:4.1f}','{:4.1f}','{:4.1f}','{:4.2f}','{:4.2f}']
@@ -946,8 +939,6 @@ def makeAThisto(ResArr):
             axes[i].text(0.97, 0.92, fmts[i].format(mean)+'$\pm$'+fmts[i].format(std)+ ' '+units[i], horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
         else:
             base = datetime.datetime(yr, 1, 1, 0, 0)
-            # add in FC time (if desired)
-            FCmean = np.mean(FC_times)/60/24.
             date = base + datetime.timedelta(days=(DoY+mean))   
             dateLabel = date.strftime('%b %d %H:%M')
             axes[i].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
@@ -955,11 +946,9 @@ def makeAThisto(ResArr):
                        
     for i in range(9): axes[i].set_ylim(0, maxcount*1.2)
         
-    #plt.subplots_adjust(hspace=0.35, left=0.1,right=0.95,top=0.98,bottom=0.06)
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.png')
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.pdf')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.'+figtag)
      
 def makeISplot(ResArr):
     fig, axes = plt.subplots(6, 1, sharex=True, figsize=(8,12))
@@ -1055,7 +1044,7 @@ def makeISplot(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
      
     #plt.show()
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.png')    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.'+figtag)    
     
 def makeFIDOhistos(ResArr):
     fig, axes = plt.subplots(2, 3, figsize=(9,7), sharey=True)
@@ -1112,7 +1101,7 @@ def makeFIDOhistos(ResArr):
     for i in range(6): axes[i].set_ylabel('Counts')    
     
     plt.subplots_adjust(wspace=0.15, hspace=0.25,left=0.12,right=0.95,top=0.95,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_FIDOhist.png')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_FIDOhist.'+figtag)
 
 def makeSIThistos(ResArr):
     fig, axes = plt.subplots(3, 3, figsize=(10,10), sharey=True)
@@ -1191,7 +1180,7 @@ def makeSIThistos(ResArr):
     for i in range(9): axes[i].set_ylabel('Counts')    
     
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_SIThist.png')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_SIThist.'+figtag)
 
 def makeallIShistos(ResArr):
     fig, axes = plt.subplots(3, 3, figsize=(10,10), sharey=True)
@@ -1272,31 +1261,31 @@ def makeallIShistos(ResArr):
     axes[5].set_xlabel('v$_{Exp}$ (km/s)')
     axes[6].set_xlabel('max B (nT)')
     axes[7].set_xlabel('min Bz (nT)')
-    axes[8].set_xlabel('Kp')
+    axes[8].set_xlabel('max Kp')
     
     for i in range(9): axes[i].set_ylabel('Counts')    
     for i in range(9): axes[i].set_ylim(0, maxcount*1.2)
     
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist.png')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist.'+figtag)
     
 def makeEnsplot(ResArr):
     # At max want to show variation with lat, lon, tilt, AT, v1AU
     # duration, Bz, Kp (8 vals) but depends on what we ran
     deg = '('+'$^\circ$'+')'
 
-    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
+    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f_1$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
     
     nVert = 0
     configID = 0
     if OSP.doFC: configID += 100
     if OSP.doANT: configID += 10
     if OSP.doFIDO: configID += 1
-    nVertDict = {100:10, 110:14, 111:16, 11:13, 10:11, 1:4}
+    nVertDict = {100:9, 110:13, 111:15, 11:12, 10:10, 1:4}
     nVert = nVertDict[configID]
-    outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS','CMEdelCSAx', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx','CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT','Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'logT', 'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
+    outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT','Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'logT', 'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
     # number of vertical plots depends on num params varied
     nHoriz = len(varied)
     
@@ -1359,11 +1348,6 @@ def makeEnsplot(ResArr):
                     OSPres[item].append(ResArr[key].ANTdelCSs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCdelCSs[-1])
-            if item == 'CMEdelCSAx':
-                if OSP.doANT and not ResArr[key].fail:
-                    OSPres[item].append(ResArr[key].ANTdelCSAxs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCdelCAs[-1])
             if item == 'CMEvF':
                 if OSP.doANT and not ResArr[key].fail:
                     OSPres[item].append(ResArr[key].ANTvFs[-1])
@@ -1396,22 +1380,12 @@ def makeEnsplot(ResArr):
                     OSPres[item].append(np.max(ResArr[key].FIDOBs))                                
                 if item == 'Bz':
                     OSPres[item].append(np.min(ResArr[key].FIDOBzs))
-                    
-            '''else:                    
-                if item == 'TT': None                  
-                if item == 'Dur': None
-                if item == 'n': None                   
-                if item == 'Kp': None
-                if item == 'B': None                              
-                if item == 'Bz': None'''
-                
-        
-                
+                                    
     print ('Number of hits: ', len(goodIDs)) 
-    
+    print ('Mean and Standard Deviation')
     for item in outDict[configID]:
         OSPres[item] = np.array(OSPres[item])
-        print (item, np.mean(OSPres[item]), np.std(OSPres[item]), len(OSPres[item]))  
+        print (item, np.mean(OSPres[item]), np.std(OSPres[item]))  
 
     f, a = plt.subplots(1, 1)
     img = a.imshow(np.array([[0,1]]), cmap="cool")
@@ -1467,91 +1441,8 @@ def makeEnsplot(ResArr):
         
     cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
     cb.set_label('Correlation') 
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.png')
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.pdf')
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS'+figtag)
     
-def makeKpprob(ResArr):
-    # get the time range for full set
-    mindate = None
-    maxdate = None    
-    for key in ResArr.keys():
-        if ResArr[key].FIDOtimes is not None:
-            dates = ResArr[key].FIDOtimes
-            # save the extreme times to know plot range
-            if mindate is None: 
-                mindate = np.min(dates)
-                maxdate = np.max(dates)
-            if np.min(dates) < mindate: mindate = np.min(dates)
-            if np.max(dates) > maxdate: maxdate = np.max(dates)
-    plotlen = (maxdate - mindate)*24
-    nx = int(plotlen/3.)+1
-    KpArr = np.zeros([10, nx])
-    # Calculate the values at cell midpoints
-    Kptimes = np.array([mindate + 1.5/24 + i*3./24. for i in range(nx)]) 
-    
-    # fill in KpArr
-    counter = 0
-    for key in ResArr.keys():
-        if ResArr[key].FIDOtimes is not None:
-            counter += 1
-            tBounds = [ResArr[key].FIDOtimes[0], ResArr[key].FIDOtimes[-1]]
-            try:
-                thefit = CubicSpline(ResArr[key].FIDOtimes,ResArr[key].FIDOKps,bc_type='natural')
-            except:
-                # might have duplicate at front
-                thefit = CubicSpline(ResArr[key].FIDOtimes[1:],ResArr[key].FIDOKps[1:],bc_type='natural')
-            tidx = np.where((Kptimes >= tBounds[0]) & (Kptimes <= tBounds[1]))[0]
-            KpRes = thefit(Kptimes[tidx]).astype(int)
-            for i in range(len(KpRes)):
-                KpArr[KpRes[i],tidx[i]] += 1
-    
-    ys = np.array(range(10))
-    xs = np.array([mindate + i*3./24. for i in range(nx+1)])
-    # convert x axis to dates
-    label_day_range = [int((mindate+DoY)*2)/2., int((maxdate+DoY)*2+1)/2.]
-    nLabs = int(2*(label_day_range[1]-label_day_range[0]))
-    labelDays = [label_day_range[0] + 0.5 * i for i in range(nLabs+1)]
-    xvals = np.array(labelDays)-DoY
-    base = datetime.datetime(yr, 1, 1, 0, 0)
-    dates = np.array([base + datetime.timedelta(days=i) for i in labelDays])    
-    dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in dates]    
-        
-    # Set up date format
-    maxduration = (dates[-1] - dates[0]).days+(dates[-1] - dates[0]).seconds/3600./24.
-    hr0 = 0
-    if dates[0].hour > 12: hr0 = 12
-    pltday0 = datetime.datetime(dates[0].year, dates[0].month, dates[0].day, hr0, 0)
-    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration)*2+1)])
-    dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in pltdays]
-    dNewYear = datetime.datetime(yr, 1, 1)
-    startDoY = (pltday0 - dNewYear).days + (pltday0 - dNewYear).seconds/3600./24.
-    labelDoY = (pltdays[0]-dNewYear).days + (pltdays[0] - dNewYear).seconds/3600./24.
-    
-    XX, YY = np.meshgrid(xs,ys)
-    KpPerc = KpArr/float(counter)*100
-    
-    cmap1 = cm.get_cmap("plasma",lut=10)
-    cmap1.set_bad("w")
-    Kpm = np.ma.masked_less(KpPerc,0.01)
-    
-                 
-    fig, axes = plt.subplots(1, 1, figsize=(8,7))
-    # draw a grid because mask away a lot of it
-    for x in xs: axes.plot([x,x],[ys[0],ys[-1]], c='LightGrey')
-    for y in ys: axes.plot([xs[0],xs[-1]],[y,y], c='LightGrey')
-    c = axes.pcolor(XX,YY,Kpm, cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
-    axes.set_xlim(mindate,maxdate)
-    axes.set_ylabel('Kp Index')
-    cbar = fig.colorbar(c, ax=axes)
-    cbar.set_label('Percentage Chance', rotation=270, labelpad=15)
-    plt.xticks(xvals[1:], dateLabels[1:])
-    fig.autofmt_xdate()
-    plt.subplots_adjust(left=0.15,right=0.95,top=0.95,bottom=0.2)
-    
-    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Kp.png')    
-
-
 def makeAllprob(ResArr):
     # get the time range for full set
     mindate = None
@@ -1616,7 +1507,6 @@ def makeAllprob(ResArr):
                     if thisCell < 0: thisCell=0
                     if thisCell >= nBins: thisCell = nBins-1
                     allArr[j,thisCell,tidx[i]] += 1
-    print (counter)            
     # convert x axis to dates
     labelDays = gridtimes[np.where(2*gridtimes%1 == 0)]
     base = datetime.datetime(yr, 1, 1, 0, 0)
@@ -1640,8 +1530,6 @@ def makeAllprob(ResArr):
         for y in ys: axes[i].plot([gridtimes[0],gridtimes[-1]],[y,y], c='LightGrey')
         c = axes[i].pcolor(XX,YY,allMasked[i,:,:], cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
         
-    
-
     # add in observations
     if ObsData is not None:
         # need to convert obsdate in datetime fmt to frac dates
@@ -1654,14 +1542,11 @@ def makeAllprob(ResArr):
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='r', zorder=5)
         axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r', zorder=5)    
         axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r', zorder=5)
-    
-    
+        
     # add in ensemble seed
     dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
-    print (dates2[0], dates2[-1])
     for i in range(len(dates2)):
          dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-    print (dates2[0], dates2[-1])
     thiscol = 'aqua'
     axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=5, color=thiscol, zorder=6)
     axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=5, color=thiscol, zorder=6)
@@ -1669,9 +1554,7 @@ def makeAllprob(ResArr):
     axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=5, color=thiscol, zorder=6)
     axes[4].plot(dates2, ResArr[0].FIDOKps, linewidth=5, color=thiscol, zorder=6)
     axes[5].plot(dates2, ResArr[0].FIDOvs, linewidth=5, color=thiscol, zorder=6)
-    
-    
-    
+        
     axes[0].set_xlim(gridtimes[0],gridtimes[-1])
         
     axes[0].set_ylabel('B (nT)')
@@ -1689,177 +1572,452 @@ def makeAllprob(ResArr):
     fig.subplots_adjust(top=0.9)
     cbar_ax = fig.add_axes([ax0pos.x0, 0.94, ax0pos.width, 0.02])
     cbar = fig.colorbar(c, cax=cbar_ax, orientation='horizontal')
-    cbar.ax.set_title('Percentage Chance')
-    
-    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc.png')    
+    cbar.ax.set_title('Percentage Chance')        
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc.'+figtag)    
                                
-def makeImpContours(ResArr):
-    # While I would like this to be on a globe, there is not an easy
-    # way that doesn't require non-basic libraries so just look +/- X deg
-    # away from disk center for now and plot flat
-    dtor = 3.14159/180.
-    plotwid = 30
+def makeContours(ResArr, calcwid=90, plotwid=40):
+    # Start by filling in the area that corresponds to the CME in a convenient frame
+    # then rotate it the frame where Earth is at [0,0] at the time of impact for all CMEs
+    # using its exact position in "real" space (which will vary slightly between CMEs).
+    # Also derive parameters based on Earth's coord system if there were changes in it's
+    # position (i.e. vr for rhat corresponding to each potential shifted lat/lon)
+            
+    # simulation parameters
     ngrid = 2*plotwid+1
-    impCounter = np.zeros([ngrid, ngrid])
-    lats = np.linspace(-plotwid, plotwid,ngrid).astype(int)
-    lons = np.linspace(-plotwid, plotwid,ngrid).astype(int)
+    ncalc = 2*calcwid+1
+    nThings = 39
+    shiftx, shifty = calcwid, calcwid
+    counter = 0
     
     # get impacts, may be less than nEns
     hits = []
     for i in range(nEns):
         if (not ResArr[i].miss) and (not ResArr[i].fail):
             hits.append(i)
+    allGrid = np.zeros([len(hits), ngrid, ngrid, nThings])
     
-    for key in hits:#ResArr.keys():
+    for key in hits:
+        newGrid = np.zeros([ncalc,ncalc,nThings])
+        
+        # pull in things from ResArr
         thisLat = ResArr[key].FClats[-1]
-        thisLon = ResArr[key].FClons[-1]-OSP.satPos[1]
+        thisLon = ResArr[key].FClons[-1]
         thisTilt  = ResArr[key].FCtilts[-1]
-        thisAW    = ResArr[key].FCAWs[-1]
-        thisAWp   = ResArr[key].FCAWps[-1]
-        thisR     = ResArr[key].FCrs[-1]
-        thisDelAx = ResArr[key].FCdelAxs[-1]
-        thisDelCS = ResArr[key].FCdelCSs[-1]
-        thisDelCA = ResArr[key].FCdelCAs
+        thisAW    = ResArr[key].ANTAWs[-1]
+        thisAWp   = ResArr[key].ANTAWps[-1]
+        thisR     = ResArr[key].ANTrs[-1]
+        thisDelAx = ResArr[key].ANTdelAxs[-1]
+        thisDelCS = ResArr[key].ANTdelCSs[-1]
+        thisDelCA = ResArr[key].ANTdelCSAxs[-1]
+        thesevs = np.array([ResArr[key].ANTvFs[-1], ResArr[key].ANTvEs[-1], ResArr[key].ANTvBs[-1], ResArr[key].ANTvCSrs[-1], ResArr[key].ANTvCSps[-1], ResArr[key].ANTvAxrs[-1], ResArr[key].ANTvAxps[-1]])   
+        thisB0    = ResArr[key].ANTB0s[-1] * np.sign(float(OSP.input_values['FRBscale']))
+        thisTau   = ResArr[key].ANTtaus[-1]
+        thisCnm   = ResArr[key].ANTCnms[-1]
+        thisPol   = int(float(OSP.input_values['FRpol']))
+        thislogT  = ResArr[key].ANTlogTs[-1]
+        thisn     = ResArr[key].ANTns[-1]
 
-        # option to replace AW/del with ANT values as may make difference
-        if OSP.doANT:
-            thisAW    = ResArr[key].ANTAWs[-1]
-            thisAWp   = ResArr[key].ANTAWps[-1]
-            thisR     = ResArr[key].ANTrs[-1]
-            thisDelAx = ResArr[key].ANTdelAxs[-1]
-            thisDelCS = ResArr[key].ANTdelCSs[-1]
-            thisDelCA = ResArr[key].ANTdelCSAxs[-1]
-            
-        # calculate widths in Rs
-        #CMElens = [CMEnose, rEdge, d, br, bp, a, c]
+        # Calculate the CME lengths 
+        # CMElens = [CMEnose, rEdge, rCent, rr, rp, Lr, Lp]
         CMElens = np.zeros(7)
         CMElens[0] = thisR
         CMElens[4] = np.tan(thisAWp*dtor) / (1 + thisDelCS * np.tan(thisAWp*dtor)) * CMElens[0]
         CMElens[3] = thisDelCS * CMElens[4]
-        CMElens[6] = (np.tan(thisAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + thisDelAx * np.tan(thisAW*dtor))          
+        CMElens[6] = (np.tan(thisAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + thisDelAx * np.tan(thisAW*dtor))  
         CMElens[5] = thisDelAx * CMElens[6]
         CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
         CMElens[1] = CMElens[2] * np.tan(thisAW*dtor)
-        
-        fullWid = CMElens[1]
-        crossWid = CMElens[4]
-                
-        # find max and min lat for each CME
-        nosePoint = cart2cart([thisR,0.,0.], thisLat, thisLon, thisTilt)
-        topPoint  = cart2cart([thisR-CMElens[5],0.,fullWid], thisLat, thisLon, thisTilt)
-        botPoint  = cart2cart([thisR-CMElens[5],0,-fullWid], thisLat, thisLon, thisTilt)
-        topPoint  = CART2SPH(topPoint)
-        botPoint  = CART2SPH(botPoint)
-        minY, maxY = int(botPoint[1]), int(topPoint[1])
-        if minY > maxY:
-            minY, maxY = maxY, minY
-                    
-        # find how many cells up and down we can go within plot
-        if minY < lats[0]: minY = lats[0]
-        if maxY > lats[-1]: maxY = lats[-1]
-        toCheck = np.array(range(minY, maxY+1))
-        
+              
         # Find the location of the axis
-        # Calculate the center line first
-        nFR = 11
-        mid = int(nFR/2)
-        thetas = np.linspace(-math.pi/2, math.pi/2, nFR)
-        
+        nFR = 31 # axis resolution
+        thetas = np.linspace(-math.pi/2, math.pi/2, nFR)    
         sns = np.sign(thetas)
         xFR = CMElens[2] + thisDelAx * CMElens[6] * np.cos(thetas)
-        zFR = 0.5 * sns * CMElens[2] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas))))    
+        zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas))))   
+        top = [xFR[-1], 0.,  zFR[-1]+CMElens[3]]
+        topSPH = CART2SPH(top)
+        # br is constant but axis x changes -> AWp varies
+        varyAWp = np.arctan(CMElens[4] / xFR)/dtor 
+        # get the axis coords in spherical
+        axSPH = CART2SPH([xFR,0.,zFR])
+        # get the round outer edge from the CS at last thetaT
+        thetaPs = np.linspace(0, math.pi/2,21)
+        xEdge = xFR[-1] 
+        yEdge = CMElens[4] * np.sin(thetaPs)
+        zEdge = zFR[-1] + (thisDelCS * CMElens[4] * np.cos(thetaPs))
+        edgeSPH = CART2SPH([xEdge, yEdge, zEdge])
         
-        points =  CART2SPH(cart2cart([xFR,0.,zFR], thisLat, thisLon, thisTilt))
-                
-        # check if x increasing or not, reverse if need to
-        if points[1][-1] < points[1][0]:
-            points[0] = points[0][::-1]
-            points[1] = points[1][::-1]
-            points[2] = points[2][::-1]
+        # figure out mappings between the latitude and other variables
+        lat2theT =  CubicSpline(axSPH[1],thetas/dtor,bc_type='natural')
+        lat2AWp = CubicSpline(axSPH[1],varyAWp,bc_type='natural')
+        lat2xFR = CubicSpline(axSPH[1],xFR,bc_type='natural')
+        minlat, maxlat = int(round(np.min(axSPH[1]))), int(round(np.max(axSPH[1])))
+        minlon, maxlon = shiftx-int(round(thisAWp)),shiftx+int(round(thisAWp))
+        lat2AWpEd = CubicSpline(edgeSPH[1][::-1],edgeSPH[2][::-1],bc_type='natural')    
+        lon2TP = CubicSpline(edgeSPH[2],thetaPs/dtor,bc_type='natural') 
+        # check lat limits to make sure we don't go out of range
+        maxn = ncalc-1
+        if minlat+shifty < 0: minlat = -shifty
+        if maxlat+1+shifty > maxn: maxlat = maxn-1-shifty
+        minlat2, maxlat2 = int(round(maxlat)), int(round(topSPH[1]))        
+        if maxlat2+1+shifty > maxn: maxlat2 = maxn-1-shifty
         
-        # Fit a spline to lon as function of lat and r as function of lat
-        try:
-            theLonfit = CubicSpline(points[1],points[2],bc_type='natural')
-            theRfit = CubicSpline(points[1],points[0],bc_type='natural')
-        except:
-            sortIdx = np.argsort(points[1])
-            theLonfit = CubicSpline(points[1][sortIdx],points[2][sortIdx],bc_type='natural')
-            theRfit = CubicSpline(points[1][sortIdx],points[0][sortIdx],bc_type='natural')
+        # Loop through in latitude and fill in points that are in the CME
+        for i in range(minlat, maxlat+1):
+            # Find the range to fill in lon
+            idy =  i+shifty
+            nowAWp = np.round(lat2AWp(i))
+            minlon, maxlon = shiftx-int(nowAWp),shiftx+int(nowAWp)
+            # Fill from minlon to maxlon
+            newGrid[idy, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,0] = 1
+                       
+            # Pad things 2 deg outside "correct" lon range
+            newGrid[idy,  np.maximum(0,minlon-2):np.minimum(maxn,maxlon+2)+1,1] = 1
+               
+            # Calculate the parameteric thetas for each point in the CME
+            # ThetaT - start with relation to lat
+            thetaT = lat2theT(i)
+            newGrid[idy,  np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,2] = thetaT 
+            
+            # ThetaP - making geometric approx to calc sinThetaP = axis_X tanLon / rperp
+            # which ignores that this perp width is not at axis but axis + xCS (which is f(thetaP))
+            # (CME is oriented so AWp is in lon direction before we rotate it)
+            theselons = np.arange(-nowAWp, nowAWp+1)
+            sinTP = lat2xFR(i) * np.tan(theselons*dtor) / CMElens[4]
+            # Clean up any places with sinTP > 1 from our geo approx so it just maxes out not blows up
+            sinTP[np.where(np.abs(sinTP) > 1)] = np.sign(sinTP[np.where(np.abs(sinTP) > 1)]) * 1
+            thetaPs = np.arcsin(sinTP)/dtor
+            newGrid[idy,  minlon:maxlon+1,3] = thetaPs
+        
+        for i in range(minlat2, maxlat2):
+            # Find the range to fill in lon
+            idy  =  -i+shifty
+            idy2 =  i+shifty
+            nowAWp = np.round(lat2AWpEd(i))
+            minlon, maxlon = shiftx-int(nowAWp),shiftx+int(nowAWp)
+            # Fill from minlon to maxlon
+            newGrid[idy,  np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,0] = 1
+            newGrid[idy2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,0] = 1
+            
+            # Pad things outside "correct" lon range
+            newGrid[idy, np.maximum(0,minlon-2):np.minimum(maxn,maxlon-2)+1,1] = 1
+            newGrid[idy2, np.maximum(0,minlon-2):np.minimum(maxn,maxlon-2)+1,1] = 1
+           
+            # Pad around the top and bottom of the CME
+            if i == maxlat2-1: 
+               newGrid[idy-1, np.maximum(0,minlon-2):np.minimum(maxn,maxlon+2)+1,1] = 1
+               newGrid[idy-2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,1] = 1
+               newGrid[idy2+1, np.maximum(0,minlon-2):np.minimum(maxn,maxlon+2)+1,1] = 1
+               newGrid[idy2+2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,1] = 1
+            
+            # add angle things
+            # ThetaT
+            newGrid[idy, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,2] = -90
+            newGrid[idy2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,2] = 90
+            # ThetaP
+            theseLons = np.array(range(minlon,maxlon+1))
+            newGrid[idy, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,3] = lon2TP(np.abs(theseLons-90))*np.sign(theseLons-90)
+            newGrid[idy2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,3] = lon2TP(np.abs(theseLons-90))*np.sign(theseLons-90)
+                         
+        # Clean up  angles so sin or cos don't blow up
+        fullTT = newGrid[:,:,2]
+        fullTT[np.where(np.abs(fullTT)<1e-5)] = 1e-5
+        fullTT[np.where(np.abs(fullTT)>0.9*90)] = np.sign(fullTT[np.where(np.abs(fullTT)>.9*90)]) * 0.9 * 90
+        newGrid[:,:,2] = fullTT * dtor
+        fullTP = newGrid[:,:,3]
+        fullTP[np.where(np.abs(fullTP)<1e-5)] = np.sign(fullTP[np.where(np.abs(fullTP)<1e-5)]) * 1e-5
+        fullTP[np.where(np.abs(fullTP)>0.9*90)] = np.sign(fullTP[np.where(np.abs(fullTP)>0.9*90)]) * 0.9 * 90
+        newGrid[:,:,3] = fullTP * dtor
+        
+        
+        # Vectors ---------------------------------------------------------------------------------
+        # normal to the axis
+        # turn off error from div by zero outside CME range
+        np.seterr(divide='ignore', invalid='ignore')
+        nAxX = 0.5 * (np.cos(np.abs(newGrid[:,:,2])) + np.sin(np.abs(newGrid[:,:,2])) / np.sqrt(1 - np.cos(np.abs(newGrid[:,:,2]))))
+        nAxZ = thisDelAx * np.sin(newGrid[:,:,2])
+        nAxMag = np.sqrt(nAxX**2 + nAxZ**2) # nAxY is zero in this frame
+        newGrid[:,:,4] = nAxX / nAxMag *newGrid[:,:,0]
+        newGrid[:,:,6] = nAxZ / nAxMag *newGrid[:,:,0]
+        mag = np.sqrt(newGrid[:,:,4]**2 + newGrid[:,:,5]**2 + newGrid[:,:,6]**2)    
                 
-        # calculate center lons for each lat
-        myXs = theLonfit(toCheck)
-        myRs = theRfit(toCheck)
+        # normal to the CS
+        nCSx0 = np.cos(newGrid[:,:,3]) / thisDelCS
+        nCSy = np.sin(newGrid[:,:,3])
+        nCSx = nCSx0 * np.cos(newGrid[:,:,2])
+        nCSz = nCSx0 * np.sin(newGrid[:,:,2])
+        nCSmag = np.sqrt(nCSx**2 + nCSy**2 + nCSz**2)
+        newGrid[:,:,7] = nCSx / nCSmag
+        newGrid[:,:,8] = nCSy / nCSmag
+        newGrid[:,:,9] = nCSz / nCSmag
+        mag = np.sqrt(newGrid[:,:,7]**2 + newGrid[:,:,8]**2 + newGrid[:,:,9]**2)    
+        
+        # tangent to the axis
+        # can just swap normal components since axis is in xz plan
+        newGrid[:,:,10], newGrid[:,:,12] = -newGrid[:,:,6], newGrid[:,:,4]
+        
+        # tangent to the CS
+        tCSx = nCSy * np.cos(newGrid[:,:,2])
+        tCSz = -nCSy * np.sin(newGrid[:,:,2])
+        tCSy = np.cos(newGrid[:,:,3]) / thisDelCS
+        tCSmag = np.sqrt(tCSx**2 + tCSy**2 + tCSz**2)
+        newGrid[:,:,13], newGrid[:,:,14], newGrid[:,:,15] = -tCSx / tCSmag,  tCSy / tCSmag,  tCSz / tCSmag
+        mag = np.sqrt(newGrid[:,:,14]**2 + newGrid[:,:,15]**2 + newGrid[:,:,13]**2)    
+                
+        # Velocity ----------------------------------------------------------------------------------
+        # local vAx
+        newGrid[:,:,16] = np.sqrt(thisDelAx**2 * np.cos(newGrid[:,:,2])**2 + np.sin(newGrid[:,:,2])**2) * thesevs[6]
+        # local vCS
+        newGrid[:,:,17] = np.sqrt(thisDelCS**2 * np.cos(newGrid[:,:,3])**2 + np.sin(newGrid[:,:,3])**2) * thesevs[4]
+        # vFront = vBulk * rhatCME + vAx * nAx + vExp * nCS
+        newGrid[:,:,18] = thesevs[2] + newGrid[:,:,4] * newGrid[:,:,16] + newGrid[:,:,7] * newGrid[:,:,17]
+        newGrid[:,:,19] = newGrid[:,:,5] * newGrid[:,:,16] + newGrid[:,:,8] * newGrid[:,:,17]
+        newGrid[:,:,20] = newGrid[:,:,6] * newGrid[:,:,16] + newGrid[:,:,9] * newGrid[:,:,17]
+        # vAx = vBulk * rhatCME + vAx * nAx + vExp * nCS
+        newGrid[:,:,21] = thesevs[2] + newGrid[:,:,4] * newGrid[:,:,16] 
+        newGrid[:,:,22] = newGrid[:,:,5] * newGrid[:,:,16] 
+        newGrid[:,:,23] = newGrid[:,:,6] * newGrid[:,:,16] 
+       
+        # Coordinate transformations -------------------------------------------------------------
+        # Calculate how far to shift the CME in lat/lon to put Earth at 0,0
+        dLon = OSP.satPos[1] + ResArr[key].ANTtimes[-1] * 24 * 3600 * OSP.Sat_rot - thisLon
+        dLat = OSP.satPos[0] - thisLat
+                        
+        # Create the background meshgrid and shift it
+        XX, YY = np.meshgrid(range(-shiftx,shiftx+1),range(-shifty,shifty+1))
+        
+        # Calculate local radial vector, find v component in that dir
+        rhatE = np.zeros([ncalc,ncalc,3])
+        colat = (90 - YY) * dtor
+        rhatE[:,:,0] = np.sin(colat) * np.cos(XX*dtor) 
+        rhatE[:,:,1] = np.sin(colat) * np.sin(XX*dtor)
+        rhatE[:,:,2] = np.cos(colat)
+        newGrid[:,:,24] = rhatE[:,:,0] * newGrid[:,:,18] + rhatE[:,:,1] * newGrid[:,:,19] + rhatE[:,:,2] * newGrid[:,:,20]
+        newGrid[:,:,25] = rhatE[:,:,0] * newGrid[:,:,21] + rhatE[:,:,1] * newGrid[:,:,22] + rhatE[:,:,2] * newGrid[:,:,23]
+        
+        # Shift the meshgrid   
+        XX = XX.astype(float) - dLon
+        YY = YY.astype(float) - dLat
 
-        # Fill in the impact points
-        # calc width based on tilt
-        xWid = np.abs(crossWid / np.sin(thisTilt*dtor))
-        for i in range(len(myXs)):
-            thisPoint = SPH2CART([myRs[i],toCheck[i], myXs[i]])
-            unitLon = np.array([-np.sin(myXs[i]*dtor), np.cos(myXs[i]*dtor), 0.])
-            # technically, the lat changes a bit because R increases doing it this
-            # way but this is more accurate than just tan(ang) = wid / R and much
-            # quicker than fully accurate model
-            edgePoint = thisPoint + xWid*unitLon
-            lonWid = int(CART2SPH(edgePoint)[2] - myXs[i])+1
-             
-            for j in range(-lonWid,lonWid):
-                x = int(myXs[i])+j
-                y = toCheck[i]
-                #print (x,y)
-                if (x >= lons[0]) & (x <= lons[-1]):
-                    #print ('here')
-                    impCounter[y+plotwid,x+plotwid]+=1
-                
-    cmap1 = cm.get_cmap("plasma",lut=10)
-    cmap1.set_bad("w")
-    impPerc = impCounter/nEns*100
-    impPercM = np.ma.masked_less(impPerc,0.01)
-    
-    fig, axes = plt.subplots(1, 1, figsize=(8,7))   
-    XX, YY = np.meshgrid(lons,lats)
-    
-    for x in range(-plotwid,plotwid): 
-        axes.plot([x,x],[-plotwid,plotwid], c='k', linewidth=0.25)
-        axes.plot([-plotwid,plotwid], [x,x], c='k', linewidth=0.25)
-    
-    
-    # normalize by nEns, shouldn't have ForeCAT misses
-    c = axes.pcolor(XX,YY,impPercM, cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
-    
-    
-    # Get mean arrival time -> plot Earth shifted
-    if OSP.doANT:
-        all_times = []
-        for key in ResArr.keys():
-            if (not ResArr[key].miss) and (not ResArr[key].fail):
-                all_times.append(ResArr[key].ANTtimes[-1])
-        # satellite position at time of impact
-        dlon = np.mean(all_times) * OSP.Sat_rot
-    else:
-        dlon = 0.
-    axes.plot(dlon,OSP.satPos[0],'o', ms=15, mfc='#98F5FF')
-    satImp = int(impPerc[int(OSP.satPos[0]+plotwid), int(dlon+plotwid)])
-    axes.text(0.97, 0.95, str(satImp) + '% chance of impact' , horizontalalignment='right', verticalalignment='center', transform=axes.transAxes, color='r')
+        # Rotate newGrid array based on CME tilt
+        newGrid = ndimage.rotate(newGrid, 90-thisTilt, reshape=False)
+        # Force in/out to be 0/1 again
+        newGrid[:,:,0] = np.rint(newGrid[:,:,0])
+        newGrid[:,:,1] = np.rint(newGrid[:,:,1])
         
-    cbar = fig.colorbar(c, ax=axes)
-    cbar.set_label('Chance of Impact', rotation=270, labelpad=15)
+        # Rotate the actual components of the normal and tangent vectors to correct lat/lon/tilt 
+        # before using them to define velocity or magnetic vectors
+        # normal to axis
+        rotNAx =  cart2cart([newGrid[:,:,4], newGrid[:,:,5], newGrid[:,:,6]], dLat, dLon, thisTilt)
+        newGrid[:,:,4], newGrid[:,:,5], newGrid[:,:,6] = rotNAx[0], rotNAx[1], rotNAx[2]
+        # normal to CS
+        rotNCS =  cart2cart([newGrid[:,:,7], newGrid[:,:,8], newGrid[:,:,9]], dLat, dLon, thisTilt)
+        newGrid[:,:,7], newGrid[:,:,8], newGrid[:,:,9] = rotNCS[0], rotNCS[1], rotNCS[2]
+        # tangent to axis
+        rotTAx =  cart2cart([newGrid[:,:,10], newGrid[:,:,11], newGrid[:,:,12]], dLat, dLon, thisTilt)
+        newGrid[:,:,10], newGrid[:,:,11], newGrid[:,:,12] = rotTAx[0], rotTAx[1], rotTAx[2]
+        # tangent to CS
+        rotTCS =  cart2cart([newGrid[:,:,13], newGrid[:,:,14], newGrid[:,:,15]], dLat, dLon, thisTilt)
+        newGrid[:,:,13], newGrid[:,:,14], newGrid[:,:,15] = rotTCS[0], rotTCS[1], rotTCS[2]       
+        # vFront
+        rotvF = cart2cart([newGrid[:,:,18], newGrid[:,:,19], newGrid[:,:,20]], dLat, dLon, thisTilt)
+        newGrid[:,:,18], newGrid[:,:,19], newGrid[:,:,20] = rotvF[0], rotvF[1], rotvF[2]
+        # vAx
+        rotAx = cart2cart([newGrid[:,:,21], newGrid[:,:,22], newGrid[:,:,23]], dLat, dLon, thisTilt)
+        newGrid[:,:,21], newGrid[:,:,22], newGrid[:,:,23] = rotAx[0], rotAx[1], rotAx[2]
+               
+        # local radial unit vector if earth was at a given lat/lon instead of 0,0
+        rhatE = np.zeros([ncalc,ncalc,3])
+        colat = (90 - YY) * dtor
+        rhatE[:,:,0] = np.sin(colat) * np.cos(XX*dtor) 
+        rhatE[:,:,1] = np.sin(colat) * np.sin(XX*dtor)
+        rhatE[:,:,2] = np.cos(colat)
+
+        # local z unit vector if earth was at a given lat/lon instead of 0,0 (same as colat vec)
+        zhatE = np.zeros([ncalc,ncalc,3])
+        zhatE[:,:,0] = -np.abs(np.cos(colat)) * np.cos(XX*dtor)
+        zhatE[:,:,1] = -np.cos(colat) * np.sin(XX*dtor)
+        zhatE[:,:,2] = np.sin(colat)
+        
+        # local y unit vector, will need for Kp clock angle
+        yhatE = np.zeros([ncalc,ncalc,3])
+        yhatE[:,:,0] = -np.sin(XX*dtor)
+        yhatE[:,:,1] = np.cos(XX*dtor)
+        
+        
+        # Duration --------------------------------------------------------------
+        br = CMElens[3]
+        bCS = 2 * np.cos(newGrid[:,:,3]) * br
+        # need to rotate rhatE about axis tangent by actual CS pol ang (not parametric ang)
+        realTP = np.arctan(np.tan(newGrid[:,:,3])/thisDelCS)
+        # Pull axis vectors into convenient names
+        tax, tay, taz    = newGrid[:,:,10], newGrid[:,:,11], newGrid[:,:,12] 
+        n1ax, n1ay, n1az = newGrid[:,:,4], newGrid[:,:,5], newGrid[:,:,6]
+        # Calculate other normal from cross product
+        nax, nay, naz = n1ay * taz - n1az * tay, n1az * tax - n1ax * taz, n1ax * tay - n1ay * taz
+        rdotn = rhatE[:,:,0] * nax + rhatE[:,:,1] * nay + rhatE[:,:,2] * naz 
+        # Get the rhat with the part in the second normal direction removed so we can calc rotation angle
+        rhatE2 =  np.zeros([ncalc,ncalc,3])
+        rhatE2[:,:,0], rhatE2[:,:,1], rhatE2[:,:,2] = rhatE[:,:,0] - rdotn * nax, rhatE[:,:,1] - rdotn * nay, rhatE[:,:,2] - rdotn * naz
+        rhatE2mag = np.sqrt(rhatE2[:,:,0]**2 + rhatE2[:,:,1]**2 + rhatE2[:,:,2]**2)
+        rhatE2[:,:,0], rhatE2[:,:,1], rhatE2[:,:,2] = rhatE2[:,:,0] / rhatE2mag, rhatE2[:,:,1] / rhatE2mag, rhatE2[:,:,2] / rhatE2mag
+        rdotnAx = rhatE2[:,:,0] * n1ax + rhatE2[:,:,1] * n1ay + rhatE2[:,:,2] * n1az
+        # Stop from blowing up too much for oblique angles
+        rdotnAx[np.where(rdotnAx < 0.01)] = 0.01
+        wid = bCS / rdotnAx * newGrid[:,:,0]
+        # Find the time it takes to cross b (half duration with no expansion)
+        halfDurEst = 0.5 * wid * 7e5 / newGrid[:,:,24] / 3600.
+        # Estimate amount CME grows in that time
+        newbr = bCS + newGrid[:,:,17] * halfDurEst *3600/ 7e5 
+        newbr = newbr * newGrid[:,:,0]
+        growth = newbr / bCS
+        growth[np.where(growth<1)] = 1
+        # Take average b as original plus growth from half first transit time
+        newGrid[:,:,26] = 2 * growth * halfDurEst 
+        
+        # Magnetic field ----------------------------------------------------------------
+        # Toroidal field
+        BtCoeff = thisDelCS * thisB0 * thisTau
+        newGrid[:,:,27], newGrid[:,:,28], newGrid[:,:,29] = BtCoeff * newGrid[:,:,10], BtCoeff * newGrid[:,:,11], BtCoeff * newGrid[:,:,12]
+        
+        # Poloidal field
+        BpCoeff = thisPol * 2 * thisDelCS / (1 + thisDelCS**2) * np.sqrt(thisDelCS**2 * np.sin(newGrid[:,:,3]*dtor)**2 + np.cos(newGrid[:,:,3]*dtor)**2) * np.abs(thisB0) / thisCnm
+        newGrid[:,:,30], newGrid[:,:,31], newGrid[:,:,32] = BpCoeff * newGrid[:,:,13], BpCoeff * newGrid[:,:,14], BpCoeff * newGrid[:,:,15]
+        
+        # Local z hat components
+        # Toroidal
+        tempZ = zhatE[:,:,0] * newGrid[:,:,27] + zhatE[:,:,1] * newGrid[:,:,28] + zhatE[:,:,2] * newGrid[:,:,29]
+        tempZ[np.isnan(tempZ)] = 0
+        newGrid[:,:,33] = tempZ
+        # Poloidal
+        newGrid[:,:,34] = zhatE[:,:,0] * newGrid[:,:,30] + zhatE[:,:,1] * newGrid[:,:,31] + zhatE[:,:,2] * newGrid[:,:,32]
+               
+        # Kp ----------------------------------------------------------------------------
+        # Start at the front (from Bpol)
+        # Need clock ang in local frame -> need By 
+        By = yhatE[:,:,0] * newGrid[:,:,30] + yhatE[:,:,1] * newGrid[:,:,31] # yhat has no z comp
+        clockAng = np.arctan2(By, newGrid[:,:,34])
+        Bperp = np.sqrt(By**2 + newGrid[:,:,34]**2)
+        # Calculate Kp with the usual algorithm
+        dphidt = np.power(newGrid[:,:,24] , 4/3.) * np.power(Bperp, 2./3.) *np.power(np.abs(np.sin(clockAng/2)), 8/3.)
+        newGrid[:,:,35] = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
+        # Repeat process for the center
+        # Need to scale Bz, Btor decreases proportional to CS area, simplify to growth^2
+        By = yhatE[:,:,0] * newGrid[:,:,27] + yhatE[:,:,1] * newGrid[:,:,28] # yhat has no z comp
+        # clockAng is measured clockwise from 12 o'clock/North
+        clockAng = np.arctan2(By, newGrid[:,:,33])*newGrid[:,:,0]        
+        Bperp = np.sqrt(By**2 + newGrid[:,:,33]**2) / growth**2
+        dphidt = np.power(newGrid[:,:,25] , 4/3.) * np.power(Bperp, 2./3.) *np.power( np.abs(np.sin(clockAng/2)), 8/3.)
+        newGrid[:,:,36] = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
+        # Adjust Btor dot z for expansion
+        newGrid[:,:,33] = newGrid[:,:,33] / growth**2 * newGrid[:,:,0] 
+        
+        # Temperature and density -------------------------------------------------------
+        newGrid[:,:,37] = thislogT * newGrid[:,:,1] # uniform temp within CME 
+        newGrid[:,:,38] =    thisn * newGrid[:,:,1] # uniform dens within CME 
+                      
+        # Interpolate and cut out window around Earth/sat to use for summing and plotting
+        # Integer shift
+        delxi, delyi = -shiftx-int(XX[0,0]), -shifty-int(YY[0,0])
+        # Remainder from integer
+        delx, dely = int(XX[0,0]) - XX[0,0], int(YY[0,0]) - YY[0,0]
+        # Perform shift in x
+        startidx = shiftx - plotwid + delxi
+        leftX = newGrid[:,startidx:startidx+2*plotwid+1,:]
+        rightX = newGrid[:,startidx+1:startidx+2*plotwid+2,:]
+        subGrid = (1-delx) * leftX + delx * rightX
+        # Perform shift in y
+        startidy = shifty - plotwid + delyi
+        botY = subGrid[startidy:startidy+2*plotwid+1, :]
+        topY = subGrid[startidy+1:startidy+2*plotwid+2, :]
+        subGrid = (1-dely) * botY + dely * topY
+        # Clean up in/out smearing
+        subGrid[:,:,0] = np.rint(subGrid[:,:,0])
+        subGrid[:,:,1] = np.rint(subGrid[:,:,1])
+        for i in range(nThings):
+            subGrid[:,:,i] = subGrid[:,:,i] * subGrid[:,:,1]
+        allGrid[counter,:,:,:] = subGrid
+        counter += 1
+    fig, axes = plt.subplots(2, 5, figsize=(10,5))
+    cmap1 = cm.get_cmap("plasma",lut=10)
+    cmap1.set_bad("k")
+    # Reorder Axes
+    axes = [axes[0,0], axes[0,1], axes[0,2], axes[0,3], axes[0,4], axes[1,0], axes[1,1], axes[1,2], axes[1,3], axes[1,4]]
+    labels = ['Chance of Impact (%)', 'B$_z$ Front (nT)', 'v$_r$ Front (km/s)',  'Kp Front', 'n (cm$^{-1}$)', 'Duration (hr)', 'B$_z$ Center (nT)', 'v$_r$ Center (km/s)',  'Kp Center', 'log(T) (K)']
     
-    axes.set_xlim([-plotwid,plotwid])
-    axes.set_ylim([-plotwid,plotwid])
     
-    axes.set_ylabel('Latitude ('+'$^\circ$'+')')
-    axes.set_xlabel('Longitude ('+'$^\circ$'+')')
+    # Get the number of CMEs in each grid cell
+    nCMEs = np.sum(allGrid[:,:,:,1]*allGrid[:,:,:,0], axis=0)
+    ngrid = 2 * plotwid+1
+    toPlot = np.zeros([ngrid,ngrid,10])
+    toPlot[:,:,0] = nCMEs / (nEns-nFails) * 100
+    toPlot[:,:,1] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,34], axis=0) / nCMEs
+    toPlot[:,:,2] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,24], axis=0) / nCMEs
+    toPlot[:,:,3] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,35], axis=0) / nCMEs
+    toPlot[:,:,4] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,38], axis=0) / nCMEs
+    toPlot[:,:,5] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,26], axis=0) / nCMEs
+    toPlot[:,:,6] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,33], axis=0) / nCMEs
+    toPlot[:,:,7] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,25], axis=0) / nCMEs
+    toPlot[:,:,8] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,36], axis=0) / nCMEs
+    toPlot[:,:,9] = np.sum(allGrid[:,:,:,0]* allGrid[:,:,:,37], axis=0) / nCMEs
     
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Imp.png')    
+    subXX, subYY = np.meshgrid(range(-plotwid,plotwid+1),range(-plotwid,plotwid+1)) 
+    caxes = np.empty(10)
+    divs = np.empty(10)
+        
+    for i in range(len(axes)):
+        axes[i].set_facecolor('k')
+        axes[i].set_aspect('equal', 'box')
+        
+        toPlotNow = toPlot[:,:,i]
+        cent, rng = np.mean(toPlotNow[nCMEs>0]), 1.5*np.std(toPlotNow[nCMEs>0])
+        if i == 0: cent, rng = 50, 50
+        toPlotNow[nCMEs==0] = np.inf
+        c = axes[i].pcolor(subXX,subYY,toPlotNow,cmap=cmap1,  vmin=cent-rng, vmax=cent+rng, shading='auto')
+        div = make_axes_locatable(axes[i])
+        if i < 5:
+            cax = div.append_axes("top", size="5%", pad=0.05)
+        else:
+            cax = div.append_axes("bottom", size="5%", pad=0.05)
+        cbar = fig.colorbar(c, cax=cax, orientation='horizontal')
+        if i < 5:
+            cax.xaxis.set_ticks_position('top')
+            cax.set_title(labels[i], fontsize=12)    
+        else:    
+            cbar.set_label(labels[i], fontsize=12)                
+            
+        axes[i].plot(0, 0, 'o', ms=15, mfc='#98F5FF')
+        if i > 4:
+            axes[i].set_xticklabels([])
+        else:
+            axes[i].xaxis.set_ticks([-plotwid, -plotwid/2, 0, plotwid/2, plotwid])
+            axes[i].tick_params(axis='x', which='major', pad=5)
+        if i not in [0,5]: axes[i].set_yticklabels([])
+
+    plt.xticks(fontsize=10)    
+    plt.subplots_adjust(wspace=0.1, hspace=0.18,left=0.05,right=0.95,top=0.85,bottom=0.12)    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours.png')    
 
     
 if __name__ == '__main__':
+    # set whether to save the figures as png or pdf
+    # set only to 'png' or 'pdf'
+    global figtag
+    figtag = 'png'
+    
     # Get all the parameters from text files and sort out 
     # what we actually ran
     OSP.setupOSPREI()
-    ResArr = txt2obj()
-
+    
+    # check and see if we were given a time for GCS observations 
+    # to shift Clon of satellite from start to GCS time and do 
+    # Stony lon for CPA plot at time of GCS obs
+    GCStime = 0
+    if len(sys.argv) > 2:
+        GCStime = float(sys.argv[2])
+          
+    ResArr = txt2obj(GCStime)
+     
     global ObsData
     ObsData = None
     if OSP.ObsDataFile is not None:
@@ -1868,19 +2026,20 @@ if __name__ == '__main__':
 
     global nEns
     nEns = len(ResArr.keys())
-    
+
+    # Plots we can make for single CME simulations
     if OSP.doFC:
         # Make CPA plot
-        makeCPAplot(ResArr)  
-    
+        makeCPAplot(ResArr)      
         # Make the AW, delta, v plot
-        makeADVplot(ResArr)
-    
+        # Non-forecast plot
+        #makeADVplot(ResArr)    
 
     if OSP.doANT:
         # Make drag profile
-        makeDragplot(ResArr)
         makeDragless(ResArr)
+        # Non-forecast version with more params
+        #makeDragplot(ResArr)
 
     if OSP.doFIDO:
         # Make in situ plot
@@ -1895,24 +2054,28 @@ if __name__ == '__main__':
         if OSP.doANT:
             # Make arrival time hisogram 
             makeAThisto(ResArr)
-    
+                
         if OSP.doFIDO:
             # FIDO histos- duration, minBz
+            # Non-forecast version with more params
+            # Run it anyway in case we don't have a sheath and 
+            # missing params from forecast version
             makeFIDOhistos(ResArr)
             if OSP.includeSIT:
-                makeSIThistos(ResArr)
+                # Non-forecast version with more params
+                #makeSIThistos(ResArr)
                 makeallIShistos(ResArr)
         
             # Kp probability timeline
-            #makeKpprob(ResArr)
             makeAllprob(ResArr)
 
-        if OSP.doFC:
-            # Make location contour plot
-            makeImpContours(ResArr)
-
+        # Slow plots -- worth commenting out if running quick tests
+        # and not looking specifically at these
+        
         # Ensemble input-output plot
         makeEnsplot(ResArr)
-
+        
+        # Contour plot
+        makeContours(ResArr)
 
         
