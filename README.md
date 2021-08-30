@@ -20,5 +20,12 @@ The final step for the magnetic background is to run `PFSS.py`. This script pull
 We also include a pair of scripts that help with finding a CME's initial position, which can be used to initiate OSPREI/ForeCAT. `selectregion.py` opens up a PFSS pickle and displays the full map. The file path needs to be changed and it pulls in the date string from the command line. It is set to show the magnetic field strength at 1.05 Rs, which we find to be a good height for visualizing the polarity inversion line (PIL). Any lower and there tends to be 'ringing' effects from the PFSS model, any higher and active regions become less complex. It may be appropriate to switch to a higher height for quiet sun/streamer belt/stealth CMEs. Using the built in python window, one can zoom in and find the indices that form a nice rectangle around the source region. These indices can be passed to `ForeCATARPILER.py`, the ForeCAT Active Region PIL Extraction Routine, which will fit the PIL and determine a latitude, longitude, and tilt. This routine is called without any additional information on the command line but the `fitPIL` command should be passed the date string, x1, x2, y1, y2 (where x and y are the horizontal and vertical indices). This routine is largely untested and should be considered a beta program, but it gives a good automatically-generated match to what one would visually identify as a PIL.
 
 ## Input Parameters
+OSPREI is full specified using an text file where each input is assigned using specific terms. Here we list the terms, their meaning, and how their values can be identified for a case. Parameters that are listed in bold are required, all others have 'reasonable' defaults that will be used if they are not specified.
+-*date* words
+-*time* words
+-*suffix* 
+-asd
+-asdf 
+
 
 ## Component Details
