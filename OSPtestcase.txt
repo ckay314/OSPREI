@@ -25,7 +25,7 @@ FRBscale:   3.
 FRTscale:	2
 FRpol:		1
 Gamma:		1.33
-IVDf1:		0.5
+IVDf:		0.5
 SatLat:		-5.033
 SatLon:		258.374
 SatR:		213.
