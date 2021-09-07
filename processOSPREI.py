@@ -917,7 +917,6 @@ def makeAThisto(ResArr):
             all_ns.append(ResArr[key].ANTns[-1])
             all_Kps.append(ResArr[key].ANTKp0)
             all_Ts.append(ResArr[key].ANTlogTs[-1])
-            
     # Ordered Data
     ordData = [all_vFs, all_vExps, all_TTs, all_Bfs, all_Bms, all_durs, all_Ts, all_ns, all_Kps] 
     names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_C$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
@@ -1361,7 +1360,10 @@ def makeEnsplot(ResArr):
                     
             if (not ResArr[key].miss) and (not ResArr[key].fail):
                 if item == 'TT':
-                    OSPres[item].append(ResArr[key].ANTtimes[-1])                    
+                    if OSP.doFIDO:
+                        OSPres[item].append(ResArr[key].FIDOtimes[0])    
+                    else:
+                        OSPres[item].append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)                    
                 if item == 'Dur':
                     if OSP.doFIDO:
                         OSPres[item].append((ResArr[key].FIDOtimes[-1]-ResArr[key].FIDOtimes[0])*24)
@@ -1385,7 +1387,7 @@ def makeEnsplot(ResArr):
     print ('Mean and Standard Deviation')
     for item in outDict[configID]:
         OSPres[item] = np.array(OSPres[item])
-        print (item, np.mean(OSPres[item]), np.std(OSPres[item]))  
+        print (item, np.mean(OSPres[item]), np.std(OSPres[item]), np.min(OSPres[item]), np.max(OSPres[item]))  
 
     f, a = plt.subplots(1, 1)
     img = a.imshow(np.array([[0,1]]), cmap="cool")
