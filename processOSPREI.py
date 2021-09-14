@@ -1390,7 +1390,7 @@ def makeEnsplot(ResArr):
         print (item, np.mean(OSPres[item]), np.std(OSPres[item]), np.min(OSPres[item]), np.max(OSPres[item]))  
 
     f, a = plt.subplots(1, 1)
-    img = a.imshow(np.array([[0,1]]), cmap="cool")
+    img = a.imshow(np.array([[0,1]]), cmap="turbo")
     
     fig, axes = plt.subplots(nVert, nHoriz, figsize=(1.2*nHoriz+1,1.2*nVert+2))
        
@@ -1405,10 +1405,10 @@ def makeEnsplot(ResArr):
         for j in range(nVert):
             if len(OSPres[outDict[configID][j]]) == nEns:
                 col = np.abs(pearsonr(EnsVal[i,:], OSPres[outDict[configID][j]])[0])*np.ones(nEns)
-                axes[j,i].scatter(EnsVal[i,:], OSPres[outDict[configID][j]], c=cm.cool(col))            
+                axes[j,i].scatter(EnsVal[i,:], OSPres[outDict[configID][j]], c=cm.turbo(col))            
             else:
                 col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])*np.ones(len(goodIDs))
-                axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.cool(col))
+                axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.turbo(col))
             
     # Take out tick marks for legibilililility
     for i in range(nVert):
@@ -1443,7 +1443,7 @@ def makeEnsplot(ResArr):
         
     cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
     cb.set_label('Correlation') 
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS'+figtag)
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
     
 def makeAllprob(ResArr):
     # get the time range for full set
@@ -1518,7 +1518,7 @@ def makeAllprob(ResArr):
     
     allPerc = allArr/float(counter)*100
     
-    cmap1 = cm.get_cmap("plasma",lut=10)
+    cmap1 = cm.get_cmap("turbo",lut=10)
     cmap1.set_bad("w")
     allMasked = np.ma.masked_less(allPerc,0.01)
                      
@@ -1538,24 +1538,38 @@ def makeAllprob(ResArr):
         obsDates =  ObsData[0,:]
         for i in range(len(obsDates)):
              obsDates[i] = (obsDates[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-        axes[0].plot(obsDates, ObsData[1,:], linewidth=4, color='r', zorder=5)
-        axes[1].plot(obsDates, ObsData[2,:], linewidth=4, color='r', zorder=5)
-        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='r', zorder=5)
-        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='r', zorder=5)
-        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r', zorder=5)    
-        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r', zorder=5)
+        axes[0].plot(obsDates, ObsData[1,:], linewidth=6, color='k', zorder=5)
+        axes[1].plot(obsDates, ObsData[2,:], linewidth=6, color='k', zorder=5)
+        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=6, color='k', zorder=5)
+        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=6, color='k', zorder=5)
+        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=6, color='k', zorder=5)    
+        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=6, color='k', zorder=5)
+        axes[0].plot(obsDates, ObsData[1,:], linewidth=3, color='r', zorder=5)
+        axes[1].plot(obsDates, ObsData[2,:], linewidth=3, color='r', zorder=5)
+        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=3, color='r', zorder=5)
+        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=3, color='r', zorder=5)
+        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=3, color='r', zorder=5)    
+        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=3, color='r', zorder=5)
         
     # add in ensemble seed
     dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
     for i in range(len(dates2)):
          dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-    thiscol = 'aqua'
-    axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=5, color=thiscol, zorder=6)
-    axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=5, color=thiscol, zorder=6)
-    axes[2].plot(dates2, ResArr[0].FIDOBys, linewidth=5, color=thiscol, zorder=6)
-    axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=5, color=thiscol, zorder=6)
-    axes[4].plot(dates2, ResArr[0].FIDOKps, linewidth=5, color=thiscol, zorder=6)
-    axes[5].plot(dates2, ResArr[0].FIDOvs, linewidth=5, color=thiscol, zorder=6)
+    thiscol = 'w'
+    axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=6, color=thiscol, zorder=6)
+    axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=6, color=thiscol, zorder=6)
+    axes[2].plot(dates2, ResArr[0].FIDOBys, linewidth=6, color=thiscol, zorder=6)
+    axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=6, color=thiscol, zorder=6)
+    axes[4].plot(dates2, ResArr[0].FIDOKps, linewidth=6, color=thiscol, zorder=6)
+    axes[5].plot(dates2, ResArr[0].FIDOvs, linewidth=6, color=thiscol, zorder=6)
+    thiscol='b'
+    axes[0].plot(dates2, ResArr[0].FIDOBs,  linewidth=3, color=thiscol, zorder=6)
+    axes[1].plot(dates2, ResArr[0].FIDOBxs,  linewidth=3, color=thiscol, zorder=6)
+    axes[2].plot(dates2, ResArr[0].FIDOBys,  linewidth=3, color=thiscol, zorder=6)
+    axes[3].plot(dates2, ResArr[0].FIDOBzs,  linewidth=3, color=thiscol, zorder=6)
+    axes[4].plot(dates2, ResArr[0].FIDOKps,  linewidth=3, color=thiscol, zorder=6)
+    axes[5].plot(dates2, ResArr[0].FIDOvs,  linewidth=3, color=thiscol, zorder=6)
+    
         
     axes[0].set_xlim(gridtimes[0],gridtimes[-1])
         
@@ -2005,7 +2019,7 @@ if __name__ == '__main__':
     # set whether to save the figures as png or pdf
     # set only to 'png' or 'pdf'
     global figtag
-    figtag = 'png'
+    figtag = 'pdf'
     
     # Get all the parameters from text files and sort out 
     # what we actually ran
