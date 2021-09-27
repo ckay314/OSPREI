@@ -43,7 +43,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -53,6 +53,8 @@ def setupOSPREI():
     ObsDataFile = None
     includeSIT = False
     useFCSW = False
+    flagScales = False
+    flag1DSW = False
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -82,10 +84,16 @@ def setupOSPREI():
             mass = float(temp[1])
         elif temp[0][:-1] == 'useFCSW':
             if temp[1] == 'True':
-                useFCSW = True
+                useFCSW = True   
+        elif temp[0][:-1] == 'flagScales':
+            if temp[1] == 'True':
+                flagScales = True
+        elif temp[0][:-1] == 'SWfile':
+            flag1DSW  = True
+            global SWfile
+            SWfile = temp[1]
         
-            
-            
+                        
     # get the actual time for the given string
     yr  = int(date[0:4])
     mon = int(date[4:6])
@@ -132,7 +140,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -277,6 +285,9 @@ def genEnsMem(runnum=0):
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
     if 'IVDf1' in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2' in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
+    if 'IVDf' in input_values: 
+        CME.IVDfs[0] = float(input_values['IVDf'])
+        CME.IVDfs[1] = float(input_values['IVDf'])
     if 'Gamma' in input_values: CME.gamma = float(input_values['Gamma'])
 
     # add changes to non ForeCAT things onto the CME object
@@ -328,6 +339,10 @@ def genEnsMem(runnum=0):
         if item == 'IVDf2':
             CME.IVDfs[1] = np.random.normal(loc=float(input_values['IVDf2']), scale=EnsInputs['IVDf2'])
             outstr += '{:6.2f}'.format(CME.IVDfs[1]) + ' '
+        if item == 'IVDf':
+            CME.IVDfs[0] = np.random.normal(loc=float(input_values['IVDf']), scale=EnsInputs['IVDf'])
+            CME.IVDfs[1] = CME.IVDfs[0]
+            outstr += '{:6.2f}'.format(CME.IVDfs[0]) + ' '
         if item == 'Gamma':
             CME.gamma = np.random.normal(loc=float(input_values['Gamma']), scale=EnsInputs['Gamma'])
             outstr += '{:6.2f}'.format(CME.gamma) + ' '
@@ -468,7 +483,7 @@ def goForeCAT(makeRestart=False):
 def makeCMEarray():
     # Called if FC not ran
     global ipos
-    if models == 'FIDO':
+    if models in ['FIDO', 'ANT', 'IP']:
         ipos, rmax = initForeCAT(input_values, skipPkl=True)  
         rmax = float(input_values['CMEr'])
     else:
@@ -586,8 +601,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         # replace with the correct sat position for this time if using path
         if satPath:
             myParams = [satLatf(CMEarray[0].t*60), satLonf(CMEarray[0].t*60), satRf(CMEarray[0].t*60),0]
-        
-                
+                        
         # Add in ensemble variation if desired
         if (i > 0) and useFCSW:
             if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
@@ -596,12 +610,17 @@ def goANTEATR(makeRestart=False, satPath=False):
         Bscale, tau, cnm, Tscale = CME.Bscale, CME.tau, CME.cnm, CME.Tscale
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), CME.nSW, CME.vSW, np.abs(CME.BSW), Cd, tau, cnm, Tscale, gamma]
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), Cd, tau, cnm, Tscale, gamma]
+        SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), 6.2e4]
+        # check if given SW 1D profiles
+        if flag1DSW:
+            SWvec = SWfile
+        
         # high fscales = more convective like
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2])
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, fscales=IVDfs, silent=False)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, flagScales=flagScales)
         
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
@@ -612,6 +631,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             temp2 = roty(temp, CMElat - myParams[0]) 
             vInSitu = rotz(temp2, CMElon - myParams[1])
             vF = vInSitu[0] / 1e5
+            #print (sd)
             # this is vExp for axis and cs not the same as measured vexp....
             temp = rotx(vExvec, -(90.-tilt))
             temp2 = roty(temp, CMElat - myParams[0]) 
@@ -751,7 +771,7 @@ def goFIDO(satPath=False):
         inps[16] = CME.points[CC.idcent][1,0]
         inps[17] = CME.cnm
         inps[18] = CME.tau
-        print (SatVars0)
+
         # Sat parameters
         if not satPath:
             inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
@@ -769,7 +789,6 @@ def goFIDO(satPath=False):
          
         if doANT: 
             if not satPath: inps[1] = ANTsatLons[i] 
-            print (inps[1])
             vtrans = CME.vTrans
         else:
             # check if is trying to load FIDO CME at 10 Rs because rmax not change in input

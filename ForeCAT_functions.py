@@ -31,7 +31,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath', 'SWfile', 'flagScales']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -111,7 +111,7 @@ def getInps(input_values):
     try: 
         rmax = float(input_values['FCrmax'])
     except:
-        print('Assuming simulation stops at 10 Rs')
+        #print('Assuming ForeCAT simulation stops at 10 Rs')
         rmax = 10.
     
     # determine frequency to print to screen

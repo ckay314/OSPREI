@@ -488,7 +488,7 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     xAx = delAx * np.cos(aTT)
     zAx = 0.5 * (np.sin(aTT) + np.sqrt(1 - np.cos(aTT))) * pmTT
     thisL = np.sqrt(xAx**2 + zAx**2)
-    vAx = thisL * vExps[6]
+    vAx = thisL * vExps[5] / delAx
     nAx = np.array([0.5 * (np.cos(aTT) + 0.5 * np.sin(aTT)/np.sqrt(1-np.cos(aTT))), 0, delAx * np.sin(thetaT)])
     normN = np.sqrt(np.sum(nAx**2))
     nAx = nAx / normN
@@ -496,14 +496,13 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     
     xCS = delCS * rbar * np.cos(thetaP)
     yCS = rbar * np.sin(thetaP)
-    thisr = np.sqrt(xCS**2 + yCS**2)
-    vCS = thisr * vExps[4]
+    thisr = np.sqrt(xCS**2 + yCS**2) 
+    vCS = thisr * vExps[3] / delCS
     nCS = np.array([np.cos(thetaP)/delCS, np.sin(thetaP), 0.])
     normN2 = np.sqrt(np.sum(nCS**2))
     nCS = nCS / normN2
     nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
     vCSVec = vCS * nCSatAx
-        
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
     return vCMEframe, vCSVec
     
@@ -898,15 +897,7 @@ if __name__ == '__main__':
     # tshift [13], tstart [14], Sat_rad [15], Sat_rot [16], CMEr[17], cnm [18], tau [19]
     
     #startFromText()    
-        
-    #inps = np.array([ 4.13100000e+00,  8.29735933e+01, -2.21405196e+01,  8.29348608e+01,      4.14900851e+01,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.25544766e+02,      2.18096115e+00,  1.00000000e+00])
-    #shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
-    #vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
-
-    #inps = np.array([ 4,  2, 0, 0, 10,  5.57041691e+01,  1.93083403e+01,  4.03191696e-01,      3.42929689e-01, 0.3, -1.62665077e+01,  1.00000000e+00,  0.00000000e+00,      2.17291667e+00,  2.13000000e+02,  1.14100000e-05,  2.10544766e+02,      2.18096115e+00,  1.00000000e+00])
-    #shinps = np.array([1.9080861088130894, 6.355933388485852, 3.2803310106764028, 595.3798743636847, 4.30965499920929, -3.877314675625476, 0.0, 745.4514092000635])
-    #vExps = np.array([654.5514092,  627.33046842, 390.39255063,  65.77207635, 235.83639399,     198.38678222, 561.98493021])
-    
+            
     inps = np.array([ 2.41913440e+00,  3.34644031e+02, -1.98498080e+00,  3.36247187e+02,      1.13041108e+01 , 2.56405640e+01 , 1.11406022e+01 , 3.44152732e-01 ,     4.46205290e-01,  2.66446241e-01, -2.53424676e+01, -1.00000000e+00  ,    0.00000000e+00 , 3.77881944e+00 , 1.10770431e+02,  2e-5 ,     1.11344490e+02  ,2.81156186e+00 , 1.00000000e+00])
     shinps = []
     vExps = np.array([251.36686641,  97.23989514, 226.15032099,   4.95635432,  72.12133565, 20.26019111,  88.34122117])

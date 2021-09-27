@@ -19,7 +19,6 @@ def initForeCAT(input_values, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     # Simulation set up --------------------------------------------------------------------|
     #---------------------------------------------------------------------------------------|
-
     if not skipPkl: # option to skip this part if just using getInps for FIDO only
         # Initialize magnetic field data
         FF.init_CPU(FC.CR, Ntor, Npol)

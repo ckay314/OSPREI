@@ -2,6 +2,8 @@ import numpy as np
 import math
 import sys
 import os.path
+from scipy.interpolate import CubicSpline
+
 
 global rsun, dtor, radeg, kmRs
 rsun  =  7e10		 # convert to cm, 0.34 V374Peg
@@ -153,23 +155,23 @@ def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     
 def getThermF(CMElens, temCME, nCME, nSW):
     # Get temperatures
-    temSW = coeffTSW * np.power((CMElens[0] - CMElens[3]) / 215. / rsun, -0.58)
-    temSWf = coeffTSW * np.power(CMElens[0] / 215. / rsun, -0.58)
-    temSWb = coeffTSW * np.power((CMElens[0] - 2*CMElens[3]) / 215. / rsun, -0.58)
-    #temSWr = 0.5 * (temSWf + temSWb)
+    temSW = funT(CMElens[0] - CMElens[3])
+    temSWf = funT(CMElens[0])
+    temSWb = funT(CMElens[0] - 2*CMElens[3]) 
     rE = np.sqrt((CMElens[0] - CMElens[3])**2 + CMElens[4]**2)
-    temSWe = coeffTSW * np.power(rE / 215. / rsun, -0.58)    
+    temSWe = funT(rE) 
+    
     # Scale densities
-    nE = nSW * (CMElens[0] / rE)**2
-    #nC = nSW * ((CMElens[0] / (CMElens[0] - CMElens[3])))**2
-    nB = nSW * ((CMElens[0] / (CMElens[0] - 2*CMElens[3])))**2
+    nE = frho(CMElens[1]) / 1.67e-24 
+    nB = frho(CMElens[0] - 2*CMElens[3]) / 1.67e-24 
+    
     # average n*T of front and back
     avgNT = 0.5 * (nB * temSWb + nSW * temSWf)    
+    
     # Calc difference in pressure
-    #delP = 1.38e-16 * (nCME * temCME - 2 * nSW * temSW)
-    #delPr = 2 * 1.38e-16 * (nCME * temCME - 2 * nC* temSWr)
     delPr =  1.38e-16 * 2*(nCME * temCME - avgNT)
     delPp =  1.38e-16 * 2*(nCME * temCME - nE * temSWe)
+    
     # Calc gradients
     gradPr = delPr / CMElens[3]
     gradPp = delPp / CMElens[4]
@@ -262,16 +264,72 @@ def updateCME(CMElens, Mass):
     vol = pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6]
     rho = Mass / vol        
     return deltaCS, deltaAx, deltaCSAx, alpha, ndotz, AW, AWp, rho
+    
+def makeSW(fname):
+    SWfs = []
+    # assume n in cm^-3, v in km/s, B in nT, T in K
+    # rs in AU whether in text file or passed
+    # the output functions are in g, cm/s, G, K and take r in cm
+       
+    # check whether fname is a file or the 1 AU sw params
+    if isinstance(fname, str):
+        ext = fname[-3:]
+        if ext != 'npy':
+            data = np.genfromtxt(fname, dtype=float)
+            rs = data[:,0]  * 1.5e13
+            ns = data[:,1]
+            vs = data[:,2]
+            Brs = data[:,3]
+            Blons = data[:,4]
+            Ts = data[:,5]
+        else:
+            # dict keys
+            #'Blon[nT]', 'vclt[km/s]', 'T[K]', 'n[1/cm^3]', 'vr[km/s]', 'Br[nT]', 'vlon[km/s]', 'Bclt[nT]', 'r[AU]'
+            data = np.atleast_1d(np.load(fname, allow_pickle=True, encoding = 'latin1'))[0] 
+            rs = np.array(data['r[AU]']) * 1.5e13
+            ns = np.array(data['n[1/cm^3]'])
+            vs = np.array(data['vr[km/s]'])
+            Brs = np.array(data[ 'Br[nT]']) 
+            Blons = np.array(data['Blon[nT]']) 
+            Ts = np.array(data['T[K]'])    
+        # make functions relating r to the 5 parameters
+        frho = CubicSpline(rs,  1.67e-24 * ns, bc_type='natural')
+        fv = CubicSpline(rs, vs * 1e5, bc_type='natural')
+        fBr = CubicSpline(rs, Brs / 1e5, bc_type='natural')
+        fBlon = CubicSpline(rs, Blons / 1e5, bc_type='natural')
+        fT = CubicSpline(rs, Ts, bc_type='natural')        
+    else:
+        nSW = fname[0]
+        vSW = fname[1] * 1e5
+        BSW = fname[2]
+        TSW = fname[3]
+        rSW = fname[4] * 1.5e13
+        # n profile
+        frho = lambda x: 1.67e-24 * nSW * (rSW/x)**2        
+        # assume constant v
+        fv = lambda x: vSW
+        # B profile
+        BphiBr = 2.7e-6 * rSW  / vSW 
+        Br_rSW = BSW / np.sqrt(1+BphiBr**2)
+        # scale Br based on distance
+        fBr = lambda x: Br_rSW * (rSW/x)**2  / 1e5   
+        # lon = Br * parker factor
+        fBlon = lambda x: Br_rSW * (rSW/x)**2 * 2.7e-6 * x / vSW  / 1e5                   
+        # T profile
+        fT = lambda x: TSW * np.power(x/rSW, -0.58)    
+    return [frho, fv, fBr, fBlon, fT]  
+
                 
     
 
 # -------------- main function ------------------
-def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None):
+def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False):
     
     Elat      = Epos[0]
     Elon      = Epos[1]
     Er        = Epos[2] *7e10
     Erotrate  = Epos[3]  # should be in deg/sec
+    
     CMElat     = invec[0]
     CMElon     = invec[1]
     CMEtilt    = invec[2]    
@@ -283,15 +341,24 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
     deltap     = invec[8]
     rFront     = invec[9] * rsun
     Bscale     = invec[10]
-    n1AU       = invec[11]
-    vSW        = invec[12] * 1e5
-    B1AU       = invec[13] # may not actually be 1AU if rFinal isn't
-    Cd         = invec[14]
-    tau        = invec[15] # 1 to mimic Lundquist
-    cnm        = invec[16] # 1.927 for Lundquist
-    temScale   = invec[17] 
-    fT         = invec[18] - 1 # 0 for isothermal, 2./3 for adiabatic
+    Cd         = invec[11]
+    tau        = invec[12] # 1 to mimic Lundquist
+    cnm        = invec[13] # 1.927 for Lundquist
+    temScale   = invec[14] 
+    fT         = invec[15] - 1 # 0 for isothermal, 2./3 for adiabatic
     
+    if flagScales:
+        CMEB = invec[10] / 1e5
+        CMET = invec[14]
+    
+    if not isinstance(SWparams, str):    
+        SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], Er/1.5e13]
+    global funT, frho
+    SWfs = makeSW(SWparams)
+    frho, fv, fBr, fBlon, funT = SWfs[0], SWfs[1], SWfs[2], SWfs[3], SWfs[4]
+    #n1AU = frho(Er) / 1.67e-24
+    vSW  = fv(rFront)
+        
     writeFile = False
     if name != 'nosave':
         writeFile = True
@@ -304,38 +371,42 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
     #CMElens = [rFront, rEdge, d, br, bp, a, c, rXCent]
     CMElens[0] = rFront
     alpha, ndotz, rho = initCMEparams(deltax, deltap, AW, AWp, CMElens, Mass)
-        
-    # B1AU is the total magnetic field strength at rFinal
-    # need to split into Br and Bphi
-    BphiBr = 2.7e-6 * Er  / vSW 
-    Br1AU = B1AU / np.sqrt(1+BphiBr**2)
-    # Initial Solar Wind Properties
-    Bsw0 = Br1AU * (Er/CMElens[0])**2 / 1e5    
-    Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
-    
+            
+    thisR = CMElens[0] - CMElens[3]
+    sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
+    avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
+    Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
+    rhoSWn = frho(CMElens[0])
+    rhoSWe = frho(CMElens[1])
         
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
     B0 = Bscale * np.sqrt(Btot2) / deltap / tau
-    #B0 = Bscale * Bsw0 / deltap / tau
+    if flagScales: B0 = CMEB/ deltap / tau
+    
     B0scaler = B0 * deltap**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
     initcs = CMElens[3] * CMElens[4]
 
     # get CME temperature based on expected SW temp at center of nose CS
-    global coeffTSW 
-    coeffTSW = .62e5 #6.2e4 is default 2.5e4 for PSP
-    temSW = coeffTSW * np.power((CMElens[0] - CMElens[3]) / 215. / rsun, -0.58)
+    temSW = funT(CMElens[0] - CMElens[3])
     temCME = temScale * temSW
+    if flagScales: temCME = CMET
     temscaler = np.power(CMElens[3] * CMElens[4] * initlen , fT) * temCME
+    
+    # use to pull out inputs for uniform B/T across multiple cases instead
+    # of using B/Tscales
+    #print (B0*deltap*tau, temCME)
 
     # Set up the initial velocities
     if fscales == None:
         if pan: 
             fscales = [1., 1.]
-        else:
+        elif conv:
             fscales = [0., 0.]
+        else:
+            fscales = [0.5, 0.5]
     vs = IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales)    
             
     # set up whether using path functions or simple orbit
@@ -346,8 +417,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
         fLat = satfs[0]
         fLon = satfs[1]
         fR   = satfs[2]
-    
-    
+        
     printR = rFront
     inCME = False
     prevmin = 9999.
@@ -403,14 +473,12 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
         
-        #print (CMElens[0]/rsun, CMElens[3]/rsun, aTotNose, aTotEdge, aBr)
         # Update velocities
         vs += totAccels * dt
         
         # Calc shape params and new AWs
         deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
         if alpha < 0: 
-            #print (CMElens/rsun)
             return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888 
                 
         # Update flux rope field parameters
@@ -424,7 +492,13 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
         nowcs = CMElens[3] * CMElens[4]
                 
         # Update solar wind properties
-        Btot2, rhoSWn, rhoSWe = updateSW(Bsw0, BphiBr, vSW, n1AU, Er, rFront, CMElens)
+        thisR = CMElens[0] - CMElens[3]
+        sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
+        avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
+        Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
+        vSW = fv(CMElens[0])
+        rhoSWn = frho(CMElens[0])
+        rhoSWe = frho(CMElens[1])
         
         if not doPath:    
             Elon += Erotrate * dt
@@ -451,6 +525,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
             outCnms.append(cnm)
             outns.append(rho/1.67e-24)
             outTems.append(np.log10(temCME))
+            
             if True:
                 printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, temCME, B0*1e5]
                 if not silent:
@@ -533,6 +608,7 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
                     
                 if writeFile: f1.write(outstuff2+'\n')
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
+                # rm a not from this after testing
                 if not silent:
                     print ('Transit Time:     ', TT)
                     print ('Final Velocity:   ', vs[0]/1e5)
@@ -551,84 +627,28 @@ def getAT(invec, Epos, silent=False, fscales=None, pan=False, csTens=True, therm
         
 
 if __name__ == '__main__':
-    # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, deltaCA, CMEr0, Bscale, nSW, vSW, BSW, Cd, tau, cnm]        
-    # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth
-    '''invecS = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 2, 1.333]
-    invecSiso = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 0.095, 1]
-    invecSad = [0, 0, 0, 600, 5, 30, 10, 0.7,  0.7, 10, 2, 6.9, 440, 5.7, 1,  1, 1.927, 36, 1.6667]
+    # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, Bscale, Cd, tau, cnm, Tscale, gammaT]   
+    # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth    
+    # SWparams = [nSW, vSW, BSW, TSW] at Eradius
     
-    invecF = [0, 0, 0, 1250, 10, 45, 15, 0.7, 0.7, 10, 8, 6.9, 440, 5.7, 1., 1,  1.927, 4, 1.333]
-    invecFiso = [0, 0, 0, 1250, 10, 45, 15, 0.7, 0.7, 10, 8, 6.9, 440, 5.7, 1., 1,  1.927, 0.16, 1]
-    invecFad = [0, 0, 0, 1250, 10, 45, 15, 0.7, 0.7, 10, 8, 6.9, 440, 5.7, 1., 1,  1.927, 230., 1.6667]
+    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 4, 1.0, 1., 1.927, 2, 1.33] # use with flagScales = False
+    invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 865, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 4/2 B/T scaling of noHSS
+    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 433, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 2/2 B/T scaling of noHSS
     
-    invecE = [0, 0, 0, 2000, 50, 60, 20, 0.7, 0.7, 10, 14, 6.9, 440, 5.7, 1, 1, 1.927, 6, 1.333]
-    invecEiso = [0, 0, 0, 2000, 50, 60, 20, 0.7, 0.7, 10, 14, 6.9, 440, 5.7, 1, 1, 1.927, 0.227, 1]
-    invecEad = [0, 0, 0, 2000, 50, 60, 20, 0.7, 0.7, 10, 14, 6.9, 440, 5.7, 1, 1, 1.927, 265, 1.6667]
+    satParams = [0.0, 00.0, 215.0, 0.0]
+    SWparams = [5.0, 440, 6.9, 6.2e4]
     
-    satParams = np.array([0, 0, 213.0, 0*1.141e-05])
+    fname0 = 'SWnoHSS.dat'
+    fname1 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=2.375days.npy'
+    fname2 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=3.000days.npy'
+    fname3 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=3.625days.npy'
+    fname4 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=4.250days.npy'
+    fname5 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=4.924days.npy'
+    fname6 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=5.500days.npy'
+    fnames = [fname0, fname1, fname2, fname3, fname4, fname5, fname6]
     
-    invecPSP = [6.4, 324.3, -32.0, 300, 0.3, 30, 10, 0.7, 1.0, 20, 4, 6.9, 450, 5.7, 1,  1, 1.927, 4, 1.2]
-    satParamsPSP = np.array([2.43,314., 111.8, 0*1.141e-05])
-   
-    # fscales -> 0:SS 1:conv
-    outs, Elon, vs, estDur, thetaT, thetaP = getAT(invecF, satParams, fscales=[0.5,0.5], name='temp')
+    outnames = ['HSS_noHSS', 'HSS_00_8e10_1', 'HSS_00_8e10_2', 'HSS_00_8e10_3', 'HSS_00_8e10_4', 'HSS_00_8e10_5', 'HSS_00_8e10_6' ]
     
-    lets = ['newS','newF','newE']
-    invecs = [invecS, invecF, invecE]'''
-    i = 0
-    '''getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'S10T')
-    getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'S1DT')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'S20T')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'S2DT')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'S30T')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'S3DT')
-    getAT(invecs[i], satParams, pan=False, dragOff=True, thermOff=False, name=lets[i]+'S40T')
-    getAT(invecs[i], satParams, pan=False, dragOff=False, thermOff=False, name=lets[i]+'S4DT')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'P10T')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'P1DT')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'P20T')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'P2DT')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'P30T')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'P3DT')
-    getAT(invecs[i], satParams, pan=True, dragOff=True, thermOff=False, name=lets[i]+'P40T')
-    getAT(invecs[i], satParams, pan=True, dragOff=False, thermOff=False, name=lets[i]+'P4DT')
-    
-    getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'S100')
-    getAT(invecs[i], satParams, pan=False, csOff=True, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'S1D0')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'S200')
-    getAT(invecs[i], satParams, pan=False, csTens=False, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'S2D0')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'S300')
-    getAT(invecs[i], satParams, pan=False, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'S3D0')
-    getAT(invecs[i], satParams, pan=False, dragOff=True, thermOff=True, name=lets[i]+'S400')
-    getAT(invecs[i], satParams, pan=False, dragOff=False, thermOff=True, name=lets[i]+'S4D0')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'P100')
-    getAT(invecs[i], satParams, pan=True, csOff=True, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'P1D0')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'P200')
-    getAT(invecs[i], satParams, pan=True, csTens=False, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'P2D0')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'P300')
-    getAT(invecs[i], satParams, pan=True, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'P3D0')
-    getAT(invecs[i], satParams, pan=True, dragOff=True, thermOff=True, name=lets[i]+'P400')
-    getAT(invecs[i], satParams, pan=True, dragOff=False, thermOff=True, name=lets[i]+'P4D0')
-    
-    # midpoint IVD
-    getAT(invecs[i], satParams, fscales=[0.5,0.5],  csOff=True, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'M10T')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csOff=True, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'M1DT')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csTens=False, axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'M20T')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csTens=False, axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'M2DT')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], axisOff=True, dragOff=True, thermOff=False, name=lets[i]+'M30T')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], axisOff=True, dragOff=False, thermOff=False, name=lets[i]+'M3DT')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=True, thermOff=False, name=lets[i]+'M40T')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=False, thermOff=False, name=lets[i]+'M4DT')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csOff=True, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'M100')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csOff=True, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'M1D0')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csTens=False, axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'M200')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], csTens=False, axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'M2D0')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], axisOff=True, dragOff=True, thermOff=True, name=lets[i]+'M300')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], axisOff=True, dragOff=False, thermOff=True, name=lets[i]+'M3D0')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=True, thermOff=True, name=lets[i]+'M400')
-    getAT(invecs[i], satParams, fscales=[0.5,0.5], dragOff=False, thermOff=True, name=lets[i]+'M4D0')'''
-    
-    invecs = [-10.75800288670112, 67.99505519449038, 31.037849604399085, 500.0, 2.0, 29.999999824046416, 13.99999988532493, 0.5, 0.7, 20.00007302455604, 1.5, 5.0, 400, 6.9, 1.0, 1.5, 1.927, 3.0, 1.33]
-    satParams = [0.0, 70.0, 212.0, 0.0]
-    getAT(invecs, satParams, fscales=[0.5,0.5])  
+    for i in range(7):
+        getAT(invecs, satParams, fnames[i], silent=True, flagScales=True, name=outnames[i])  
     
