@@ -36,7 +36,8 @@ def setupOSPREI():
     try:
         date = input_values['date']
     except:
-        sys.exit('Need name of magnetogram/date to run!!!')    
+        date = '99999999'
+        #sys.exit('Need name of magnetogram/date to run!!!')    
             
     # Pull in other values from allinputs
     # possible_vars = ['suffix', 'nRuns']   
@@ -92,33 +93,48 @@ def setupOSPREI():
             flag1DSW  = True
             global SWfile
             SWfile = temp[1]
-        
+    
+    # check if we have a date if models includes ForeCAT
+    # can technically run without if don't need background pickle
+    global noDate
+    noDate = date == '99999999'
+    if noDate:
+        if models in ['FC', 'ALL']:
+            sys.exit('Need name of magnetogram/date to run!!!') 
+        else:
+            print ('Running without a given date')
+    
+    if not noDate:        
+        # get the actual time for the given string
+        yr  = int(date[0:4])
+        mon = int(date[4:6])
+        day = int(date[6:])
+        # Check if we were given a time
+        try:
+            hrs, mins = int(time[:2]), int(time[3:])
+        except:
+            hrs, mins = 0, 0
+        global dObj, Doy
+        dObj = datetime.datetime(yr, mon, day,hrs,mins)
+        dNewYear = datetime.datetime(yr, 1, 1, 0,0)
+        DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
+        print('Simulation starts at '+dObj.strftime('%Y %b %d %H:%M '))
                         
-    # get the actual time for the given string
-    yr  = int(date[0:4])
-    mon = int(date[4:6])
-    day = int(date[6:])
-    # Check if we were given a time
-    try:
-        hrs, mins = int(time[:2]), int(time[3:])
-    except:
-        hrs, mins = 0, 0
-    global dObj, Doy
-    dObj = datetime.datetime(yr, mon, day,hrs,mins)
-    dNewYear = datetime.datetime(yr, 1, 1, 0,0)
-    DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
-    print('Simulation starts at '+dObj.strftime('%Y %b %d %H:%M '))
-            
-            
     global thisName
-    thisName = date+suffix
+    if noDate:
+        thisName = suffix
+    else:
+        thisName = date+suffix
     print('Running '+str(nRuns)+' OSPREI simulation(s) for '+thisName)
 
     # See if we have a directory for output, create if not
     # I save things in individual folders, but you can dump it whereever
     # by changing Dir
     global Dir
-    Dir = mainpath+date
+    if noDate:
+        Dir = mainpath+'NoDate'
+    else:
+        Dir = mainpath+date
     if not os.path.exists(Dir):
         os.mkdir(Dir)
     
@@ -506,6 +522,9 @@ def makeCMEarray():
     if 'FRTscale'  in input_values: CME.Tscale = float(input_values['FRTscale'])
     if 'IVDf1'  in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2'  in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
+    if 'IVDf'  in input_values: 
+            CME.IVDfs[0] = float(input_values['IVDf'])
+            CME.IVDfs[1] = float(input_values['IVDf'])
     if 'Gamma'  in input_values: CME.gamma = float(input_values['Gamma'])
     if 'SWn'    in input_values: CME.nSW = float(input_values['SWn'])
     if 'SWv'    in input_values: CME.vSW = float(input_values['SWv'])
@@ -615,12 +634,19 @@ def goANTEATR(makeRestart=False, satPath=False):
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile
+            
         
         # high fscales = more convective like
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, flagScales=flagScales)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales)
+        
+        # update background SW params to current values
+        # will do nothing if using given values but needed for
+        # 1D profile to make FIDO-SIT happy
+        CME.nSW, CME.vSW, CME.BSW = SWparams[0], SWparams[1], SWparams[2]
+        
         
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
@@ -669,8 +695,9 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.t = TotTime
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
-            dImp = dObj + datetime.timedelta(days=TotTime)
-            print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+            if not noDate:
+                dImp = dObj + datetime.timedelta(days=TotTime)
+                print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
             print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
             
                              

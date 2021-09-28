@@ -324,7 +324,7 @@ def makeSW(fname):
 
 # -------------- main function ------------------
 def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False):
-    
+        
     Elat      = Epos[0]
     Elon      = Epos[1]
     Er        = Epos[2] *7e10
@@ -378,7 +378,7 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
     Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
     rhoSWn = frho(CMElens[0])
     rhoSWe = frho(CMElens[1])
-        
+    
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
     B0 = Bscale * np.sqrt(Btot2) / deltap / tau
@@ -615,9 +615,10 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
                     print ('CME nose dist:    ', CMElens[0]/7e10)
                     print ('Earth longitude:  ', Elon)
                     print ('Est. Duration:    ', estDur)
-                    
+                # convenient way to pass SW params if using functions
+                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5]    
                 inCME = True   
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems]), Elon, vs, estDur, thisPsi, parat  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems]), Elon, vs, estDur, thisPsi, parat, SWparams 
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
@@ -632,7 +633,8 @@ if __name__ == '__main__':
     # SWparams = [nSW, vSW, BSW, TSW] at Eradius
     
     #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 4, 1.0, 1., 1.927, 2, 1.33] # use with flagScales = False
-    invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 865, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 4/2 B/T scaling of noHSS
+    invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 2163, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 10/2 B/T scaling of noHSS
+    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 865, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 4/2 B/T scaling of noHSS
     #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 433, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 2/2 B/T scaling of noHSS
     
     satParams = [0.0, 00.0, 215.0, 0.0]
@@ -649,6 +651,11 @@ if __name__ == '__main__':
     
     outnames = ['HSS_noHSS', 'HSS_00_8e10_1', 'HSS_00_8e10_2', 'HSS_00_8e10_3', 'HSS_00_8e10_4', 'HSS_00_8e10_5', 'HSS_00_8e10_6' ]
     
-    for i in range(7):
-        getAT(invecs, satParams, fnames[i], silent=True, flagScales=True, name=outnames[i])  
+    #for i in range(7):
+    #    getAT(invecs, satParams, fnames[i], silent=True, flagScales=True, name=outnames[i])  
+    
+    i=0
+    getAT(invecs, satParams, SWparams, silent=False, flagScales=True)  
+        
+    
     

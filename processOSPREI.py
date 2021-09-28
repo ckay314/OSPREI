@@ -99,19 +99,21 @@ class EnsRes:
 def txt2obj(GCStime):
     ResArr = {}
     
-    global yr, mon, day, DoY
-    yr  = int(OSP.date[0:4])
-    mon = int(OSP.date[4:6])
-    day = int(OSP.date[6:])
-    # Check if we were given a time
-    try:
-        hrs, mins = int(OSP.time[:2]), int(OSP.time[3:])
-    except:
-        hrs, mins = 0, 0
-    dObj = datetime.datetime(yr, mon, day,hrs,mins)
-    dNewYear = datetime.datetime(yr, 1, 1, 0,0)
-    DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
-    
+    if not OSP.noDate:
+        global yr, mon, day, DoY
+        yr  = int(OSP.date[0:4])
+        mon = int(OSP.date[4:6])
+        day = int(OSP.date[6:])
+        # Check if we were given a time
+        try:
+            hrs, mins = int(OSP.time[:2]), int(OSP.time[3:])
+        except:
+            hrs, mins = 0, 0
+        dObj = datetime.datetime(yr, mon, day,hrs,mins)
+        dNewYear = datetime.datetime(yr, 1, 1, 0,0)
+        DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
+    else: 
+        DoY = 0 # needed for Kp calc
 
     if OSP.doFC:
         FCfile = OSP.Dir+'/ForeCATresults'+OSP.thisName+'.dat'
@@ -709,8 +711,8 @@ def makeDragless(ResArr):
     else:
         axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.1f}'.format(ResArr[0].ANTdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.1f}'.format(ResArr[0].ANTdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
         axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].ANTvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
         axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(ResArr[0].ANTvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[-1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
@@ -910,7 +912,10 @@ def makeAThisto(ResArr):
         if (not ResArr[key].miss) and (not ResArr[key].fail):
             all_vFs.append(ResArr[key].ANTvFs[-1])
             all_vExps.append(ResArr[key].ANTvCSrs[-1])
-            all_TTs.append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)
+            if OSP.doFC:
+                all_TTs.append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)
+            else:
+                all_TTs.append(ResArr[key].ANTtimes[-1])                
             all_durs.append(ResArr[key].ANTdur)
             all_Bfs.append(ResArr[key].ANTBpols[-1])
             all_Bms.append(ResArr[key].ANTBtors[-1])
@@ -937,11 +942,14 @@ def makeAThisto(ResArr):
         if i != 2:
             axes[i].text(0.97, 0.92, fmts[i].format(mean)+'$\pm$'+fmts[i].format(std)+ ' '+units[i], horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
         else:
-            base = datetime.datetime(yr, 1, 1, 0, 0)
-            date = base + datetime.timedelta(days=(DoY+mean))   
-            dateLabel = date.strftime('%b %d %H:%M')
-            axes[i].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+            if not OSP.noDate:
+                base = datetime.datetime(yr, 1, 1, 0, 0)
+                date = base + datetime.timedelta(days=(DoY+mean))   
+                dateLabel = date.strftime('%b %d %H:%M')
+                axes[i].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
             axes[i].text(0.97, 0.82, fmts[i].format(mean)+'$\pm$'+'{:.2f}'.format(std)+' days', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+
+                
                        
     for i in range(9): axes[i].set_ylim(0, maxcount*1.2)
         
@@ -955,14 +963,14 @@ def makeISplot(ResArr):
     maxdate = None
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None: #not ResArr[key].miss:
-            #datesNUM = ResArr[key].FIDOtimes+DoY   
-            #dates = datetime.datetime(yr, 1, 1) + datetime.timedelta(datesNUM - 1)
-            base = datetime.datetime(yr, 1, 1, 0, 0)
-            #dates = ResArr[key].FIDOtimes
-            if not OSP.doANT:
-                dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes])
+            if OSP.noDate:
+                dates = ResArr[key].FIDOtimes
             else:
-                dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes])
+                base = datetime.datetime(yr, 1, 1, 0, 0)
+                if not OSP.doANT:
+                    dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes])
+                else:
+                    dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes])
             if mindate is None: 
                 mindate = np.min(dates)
                 maxdate = np.max(dates)
@@ -982,7 +990,10 @@ def makeISplot(ResArr):
             if np.max(dates) > maxdate: maxdate = np.max(dates)        
     
     # Plot the ensemble seed
-    dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
+    if OSP.noDate:
+        dates = ResArr[0].FIDOtimes
+    else:
+        dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
     axes[0].plot(dates, ResArr[0].FIDOBs, '--', linewidth=4, color='b', zorder=10)
     axes[1].plot(dates, ResArr[0].FIDOBxs, '--', linewidth=4, color='b', zorder=10)
     axes[2].plot(dates, ResArr[0].FIDOBys, '--', linewidth=4, color='b', zorder=10)
@@ -1009,26 +1020,27 @@ def makeISplot(ResArr):
     axes[4].set_ylabel('Kp')
     axes[5].set_ylabel('v (km/s)')
     
-    # Set up date format
-    maxduration = (maxdate - mindate).days+(maxdate - mindate).seconds/3600./24.
-    startplot = mindate -datetime.timedelta(hours=3)
-    endplot = maxdate +datetime.timedelta(hours=3)
-    hr0 = 0
-    if startplot.hour > 12: hr0=12
-    pltday0 = datetime.datetime(startplot.year, startplot.month, startplot.day, hr0, 0)
-    pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration+1)*2+1)])
-    axes[4].set_xticks(pltdays[1:])
-    myFmt = mdates.DateFormatter('%Y %b %d %H:%M ')
-    axes[4].xaxis.set_major_formatter(myFmt)
-    axes[4].set_xlim([startplot, endplot])
+    if not OSP.noDate:
+        # Set up date format
+        maxduration = (maxdate - mindate).days+(maxdate - mindate).seconds/3600./24.
+        startplot = mindate -datetime.timedelta(hours=3)
+        endplot = maxdate +datetime.timedelta(hours=3)
+        hr0 = 0
+        if startplot.hour > 12: hr0=12
+        pltday0 = datetime.datetime(startplot.year, startplot.month, startplot.day, hr0, 0)
+        pltdays = np.array([pltday0 + datetime.timedelta(hours=((i)*12)) for i in range(int(maxduration+1)*2+1)])
+        axes[4].set_xticks(pltdays[1:])
+        myFmt = mdates.DateFormatter('%Y %b %d %H:%M ')
+        axes[4].xaxis.set_major_formatter(myFmt)
+        axes[4].set_xlim([startplot, endplot])
     
-    # take out ticks if too many
-    for i in range(5):
-        yticks = axes[i].yaxis.get_major_ticks()
-        if len(yticks) > 6:
-            ticks2hide = np.array(range(len(yticks)-1))[::2]
-            for j in ticks2hide:
-                yticks[j].label1.set_visible(False)
+        # take out ticks if too many
+        for i in range(5):
+            yticks = axes[i].yaxis.get_major_ticks()
+            if len(yticks) > 6:
+                ticks2hide = np.array(range(len(yticks)-1))[::2]
+                for j in ticks2hide:
+                    yticks[j].label1.set_visible(False)
                 
     if ObsData is not None:
         axes[0].plot(ObsData[0,:], ObsData[1,:], linewidth=4, color='r')
@@ -1039,7 +1051,7 @@ def makeISplot(ResArr):
         axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
 
     
-    fig.autofmt_xdate()
+    if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
      
     #plt.show()
@@ -1234,11 +1246,12 @@ def makeallIShistos(ResArr):
     fitBz = norm.fit(all_Bz)
     fitKp = norm.fit(all_Kp)
     
-    base = datetime.datetime(yr, 1, 1, 0, 0)
-    # add in FC time (if desired)
-    date = base+datetime.timedelta(days=(fitAT[0]+DoY))
-    dateLabel = date.strftime('%b %d %H:%M')
-    axes[0].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(fitAT[1]*24)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes) 
+    if not OSP.noDate:
+        base = datetime.datetime(yr, 1, 1, 0, 0)
+        # add in FC time (if desired)
+        date = base+datetime.timedelta(days=(fitAT[0]+DoY))
+        dateLabel = date.strftime('%b %d %H:%M')
+        axes[0].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(fitAT[1]*24)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes) 
     axes[0].text(0.97, 0.82, '{:.2f}'.format(fitAT[0])+'$\pm$'+'{:.2f}'.format(fitAT[1]) + ' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
 
     #axes[0].text(0.97, 0.95, '{:4.1f}'.format(fitAT[0])+'$\pm$'+'{:4.1f}'.format(fitAT[1]), horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
@@ -1509,12 +1522,13 @@ def makeAllprob(ResArr):
                     if thisCell < 0: thisCell=0
                     if thisCell >= nBins: thisCell = nBins-1
                     allArr[j,thisCell,tidx[i]] += 1
-    # convert x axis to dates
-    labelDays = gridtimes[np.where(2*gridtimes%1 == 0)]
-    base = datetime.datetime(yr, 1, 1, 0, 0)
-    dates = np.array([base + datetime.timedelta(days=i) for i in labelDays])    
-    dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in dates]    
-    plotStart = base + datetime.timedelta(days=(gridtimes[0]))
+    if not OSP.noDate:
+        # convert x axis to dates
+        labelDays = gridtimes[np.where(2*gridtimes%1 == 0)]
+        base = datetime.datetime(yr, 1, 1, 0, 0)
+        dates = np.array([base + datetime.timedelta(days=i) for i in labelDays])    
+        dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in dates]    
+        plotStart = base + datetime.timedelta(days=(gridtimes[0]))
     
     allPerc = allArr/float(counter)*100
     
@@ -1552,9 +1566,12 @@ def makeAllprob(ResArr):
         axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=3, color='r', zorder=5)
         
     # add in ensemble seed
-    dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
-    for i in range(len(dates2)):
-         dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
+    if OSP.noDate:
+        dates2 = ResArr[0].FIDOtimes
+    else:
+        dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
+        for i in range(len(dates2)):
+             dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
     thiscol = 'w'
     axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=6, color=thiscol, zorder=6)
     axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=6, color=thiscol, zorder=6)
@@ -1580,8 +1597,9 @@ def makeAllprob(ResArr):
     axes[4].set_ylabel('Kp')
     axes[5].set_ylabel('v (km/s)')
            
-    plt.xticks(labelDays, dateLabels)
-    fig.autofmt_xdate()
+    if not OSP.noDate: 
+        plt.xticks(labelDays, dateLabels)
+        fig.autofmt_xdate()
     plt.subplots_adjust(left=0.2,right=0.95,top=0.95,bottom=0.15, hspace=0.15)
     
     ax0pos = axes[0].get_position()
@@ -1616,9 +1634,14 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         newGrid = np.zeros([ncalc,ncalc,nThings])
         
         # pull in things from ResArr
-        thisLat = ResArr[key].FClats[-1]
-        thisLon = ResArr[key].FClons[-1]
-        thisTilt  = ResArr[key].FCtilts[-1]
+        if OSP.doFC:
+            thisLat = ResArr[key].FClats[-1]
+            thisLon = ResArr[key].FClons[-1]
+            thisTilt  = ResArr[key].FCtilts[-1]
+        else:
+            thisLat = float(OSP.input_values['CMElat'])
+            thisLon = float(OSP.input_values['CMElon'])
+            thisTilt = float(OSP.input_values['CMEtilt'])
         thisAW    = ResArr[key].ANTAWs[-1]
         thisAWp   = ResArr[key].ANTAWps[-1]
         thisR     = ResArr[key].ANTrs[-1]
