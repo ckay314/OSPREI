@@ -233,8 +233,11 @@ def txt2obj(GCStime):
             if len(SITdata.shape) > 1:
                 SITids = SITdata[:,0].astype(int)
             else:
-                SITids = np.array([0]) # single case
-                SITdata = SITdata.reshape([1,-1])
+                if np.size(SITdata) != 0:
+                    SITids = np.array([0]) # single case
+                    SITdata = SITdata.reshape([1,-1])
+                else:
+                    SITids = []
         
         for i in unFIDOids:
             if OSP.doFC or OSP.doANT:
@@ -295,7 +298,7 @@ def txt2obj(GCStime):
                 if int(row[0]) in ResArr.keys():
                     ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
-        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'Gamma', 'IVDf1', 'IVDf2', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
+        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'Gamma', 'IVDf1', 'IVDf2', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))      
     return ResArr
 
@@ -398,15 +401,15 @@ def makeCPAplot(ResArr):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.'+figtag)
     
 def makeCPAhist(ResArr):
-    fig = plt.figure(constrained_layout=True, figsize=(12,8))
-    gs = fig.add_gridspec(3, 4)
+    fig = plt.figure(constrained_layout=True, figsize=(8,8))
+    gs = fig.add_gridspec(3, 3)
 
-    ax1a = fig.add_subplot(gs[0, 0:3])
-    ax1b = fig.add_subplot(gs[1, 0:3], sharex=ax1a)
-    ax1c = fig.add_subplot(gs[2, 0:3], sharex=ax1a)    
-    ax2a = fig.add_subplot(gs[0, 3], sharey=ax1a)
-    ax2b = fig.add_subplot(gs[1, 3], sharey=ax1b, sharex=ax2a)
-    ax2c = fig.add_subplot(gs[2, 3], sharey=ax1c, sharex=ax2a)
+    ax1a = fig.add_subplot(gs[0, 0:2])
+    ax1b = fig.add_subplot(gs[1, 0:2], sharex=ax1a)
+    ax1c = fig.add_subplot(gs[2, 0:2], sharex=ax1a)    
+    ax2a = fig.add_subplot(gs[0, 2], sharey=ax1a)
+    ax2b = fig.add_subplot(gs[1, 2], sharey=ax1b, sharex=ax2a)
+    ax2c = fig.add_subplot(gs[2, 2], sharey=ax1c, sharex=ax2a)
     ax1 = [ax1a, ax1b, ax1c]
     ax2 = [ax2a, ax2b, ax2c]
     
@@ -699,22 +702,22 @@ def makeDragless(ResArr):
         fitTs    = norm.fit(all_Ts)
         
         
-        axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:2.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
         axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
         axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:4.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:4.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')        
+        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+        axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')        
     else:
         axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
         axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].ANTvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(ResArr[0].ANTvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[-1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
         axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[-1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')        
 
@@ -1281,43 +1284,44 @@ def makeallIShistos(ResArr):
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist.'+figtag)
     
-def makeEnsplot(ResArr):
-    # At max want to show variation with lat, lon, tilt, AT, v1AU
-    # duration, Bz, Kp (8 vals) but depends on what we ran
+
+def makeEnsplot(ResArr, critCorr=0.5):
     deg = '('+'$^\circ$'+')'
 
     out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
     
-    nVert = 0
     configID = 0
     if OSP.doFC: configID += 100
     if OSP.doANT: configID += 10
     if OSP.doFIDO: configID += 1
-    nVertDict = {100:9, 110:13, 111:15, 11:12, 10:10, 1:4}
+    nVertDict = {100:9, 110:14, 111:16, 11:13, 10:11, 1:4}
     nVert = nVertDict[configID]
     outDict = {100:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp'], 110:['CMElat', 'CMElon',  'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT','Kp'], 111:['CMElat', 'CMElon', 'CMEtilt', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'B', 'Bz', 'Kp'], 11:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n',  'logT', 'B', 'Bz', 'Kp'], 10:['CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEvF', 'CMEvExp','TT', 'Dur', 'n', 'logT', 'Kp'], 1:['Dur',  'B', 'Bz',  'Kp']}
-    # number of vertical plots depends on num params varied
-    nHoriz = len(varied)
     
     # get impacts, may be less than nEns
     hits = []
     for i in range(nEns):
-        if not ResArr[i].miss:
+        if (not ResArr[i].miss) and (not ResArr[i].fail):
             hits.append(i)
-    
+
+    # number of vertical plots depends on num params varied
+    nHoriz = len(varied)
+            
     # group EnsRes once to avoid doing in each plot
-    nRuns = len(hits) # might need to change to throw out misses
-    EnsVal = np.zeros([nHoriz, nRuns])
+    #nRuns = len(hits) # might need to change to throw out misses
+    EnsVal = np.zeros([nHoriz, nEns]) 
     i = 0
-    for key in hits:
+    for key in ResArr.keys():
         j = 0
         for item in varied:
-            EnsVal[j,i] = ResArr[key].EnsVal[item]
+            if item != 'CMElon':
+                EnsVal[j,key] = ResArr[key].EnsVal[item]
+            else:
+                EnsVal[j,key] = ResArr[key].EnsVal[item] - OSP.satPos[1] 
             j += 1
-        i += 1
-        
+    
     # group the results
     OSPres = {}#np.zeros([nRuns, nVert])
     for item in outDict[configID]: OSPres[item] = []
@@ -1325,7 +1329,7 @@ def makeEnsplot(ResArr):
     i = 0
     goodIDs = []
     failIDs = []
-    for key in hits:
+    for key in ResArr.keys():
         if (not ResArr[key].miss):
             if not ResArr[key].fail:
                 goodIDs.append(key)
@@ -1337,41 +1341,41 @@ def makeEnsplot(ResArr):
             if item == 'CMElat':
                 OSPres[item].append(ResArr[key].FClats[-1])
             if item == 'CMElon':
-                OSPres[item].append(ResArr[key].FClons[-1])
+                OSPres[item].append(ResArr[key].FClonsS[-1])
             if item == 'CMEtilt':
                 OSPres[item].append(ResArr[key].FCtilts[-1])
             if item == 'CMEAW':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTAWs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCAWs[-1])
             if item == 'CMEAWp':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTAWps[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCAWps[-1])
             if item == 'CMEdelAx':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTdelAxs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCdelAxs[-1])
             if item == 'CMEdelCS':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTdelCSs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCdelCSs[-1])
             if item == 'CMEvF':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTvFs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCvFs[-1])
             if item == 'CMEvExp':
-                if OSP.doANT and not ResArr[key].fail:
+                if OSP.doANT and (key in goodIDs):
                     OSPres[item].append(ResArr[key].ANTvCSrs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCvCSrs[-1])
                     
-            if (not ResArr[key].miss) and (not ResArr[key].fail):
+            if key in goodIDs:
                 if item == 'TT':
                     if OSP.doFIDO:
                         OSPres[item].append(ResArr[key].FIDOtimes[0])    
@@ -1395,69 +1399,90 @@ def makeEnsplot(ResArr):
                     OSPres[item].append(np.max(ResArr[key].FIDOBs))                                
                 if item == 'Bz':
                     OSPres[item].append(np.min(ResArr[key].FIDOBzs))
-                                    
+
     print ('Number of hits: ', len(goodIDs)) 
     print ('Mean and Standard Deviation')
     for item in outDict[configID]:
         OSPres[item] = np.array(OSPres[item])
         print (item, np.mean(OSPres[item]), np.std(OSPres[item]), np.min(OSPres[item]), np.max(OSPres[item]))  
-
-    f, a = plt.subplots(1, 1)
-    img = a.imshow(np.array([[0,1]]), cmap="turbo")
     
-    fig, axes = plt.subplots(nVert, nHoriz, figsize=(1.2*nHoriz+1,1.2*nVert+2))
-       
-    for i in range(nVert-1):
-        for j in range(nHoriz):
-            axes[i,j].set_xticklabels([])
-    for j in range(nHoriz-1):
-        for i in range(nVert):
-            axes[i,j+1].set_yticklabels([])
-    
+    # calculate correlations
+    corrs = np.zeros([nVert, nHoriz])
     for i in range(nHoriz):
         for j in range(nVert):
             if len(OSPres[outDict[configID][j]]) == nEns:
-                col = np.abs(pearsonr(EnsVal[i,:], OSPres[outDict[configID][j]])[0])*np.ones(nEns)
-                axes[j,i].scatter(EnsVal[i,:], OSPres[outDict[configID][j]], c=cm.turbo(col))            
+                col = np.abs(pearsonr(EnsVal[i,:], OSPres[outDict[configID][j]])[0])#*np.ones(nEns)
+                #axes[j,i].scatter(EnsVal[i,:], OSPres[outDict[configID][j]], c=cm.turbo(col))            
             else:
-                col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])*np.ones(len(goodIDs))
-                axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.turbo(col))
-            
-    # Take out tick marks for legibilililility
-    for i in range(nVert):
-        yticks = axes[i,0].yaxis.get_major_ticks()
-        ticks2hide = np.array(range(len(yticks)-1))[::2]
-        for j in ticks2hide:
-            yticks[j].label1.set_visible(False)      
-        yticks[-1].label1.set_visible(False)  
-        yticks[0].label1.set_visible(False)  
-    for i in range(nHoriz):
-        xticks = axes[-1,i].xaxis.get_major_ticks()
-        ticks2hide = np.array(range(len(xticks)-1))[::2]
-        for j in ticks2hide:
-            xticks[j].label1.set_visible(False)      
-        xticks[-1].label1.set_visible(False)  
-        xticks[0].label1.set_visible(False)  
-        plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
-        
-    # Add labels
-    for i in range(nHoriz): axes[-1,i].set_xlabel(myLabs[varied[i]])  
-    for j in range(nVert):  axes[j,0].set_ylabel(out2outLab[outDict[configID][j]])  
+                col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])#*np.ones(len(goodIDs))
+                #axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.turbo(col))
+            corrs[j,i] = col
+    # figure out which can be thrown out
+    goodVidx = []
+    goodHidx = []
     
-    if configID not in [1,100]:    
-        plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.1, bottom=0.15, top=0.97, right=0.99) 
-        cbar_ax = fig.add_axes([0.15, 0.04, 0.79, 0.02])    
-    if configID == 1:
-        plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.1, bottom=0.3, top=0.97, right=0.99)
-        cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02]) 
-    if configID == 100:    
-        plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.1, bottom=0.18, top=0.97, right=0.99) 
-        cbar_ax = fig.add_axes([0.15, 0.06, 0.79, 0.02])    
+    for i in range(nVert):
+        maxCorr =  np.max(corrs[i,:])
+        if maxCorr >= critCorr: goodVidx.append(i)
+
+    for i in range(nHoriz):
+        maxCorr =  np.max(corrs[:,i])
+        if maxCorr >= critCorr: goodHidx.append(i)
+    newnVert = len(goodVidx)
+    newnHoriz = len(goodHidx)
+    
+    newCorr = np.zeros([newnVert, newnHoriz])
+    for i in range(newnVert):
+        vidx = goodVidx[i]
+        newCorr[i] = corrs[vidx,goodHidx]
+    
+    newOuts = np.array(outDict[configID])[goodVidx]
+    newIns  = np.array(varied)[goodHidx]
         
+    newEnsVal = np.zeros([newnHoriz, nEns]) 
+    i = 0
+    for key in ResArr.keys():
+        j = 0
+        for item in newIns:
+            if item != 'CMElon':
+                newEnsVal[j,key] = ResArr[key].EnsVal[item]
+            else:
+                newEnsVal[j,key] = ResArr[key].EnsVal[item] - OSP.satPos[1]
+            j += 1
+            
+    f, a = plt.subplots(1, 1)
+    img = a.imshow(np.array([[0,1]]), cmap="turbo")
+    
+    fig, axes = plt.subplots(newnVert, newnHoriz, figsize=(1.5*newnHoriz,1.5*(newnVert+0.5)))
+    
+    for i in range(newnVert-1):
+        for j in range(newnHoriz):
+            axes[i,j].set_xticklabels([])
+    for j in range(newnHoriz-1):
+        for i in range(newnVert):
+            axes[i,j+1].set_yticklabels([])
+    
+    for i in range(newnHoriz):
+        for j in range(newnVert):
+            if len(OSPres[newOuts[j]]) == nEns:
+                axes[j,i].scatter(newEnsVal[i,:], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,:]))))   
+            else:
+                axes[j,i].scatter(newEnsVal[i,goodIDs], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,goodIDs])))) 
+                
+    # Rotate bottom axes labels34w34
+    for i in range(newnHoriz):
+        plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
+    
+    # Add labels
+    for i in range(newnHoriz): axes[-1,i].set_xlabel(myLabs[newIns[i]])  
+    for j in range(newnVert):  axes[j,0].set_ylabel(out2outLab[newOuts[j]])  
+       
+    plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.15, bottom=0.2, top=0.97, right=0.99)
+    cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02])    
     cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
     cb.set_label('Correlation') 
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
-    
+                    
 def makeAllprob(ResArr):
     # get the time range for full set
     mindate = None
@@ -1486,7 +1511,7 @@ def makeAllprob(ResArr):
     
     # need min/max for each parameter
     minmax = np.zeros([6,2])
-    minmax[5,0] = 350 # set v min to 350 km/s so will probably include steady state vSW range
+    minmax[5,0] = 400 # set v min to 350 km/s so will probably include steady state vSW range
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None:
             thisRes = ResArr[key]
@@ -1495,7 +1520,14 @@ def makeAllprob(ResArr):
                 thismin, thismax = np.min(allParams[i]), np.max(allParams[i]) 
                 if thismin < minmax[i,0]: minmax[i,0] = thismin
                 if thismax > minmax[i,1]: minmax[i,1] = thismax 
-    
+    # need to compare to min/max of obs data (if given)
+    if not OSP.noDate: 
+        obsIdx = [1, 2, 3, 4, 7, 6]
+        for i in range(6):
+            thismin, thismax = np.min(ObsData[obsIdx[i],:]), np.min(ObsData[obsIdx[i],:])
+            if thismin < minmax[i,0]: minmax[i,0] = thismin
+            if thismax > minmax[i,1]: minmax[i,1] = thismax
+                    
     # fill in grid
     counter = 0
     for key in ResArr.keys():
@@ -1529,7 +1561,6 @@ def makeAllprob(ResArr):
         dates = np.array([base + datetime.timedelta(days=i) for i in labelDays])    
         dateLabels = [i.strftime('%Y %b %d %H:%M ') for i in dates]    
         plotStart = base + datetime.timedelta(days=(gridtimes[0]))
-    
     allPerc = allArr/float(counter)*100
     
     cmap1 = cm.get_cmap("turbo",lut=10)
@@ -1977,7 +2008,7 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
             subGrid[:,:,i] = subGrid[:,:,i] * subGrid[:,:,1]
         allGrid[counter,:,:,:] = subGrid
         counter += 1
-    fig, axes = plt.subplots(2, 5, figsize=(10,5))
+    fig, axes = plt.subplots(2, 5, figsize=(11,6))
     cmap1 = cm.get_cmap("plasma",lut=10)
     cmap1.set_bad("k")
     # Reorder Axes
@@ -2027,14 +2058,19 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
             
         axes[i].plot(0, 0, 'o', ms=15, mfc='#98F5FF')
         if i > 4:
-            axes[i].set_xticklabels([])
+            #axes[i].set_xticklabels([])
+            axes[i].xaxis.set_ticks_position('top') 
         else:
-            axes[i].xaxis.set_ticks([-plotwid, -plotwid/2, 0, plotwid/2, plotwid])
             axes[i].tick_params(axis='x', which='major', pad=5)
-        if i not in [0,5]: axes[i].set_yticklabels([])
+            axes[i].set_xlabel('Lon ($^{\circ}$)')
+        #axes[i].xaxis.set_ticks([-plotwid, -plotwid/2, 0, plotwid/2, plotwid])
+        if i not in [0,5]: 
+            axes[i].set_yticklabels([])
+        else:
+            axes[i].set_ylabel('Lat ($^{\circ}$)')
 
     plt.xticks(fontsize=10)    
-    plt.subplots_adjust(wspace=0.1, hspace=0.18,left=0.05,right=0.95,top=0.85,bottom=0.12)    
+    plt.subplots_adjust(wspace=0.2, hspace=0.46,left=0.1,right=0.95,top=0.85,bottom=0.12)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours.png')    
 
     
@@ -2042,7 +2078,7 @@ if __name__ == '__main__':
     # set whether to save the figures as png or pdf
     # set only to 'png' or 'pdf'
     global figtag
-    figtag = 'pdf'
+    figtag = 'png'
     
     # Get all the parameters from text files and sort out 
     # what we actually ran
@@ -2104,7 +2140,6 @@ if __name__ == '__main__':
                 # Non-forecast version with more params
                 #makeSIThistos(ResArr)
                 makeallIShistos(ResArr)
-        
             # Kp probability timeline
             makeAllprob(ResArr)
 
@@ -2112,7 +2147,7 @@ if __name__ == '__main__':
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        makeEnsplot(ResArr)
+        #makeEnsplot(ResArr)
         
         # Contour plot
         makeContours(ResArr)

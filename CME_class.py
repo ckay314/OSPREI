@@ -134,6 +134,7 @@ class CME:
         self.vSW = 400
         self.nSW = 5.
         self.BSW = 6.9
+        self.tSW = 62000
         self.cs  = 49.5
         self.vA  = 55.4 
         self.Bscale = 2.

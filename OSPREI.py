@@ -25,7 +25,7 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
-np.random.seed(202104211)
+np.random.seed(20210421)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -156,7 +156,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -188,11 +188,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -291,6 +291,7 @@ def genEnsMem(runnum=0):
     if 'SWn' in input_values: CME.nSW = float(input_values['SWn'])    
     if 'SWv' in input_values: CME.vSW = float(input_values['SWv'])
     if 'SWB' in input_values: CME.BSW = float(input_values['SWB'])    
+    if 'SWT' in input_values: CME.TSW = float(input_values['SWT'])    
     if 'SWcs' in input_values: CME.cs = float(input_values['SWcs'])
     if 'SWvA' in input_values: CME.vA = float(input_values['SWvA'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
@@ -322,6 +323,9 @@ def genEnsMem(runnum=0):
         if item == 'SWB':
             CME.BSW = np.random.normal(loc=float(input_values['SWB']), scale=EnsInputs['SWB'])
             outstr += '{:6.2f}'.format(CME.BSW) + ' '
+        if item == 'SWT':
+            CME.TSW = np.random.normal(loc=float(input_values['SWT']), scale=EnsInputs['SWT'])
+            outstr += '{:8.0f}'.format(CME.TSW) + ' '
         if item == 'SWcs':
             CME.cs = np.random.normal(loc=float(input_values['SWcs']), scale=EnsInputs['SWcs'])
             outstr += '{:6.2f}'.format(CME.cs) + ' '
@@ -407,7 +411,7 @@ def goForeCAT(makeRestart=False):
     ipos, rmax = initForeCAT(input_values)
 
     # option to force PFSS so that it will scale as R^2 from 2.5 to satPos
-    if True:
+    if False:
         if ('SWB' in input_values) & (('PFSSscale' not in input_values)):
             latID = int(satPos[0]*2 + 179)
             lonID = int(satPos[1]*2)%720
@@ -415,12 +419,14 @@ def goForeCAT(makeRestart=False):
             fullBvec = np.mean(np.abs(ForceFields.B_high[-1,latID-10:latID+11,lonID-20:lonID+21][3]))
             BSS = fullBvec * (2.5/satPos[2])**2 *1e5
             FC.PFSSscale = float(input_values['SWB']) / BSS  
+            print (FC.PFSSscale)
         
     CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
     # add any ANTEATR/FIDO params to the seed case (genEnsMem will add for other cases)
     if 'SWn' in input_values: CME.nSW = float(input_values['SWn'])
     if 'SWv' in input_values: CME.vSW = float(input_values['SWv'])
     if 'SWB' in input_values: CME.BSW = float(input_values['SWB'])
+    if 'SWT' in input_values: CME.TSW = float(input_values['SWT'])
     if 'SWCd' in input_values: CME.Cd = float(input_values['SWCd'])
     if 'FRB' in input_values: CME.B0 = float(input_values['FRB'])
     if 'CMEvExp' in input_values: CME.vExp = float(input_values['CMEvExp'])
@@ -626,11 +632,12 @@ def goANTEATR(makeRestart=False, satPath=False):
             if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
             if 'SWv' in EnsInputs: CME.vSW = np.random.normal(loc=CME.vSW, scale=EnsInputs['SWv'])
             if 'SWB' in EnsInputs: CME.BSW = np.random.normal(loc=CME.BSW, scale=EnsInputs['SWB'])              
+            if 'SWT' in EnsInputs: CME.TSW = np.random.normal(loc=CME.BTW, scale=EnsInputs['SWT'])              
         Bscale, tau, cnm, Tscale = CME.Bscale, CME.tau, CME.cnm, CME.Tscale
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), Cd, tau, cnm, Tscale, gamma]
-        SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), 6.2e4]
+        SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile

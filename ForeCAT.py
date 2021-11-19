@@ -14,8 +14,7 @@ def initForeCAT(input_values, skipPkl=False):
     # Read in the filename from the command line and load the parameters -------------------|
     #---------------------------------------------------------------------------------------|
     global tprint, Ntor, Npol
-    ipos, rmax, tprint, Ntor, Npol = FC.getInps(input_values)
-
+    ipos, rmax, tprint, Ntor, Npol = FC.getInps(input_values, flagDate=skipPkl)
     #---------------------------------------------------------------------------------------|
     # Simulation set up --------------------------------------------------------------------|
     #---------------------------------------------------------------------------------------|

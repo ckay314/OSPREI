@@ -319,12 +319,172 @@ def makeSW(fname):
         fT = lambda x: TSW * np.power(x/rSW, -0.58)    
     return [frho, fv, fBr, fBlon, fT]  
 
+
+def makeEmpHSS(t, rs, noHSS):
+    # takes in t in days
+
+    # fake v profile ---------------------------------------------------------------
+    v_xc1 = 0.0613 * t**2 - 0.213 * t + 0.279
+    v_xc2 = 0.279 * t - 0.298
+    v_xb  = 0.230 * t - 0.659
+    v_xf  = 0.277 * t - 0.147 # n_xp
+    v_yp = 725 * 1e5
+    v_yl = 385 * 1e5
+    v = np.ones(len(rs)) * v_yl
+
+    # identify zones
+    idx1 = np.where((rs >= v_xb) & (rs <= v_xc1))
+    idx2 = np.where((rs >= v_xc1) & (rs <= v_xc2))
+    idx3 = np.where((rs >= v_xc2) & (rs <= v_xf))
+
+    # zone 1 linear
+    m1 = (v_yp - v_yl) / (v_xc1 - v_xb)
+    v1 = v_yl + m1 * (rs - v_xb)
+    v[idx1] = v1[idx1]
+    # zone 2 flat
+    v[idx2] = v_yp
+    # zone 1 linear
+    m3 = (v_yl - v_yp) / (v_xf - v_xc2)
+    v3 = v_yp + m3 * (rs - v_xc2)
+    v[idx3] = v3[idx3]
+    
+    # fake n profile ---------------------------------------------------------------
+    n_xb = 0.143 * t - 0.371
+    n_xp = 0.277 * t - 0.147
+    n_yl = -0.0062 * t**2 + 0.0239 * t + 0.201
+    n_yp = 0.461 * t + 0.158
+    n_df = 2.676 * t**2 - 10.30 * t + 13.68
+    scale_it = np.ones(len(rs))
+
+    # identify zones
+    idx1 = np.where((rs>=n_xb) & (rs<=(v_xc1)))[0]
+    idx2 = np.where((rs>=(v_xc1)) & (rs<=(v_xc2)))[0]
+    idx3 = np.where((rs>=(v_xc2)) & (rs<=(n_xp-0.045)))[0]
+    idx4 = np.where((rs>=(n_xp-0.045)) & (rs<=n_xp))[0]
+    idx5 = np.where(rs>=n_xp)[0]
+
+    # zone 1 linear
+    m1 = (1. - n_yl) / (v_xc1 - n_xb)
+    scl1 = 1- m1 * (rs - n_xb)
+    scale_it[idx1] = scl1[idx1]
+    # zone 2 linear
+    m2 = n_yl / (v_xc2-v_xc1)
+    scl2 = n_yl + m2 * (rs - (v_xc1))
+    scale_it[idx2] = scl2[idx2]
+    # zone 3 linear
+    m3 = (0.9*(n_yp) - 2 * n_yl) / (n_xp - 0.045 - (v_xc2))
+    scl3 = 2*n_yl + m3 * (rs - (v_xc2))
+    scale_it[idx3] = scl3[idx3]
+    # zone 4 linear
+    m4 = 0.1*n_yp / 0.045
+    scl4 = 0.9*n_yp + m4 * (rs - n_xp + 0.045)
+    scale_it[idx4] = scl4[idx4]
+    # zone 5 exponential
+    scl5 = 1+(n_yp - 1) * np.exp(-n_df * (rs-n_xp))
+    scale_it[idx5] = scl5[idx5]
+
+    # scale the HSS free case
+    n = scale_it * noHSS[0]
+
+    # fake Br profile ---------------------------------------------------------------
+    xp = 0.283 * t - 0.213
+    yp = 0.0850 * t**2 + 0.0852 * t + 0.620
+    xl = 0.307 * t - 0.862
+    yl = -0.224 * t + 1.679
+    xm = 0.342 * t - 0.757
+    scale_it = np.ones(len(rs))
+
+    # identify zones
+    idx1 = np.where((rs>=(xl - (xm-xl))) & (rs<=xm))[0]
+    idx2 = np.where(rs>=xm)[0]
+
+    # zone 1 - 2nd order polynomial
+    a2 = (1-yl) / (xl - xm)**2
+    a1 = -2*a2*xl
+    a0 = yl + a2*xl**2
+    scl1 = a2*rs**2 + a1*rs + a0
+    scale_it[idx1] = scl1[idx1]
+    # zone 2 - normal dist
+    scl2 = 1+(yp - 1) * np.exp(-(rs-xp)**2 / ((xp-xm)/2.5)**2)
+    scale_it[idx2] = scl2[idx2]
+   
+    Br = scale_it * noHSS[2]
+
+
+    # fake Bp profile ---------------------------------------------------------------
+    xp = 0.253 * t - 0.0711
+    yp = 0.0916 * t**2 - 0.185*t + 1.054
+    xm = 0.241 * t - 0.151
+    xl = 0.0609 * t**2 - 0.281*t + 0.581
+    yl = -0.155 * t + 1.154
+    scale_it = np.ones(len(rs))
+
+    # identify zones
+    idx1 = np.where((rs>=(xl - (xm-xl))) & (rs<=xm))[0]
+    idx2 = np.where(rs>=xm)[0]
+
+    # zone 1 - 2nd order polynomial
+    a2 = (1-yl) / (xl - xm)**2
+    a1 = -2*a2*xl
+    a0 = yl + a2*xl**2
+    scl1 = a2*rs**2 + a1*rs + a0
+    scale_it[idx1] = scl1[idx1]
+    # zone 2 - normal dist
+    scl2 = 1+(yp - 1) * np.exp(-(rs-xp)**2 / ((xp-xm)/1.5)**2)
+    scale_it[idx2] = scl2[idx2]
+   
+    Blon = scale_it * noHSS[3]
+
+
+    # fake T profile ---------------------------------------------------------------
+    T_x1 = 0.286*t - 0.894
+    T_x2 = 0.318*t - 0.860
+    T_x4 = 0.303*t - 0.362
+    T_x5 = 0.302*t - 0.248
+    T_x3 = T_x4 - (T_x5 - T_x4)
+    T_y1 = -0.0787*t**2 + 0.454*t + 2.813
+    T_y2 = 0.0824*t**2 + 0.631*t + 2.032
+    scale_it = np.ones(len(rs))
+
+    # identify zones
+    idx1 = np.where((rs>=T_x1) & (rs<=T_x2))[0]
+    idx2 = np.where((rs>=T_x2) & (rs<=T_x3))[0]
+    idx3 = np.where((rs>=T_x3) & (rs<=T_x4))[0]
+    idx4 = np.where((rs>=T_x4) & (rs<=T_x5))[0]
+
+    # zone 1 linear
+    m1 = (T_y1 - 1.) / (T_x2 - T_x1)
+    scl1 = 1+  m1 * (rs -T_x1)
+    scale_it[idx1] = scl1[idx1]
+
+    # zone 2 flat
+    scale_it[idx2] = T_y1
+
+    # zone 3 linear
+    m3 = (T_y2 - T_y1) / (T_x4 - T_x3)
+    scl3 = T_y1 +  m3 * (rs -T_x3)
+    scale_it[idx3] = scl3[idx3]
+
+    # zone 4 linear
+    m4 = (1 - T_y2) / (T_x5 - T_x4)
+    scl4 = T_y2 +  m4 * (rs - T_x4)
+    scale_it[idx4] = scl4[idx4]
+
+    T = scale_it * noHSS[4]
+
+    frho = CubicSpline(rs*1.5e13, n, bc_type='natural')
+    fv = CubicSpline(rs*1.5e13, v, bc_type='natural')
+    fBr = CubicSpline(rs*1.5e13, Br, bc_type='natural')
+    fBlon = CubicSpline(rs*1.5e13, Blon, bc_type='natural')
+    fT = CubicSpline(rs*1.5e13, T, bc_type='natural')   
+
+    return [frho, fv, fBr, fBlon, fT] 
                 
     
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False):
-        
+def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False):
+    
     Elat      = Epos[0]
     Elon      = Epos[1]
     Er        = Epos[2] *7e10
@@ -354,7 +514,16 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
     if not isinstance(SWparams, str):    
         SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], Er/1.5e13]
     global funT, frho
-    SWfs = makeSW(SWparams)
+    if isinstance(tEmpHSS, float):
+        rs_HSS = np.linspace(0.1, 1.2, 111)       
+        # get clean SW profile
+        funs0 = makeSW(SWparams)
+        noHSS = []
+        for i in range(5):
+            noHSS.append(funs0[i](rs_HSS*1.5e13))  
+        SWfs = makeEmpHSS(tEmpHSS, rs_HSS, noHSS)
+    else:   
+        SWfs = makeSW(SWparams)
     frho, fv, fBr, fBlon, funT = SWfs[0], SWfs[1], SWfs[2], SWfs[3], SWfs[4]
     #n1AU = frho(Er) / 1.67e-24
     vSW  = fv(rFront)
@@ -378,7 +547,7 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
     Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
     rhoSWn = frho(CMElens[0])
     rhoSWe = frho(CMElens[1])
-    
+        
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
     B0 = Bscale * np.sqrt(Btot2) / deltap / tau
@@ -403,7 +572,7 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
     if fscales == None:
         if pan: 
             fscales = [1., 1.]
-        elif conv:
+        elif selfsim:
             fscales = [0., 0.]
         else:
             fscales = [0.5, 0.5]
@@ -449,8 +618,7 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
             if (aTotNose != 9999) & (aTotEdge != 9999):
                 magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
             else:
-                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888, 8888, 8888 
-                
+                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888, 8888, 8888, [8888, 8888, 8888] 
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
             magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 
@@ -479,7 +647,7 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
         # Calc shape params and new AWs
         deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
         if alpha < 0: 
-            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888 
+            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888, [8888, 8888, 8888]   
                 
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
@@ -496,6 +664,11 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
         sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
         avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
         Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
+        
+        if isinstance(tEmpHSS, float) and tDepSW:         
+            SWfs = makeEmpHSS(tEmpHSS+t/3600./24., rs_HSS, noHSS)
+            frho, fv, fBr, fBlon, funT = SWfs[0], SWfs[1], SWfs[2], SWfs[3], SWfs[4]
+            
         vSW = fv(CMElens[0])
         rhoSWn = frho(CMElens[0])
         rhoSWe = frho(CMElens[1])
@@ -540,6 +713,15 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
                 for item in fullstuff:
                     outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
                 f1.write(outstuff2+'\n')  
+                
+            # [Front, Edge, Center, CSr, CSp, Axr, Axp,]
+            '''printstuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]  
+            outprint = ''
+            for item in printstuff:
+                outprint = outprint + '{:9.3f}'.format(item)
+            print (outprint)'''
+        
+                
             
             
         # Determine if sat is inside CME once it gets reasonably close
@@ -608,23 +790,24 @@ def getAT(invec, Epos, SWparams, silent=False, fscales=None, pan=False, conv=Fal
                     
                 if writeFile: f1.write(outstuff2+'\n')
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
-                # rm a not from this after testing
+                #print (t/3600., vs[0]/1e5, vs[3]/1e5, AW*180/pi,  AWp*180/pi, deltax, deltap, rho/1.67e-24, B0*1e5, np.log10(temCME), estDur)
                 if not silent:
                     print ('Transit Time:     ', TT)
                     print ('Final Velocity:   ', vs[0]/1e5)
                     print ('CME nose dist:    ', CMElens[0]/7e10)
                     print ('Earth longitude:  ', Elon)
                     print ('Est. Duration:    ', estDur)
+                    
                 # convenient way to pass SW params if using functions
-                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5]    
-                inCME = True   
-                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems]), Elon, vs, estDur, thisPsi, parat, SWparams 
+                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5] 
+                inCME = True  
+                return np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems]), Elon, vs, estDur, thisPsi, parat, SWparams  
             elif thismin < prevmin:
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999 
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999]  
             else:                
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999  
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999]    
         
 
 if __name__ == '__main__':
@@ -632,15 +815,14 @@ if __name__ == '__main__':
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth    
     # SWparams = [nSW, vSW, BSW, TSW] at Eradius
     
-    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 4, 1.0, 1., 1.927, 2, 1.33] # use with flagScales = False
-    invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 2163, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 10/2 B/T scaling of noHSS
-    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 865, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 4/2 B/T scaling of noHSS
-    #invecs = [0, 0, 0, 1000.0, 5.0, 45, 15, 0.75, 0.75, 20, 433, 1.0, 1., 1.927, 1.04e6, 1.33] # use with flagScales = True 2/2 B/T scaling of noHSS
-    
+    invecs = [0, 0, 0, 1000.0, 10.0, 50, 18, 0.6, 0.6, 20, 2200, 1.0, 1., 1.927, 7.5e5, 1.33] # fast, use with flagScales = True 
+    #invecs = [0, 0, 0, 600, 5., 33, 13, 0.7, 0.55, 20, 800, 1.0, 1., 1.927, 2.0e5, 1.33] # avg, use with flagScales = True 
+
     satParams = [0.0, 00.0, 215.0, 0.0]
     SWparams = [5.0, 440, 6.9, 6.2e4]
     
     fname0 = 'SWnoHSS.dat'
+    fname3a = 'empHSS_8e10_3.625.dat'
     fname1 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=2.375days.npy'
     fname2 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=3.000days.npy'
     fname3 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=3.625days.npy'
@@ -649,13 +831,16 @@ if __name__ == '__main__':
     fname6 = 'StefanData/HSS_artificial_latfromcenter=00deg_CHarea=8.0e+10km2_timefromsimstart=5.500days.npy'
     fnames = [fname0, fname1, fname2, fname3, fname4, fname5, fname6]
     
-    outnames = ['HSS_noHSS', 'HSS_00_8e10_1', 'HSS_00_8e10_2', 'HSS_00_8e10_3', 'HSS_00_8e10_4', 'HSS_00_8e10_5', 'HSS_00_8e10_6' ]
+    outnames = ['HSS_noHSS_slow', 'HSS_00_8e10_slow_1', 'HSS_00_8e10_slow_2', 'HSS_00_8e10_slow_3', 'HSS_00_8e10_slow_4', 'HSS_00_8e10_slow_5', 'HSS_00_8e10_slow_6' ]
+    
+    outnames = ['HSS_tdep_1', 'HSS_tdep_2', 'HSS_tdep_3', 'HSS_tdep_4', 'HSS_tdep_5', 'HSS_tdep_6']
+    ts = [2.375, 3.000, 3.625, 4.250, 4.924, 5.500]
     
     #for i in range(7):
     #    getAT(invecs, satParams, fnames[i], silent=True, flagScales=True, name=outnames[i])  
-    
-    i=0
-    getAT(invecs, satParams, SWparams, silent=False, flagScales=True)  
-        
-    
+
+    getAT(invecs, satParams, fname6, silent=True, flagScales=True)      
+    #for i in range(6):
+    #i = 5
+    #getAT(invecs, satParams, fname0, silent=True, flagScales=True, tEmpHSS=ts[i], tDepSW=True)  
     

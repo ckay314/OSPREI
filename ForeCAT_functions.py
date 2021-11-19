@@ -31,7 +31,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath', 'SWfile', 'flagScales']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath', 'SWfile', 'flagScales']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -65,7 +65,7 @@ def get_inputs(inputs):
             
     return input_values
 
-def getInps(input_values):
+def getInps(input_values, flagDate=False):
     global rsun, rotrate, kmRs, Rss
     # assume solar defaults
     rsun = 7e10
@@ -94,8 +94,9 @@ def getInps(input_values):
     try: 
         CR = int(input_values['date'])
     except:
-        print('Missing magnetogram date or Carrington Rotation ID.  Cannot run without :(')
-        sys.exit()
+        if not flagDate:
+            print('Missing magnetogram date or Carrington Rotation ID.  Cannot run without :(')
+            sys.exit()
         
     # check for drag coefficient
     global Cd

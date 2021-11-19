@@ -10,7 +10,8 @@ CMEdelCS:   0.1
 FRBscale:   0.25
 FRTscale:	0.25
 Gamma:		0.1
-IVDf:		0.1
+IVDf1:		0.1
 SWv:		25.
 SWn:		1.
 SWB:		1.
+SWT:		10000
