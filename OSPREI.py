@@ -17,7 +17,8 @@ import CME_class as CC
 from ForeCAT_functions import readinputfile, calc_dist, calc_SW
 import ForceFields 
 #from funcANTEATR import *
-from PARADE import *
+#from PARADE import *
+from ANT_PUP import *
 import FIDO as FIDO
 
 # Useful constant
@@ -44,7 +45,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -56,6 +57,7 @@ def setupOSPREI():
     useFCSW = False
     flagScales = False
     flag1DSW = False
+    doPUP   = False
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -81,6 +83,9 @@ def setupOSPREI():
         elif temp[0][:-1] == 'includeSIT':
             if temp[1] == 'True':
                 includeSIT = True
+        elif temp[0][:-1] == 'doPUP':
+            if temp[1] == 'True':
+                doPUP = True
         elif temp[0][:-1] == 'CMEM':
             mass = float(temp[1])
         elif temp[0][:-1] == 'useFCSW':
@@ -574,6 +579,8 @@ def goANTEATR(makeRestart=False, satPath=False):
 
     # Open a file to save the ANTEATR output
     ANTEATRfile = open(Dir+'/ANTEATRresults'+thisName+'.dat', 'w')
+    if doPUP:
+        PUPfile = open(Dir+'/PUPresults'+thisName+'.dat', 'w')
 
 
     # ANTEATR takes inputs
@@ -632,7 +639,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
             if 'SWv' in EnsInputs: CME.vSW = np.random.normal(loc=CME.vSW, scale=EnsInputs['SWv'])
             if 'SWB' in EnsInputs: CME.BSW = np.random.normal(loc=CME.BSW, scale=EnsInputs['SWB'])              
-            if 'SWT' in EnsInputs: CME.TSW = np.random.normal(loc=CME.BTW, scale=EnsInputs['SWT'])              
+            if 'SWT' in EnsInputs: CME.TSW = np.random.normal(loc=CME.TSW, scale=EnsInputs['SWT'])              
         Bscale, tau, cnm, Tscale = CME.Bscale, CME.tau, CME.cnm, CME.Tscale
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
@@ -642,12 +649,11 @@ def goANTEATR(makeRestart=False, satPath=False):
         if flag1DSW:
             SWvec = SWfile
             
-        
         # high fscales = more convective like
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for
@@ -680,7 +686,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             deltax   = ATresults[5][-1]
             deltap   = ATresults[6][-1]
             deltaCA  = ATresults[7][-1]
-            B0       = ATresults[8][-1]
+            B0       = ATresults[8][-1]/1e5
             cnm      = ATresults[9][-1]
             CMEn     = ATresults[10][-1]
             logT     = ATresults[11][-1]
@@ -713,10 +719,21 @@ def goANTEATR(makeRestart=False, satPath=False):
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j]*1e5, ATresults[9,j], tau, ATresults[10,j], ATresults[11,j]]
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')
+            # save PUP results (if doing)
+            if doPUP:
+                for j in range(len(PUPresults[0])):
+                    outprint = str(i)
+                    outprint = outprint.zfill(4) + '   '
+                    outstuff = [PUPresults[0,j], PUPresults[1,j], PUPresults[2,j], PUPresults[3,j], PUPresults[4,j], PUPresults[5,j], PUPresults[6,j], PUPresults[7,j], PUPresults[8,j], PUPresults[9,j], PUPresults[10,j], PUPresults[11,j]]
+                    for iii in outstuff:
+                        outprint = outprint + '{:6.3f}'.format(iii) + ' '
+                    PUPfile.write(outprint+'\n')
+                
+                
         elif ATresults[0][0] == 8888:
             print ('ANTEATR-PARADE forces unstable')
             outprint = str(i)
@@ -725,6 +742,13 @@ def goANTEATR(makeRestart=False, satPath=False):
             for iii in outstuff:
                 outprint = outprint +'{:6.3f}'.format(iii) + ' '
             ANTEATRfile.write(outprint+'\n')
+            if doPUP:
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                outstuff = np.zeros(12)+8888
+                for iii in outstuff:
+                    outprint = outprint + '{:6.3f}'.format(iii) + ' '
+                PUPfile.write(outprint+'\n')
         else:
             print('Miss')
         # write a file to restart ANTEATR/FIDO from current CME values
@@ -747,6 +771,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             genNXTtxt(CME, num=str(i), tag='FIDO')
         
     ANTEATRfile.close()  
+    if doPUP: PUPfile.close()
      
     
 def goFIDO(satPath=False):
