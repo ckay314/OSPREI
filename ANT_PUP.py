@@ -499,26 +499,7 @@ def makeEmpHSS(t, rs, noHSS):
 
     return [frho, fv, fBr, fBlon, fT] 
                 
-def getObSheath(vCME, vSW, theta, cs, vA, gam=5/3):   
-    beta = cs**2 / vA**2
-    r = getr(1.00, 0.1, 29, beta, theta, gam, vCME, vSW, vA)
-    if r != 9999:
-        r = getr(r-0.1, 0.01, 19, beta, theta, gam, vCME, vSW, vA)
-    if r != 9999:
-        r = getr(r-0.01, 0.001, 19, beta, theta, gam, vCME, vSW, vA)
-    if r == 9999:
-        vS, prat = 9999, 9999
-    else:        
-        vS = (r * vCME - vSW) / (r-1)
-        u1 = vSW-vS
-        Ma2 = (u1/vA)**2
-        prat1 = 1 + gam * (u1/cs)**2 * (1 - 1/r)
-        prat2 = 0.5 * np.sin(theta)**2 * gam * (vA/cs)**2 * (1 - (r*(Ma2-np.cos(theta)**2))**2 / (Ma2-r*np.cos(theta)**2)**2)
-        prat = prat1 + prat2
-        if prat < 0:
-            r, vS, prat = 9999, 9999, 9999
-    return r, vS, prat
-
+    
 def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
     r = rmin
     diffs = []
@@ -551,6 +532,27 @@ def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
         r = rmin+dr*(idx[0][0]+1)
     return r
     
+def getObSheath(vCME, vSW, theta, cs, vA, gam=5/3):
+    beta = cs**2 / vA**2
+    r = getr(1.00, 0.1, 29, beta, theta, gam, vCME, vSW, vA)
+    if r != 9999:
+        r = getr(r-0.1, 0.01, 19, beta, theta, gam, vCME, vSW, vA)
+    if r != 9999:
+        r = getr(r-0.01, 0.001, 19, beta, theta, gam, vCME, vSW, vA)
+    if r == 9999:
+        vS, prat = 9999, 9999
+    else:        
+        vS = (r * vCME - vSW) / (r-1)
+        u1 = vSW-vS
+        Ma2 = (u1/vA)**2
+        prat1 = 1 + gam * (u1/cs)**2 * (1 - 1/r)
+        prat2 = 0.5 * np.sin(theta)**2 * gam * (vA/cs)**2 * (1 - (r*(Ma2-np.cos(theta)**2))**2 / (Ma2-r*np.cos(theta)**2)**2)
+        prat = prat1 + prat2
+        
+        prat2B = -gam/2 * (u1**2 *vA**2 *np.sin(theta)**2/cs**2) * (r-1) * (u1**2 * (r+1) - 2*r*vA**2*np.cos(theta)**2) / (u1**2 - r*vA**2 *np.cos(theta)**2)**2
+        if prat < 0:
+            r, vS, prat = 9999, 9999, 9999
+    return r, vS, prat
 
 # -------------- main function ------------------
 def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False):
@@ -746,10 +748,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             vA = np.sqrt(Btot2 / 4 / 3.14159 / rhoSWn)
             #thetaB = np.arctan(CMElens[0] * 2.87e-6 / vSW) # Parker version
             BSWr, BSWlon = fBr(CMElens[0])*1e5, fBlon(CMElens[0])*1e5
-            thetaB = np.abs(BSWlon / BSWr)
+            thetaB = np.arctan(np.abs(BSWlon / BSWr))
             r, vShock, Pratio = getObSheath(vs[0]/1e5, vSW/1e5, thetaB, cs=cs/1e5, vA=vA/1e5)    
-            
-                    
             if r == 9999:
                 r, vShock, Pratio, u1, Btscale, Ma, Tratio = 1, 0, 1, vSW, 1, 0, 1
                 Blonsh, Bsh, thetaBsh, vtSh = 0, 0, 0, 0
@@ -759,14 +759,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 Btscale = r * (Ma**2 - np.cos(thetaB)**2) / (Ma**2 - r * np.cos(thetaB)**2)
                 sheath_wid += (vShock-vs[0]/1e5)*dt / 7e5                
                 Tratio = Pratio /r
+                # tangent v in non dHT frame
+                vdHT = u1* np.tan(thetaB) / 1e5
+                vtSh = u1*(np.tan(thetaB) * (Ma**2 - np.cos(thetaB)**2) / (Ma**2 - r * np.cos(thetaB)**2)) / 1e5 - vdHT
                 # Magnetic Field 
             Blonsh = Btscale*BSWlon
             Bsh = np.sqrt(Blonsh**2 + BSWr**2)
             
             thetaBsh = np.arctan(Blonsh/BSWr)*180/3.14159
-            # tangent v
-            vtSh = Blonsh/Bsh * u1 * (r-1) * np.cos(thetaB) / (Ma**2 - np.cos(thetaB)**2) / 1e5
-                                        
+                                                                
         # Update CME shape
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
@@ -778,8 +779,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             if r != 1:
                 new_mass = rhoSWup * (vShock*1e5 - vSW) * dt * SHarea
                 sheath_mass += new_mass
-                sheath_dens = sheath_mass/(sheath_wid*7e10*SHarea)/1.67e-24
                 rratio = r
+            sheath_dens = sheath_mass/(sheath_wid*7e10*SHarea)/1.67e-24
+            
+            
         # Update velocities
         vs += totAccels * dt
         
@@ -1064,15 +1067,4 @@ if __name__ == '__main__':
     MHDparams = [4.5, 386, 3.1, 4.52e4]
     
     fname0 = 'SWnoHSS.dat'
-    fname = 'StefanDataFull/' + 'HSS_artificial_latfromcenter=00' + 'deg_CHarea=' + '8.0e+10' + 'km2.npy'
-    
-    outnames = ['HSS_noHSS', 'HSS_00_8e10_1', 'HSS_00_8e10_2', 'HSS_00_8e10_3', 'HSS_00_8e10_4', 'HSS_00_8e10_5', 'HSS_00_8e10_6' ]
-    
-    
-    CMEouts, Elon, vs, estDur, thisPsi, parat, SWparams, sheathOuts = getAT(invecs, satParams, SWparams, silent=False, flagScales=True, doPUP=False)
-    
-    #fileOut = open('testPUPout.pkl', 'wb')
-    #pickle.dump([CMEouts, Elon, vs, estDur, thisPsi, parat, SWparams, sheathOuts], fileOut)
-    #fileOut.close()
-       
-    
+    getAT(invecs, satParams, fname0, silent=False, flagScales=True, doPUP=True)
