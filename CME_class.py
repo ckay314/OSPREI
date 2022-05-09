@@ -134,7 +134,7 @@ class CME:
         self.vSW = 400
         self.nSW = 5.
         self.BSW = 6.9
-        self.tSW = 62000
+        self.TSW = 68000
         self.cs  = 49.5
         self.vA  = 55.4 
         self.Bscale = 2.
@@ -148,6 +148,16 @@ class CME:
         self.impVE = 0.
         self.Tscale = 2.
         self.gamma = 1.3333
+        # CME sheath properties
+        self.vShock = 0
+        self.comp = 1
+        self.shDur = 0.
+        self.shDens = self.nSW
+        self.shB = self.BSW
+        self.shTheta = 0.
+        self.shvt = 0.
+        self.shv = self.v1AU / 1e5 
+        
         
         # redefine dt in secs and as short name variable for convenience
         global dt

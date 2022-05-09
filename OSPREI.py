@@ -706,6 +706,18 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.impV = vF
             CME.impVE = vEx
             CME.t = TotTime
+            
+            # CME sheath parameters
+            shIdx = np.min(np.where(PUPresults[11]==1))
+            CME.vShock = PUPresults[0][shIdx]
+            CME.comp   = PUPresults[1][shIdx]
+            CME.shDur  = PUPresults[4][shIdx]
+            CME.shDens = PUPresults[5][shIdx]
+            CME.shB    = PUPresults[6][shIdx]
+            CME.shTheta = PUPresults[7][shIdx]
+            CME.shvt   = PUPresults[8][shIdx]
+            CME.shv    = ATresults[2][shIdx][0]
+            
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
             if not noDate:
@@ -859,8 +871,12 @@ def goFIDO(satPath=False):
         if includeSIT:
             # check if front velocity greater than SW
             if CME.impV > CME.vSW:
-                vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
-                sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
+                if doPUP:
+                    # sheath params [start time (days from sim start), sheath dur, comp, sheathv, Bx, By, Bz,  vShock] 
+                    sheathParams = [CMEstart-CME.shDur/24., CME.shDur, CME.comp, CME.shv, CME.shB, CME.shTheta, 0., CME.vShock]
+                else:
+                    vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
+                    sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
                 actuallySIT = True
             # If not tell FIDO not to do sheath this time
             else:
@@ -931,7 +947,7 @@ def goFIDO(satPath=False):
                 FIDOfile.write(outprint+'\n')  
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        if False:
+        if True:
             cols = ['k', 'b','r', 'k']  # ISWA colors
             fig = plt.figure()
             for i2 in range(len(Bout)):
