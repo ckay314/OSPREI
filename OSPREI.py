@@ -653,12 +653,12 @@ def goANTEATR(makeRestart=False, satPath=False):
         if satPath:
             ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, flagScales=flagScales, doPUP=doPUP)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for
         # 1D profile to make FIDO-SIT happy
-        CME.nSW, CME.vSW, CME.BSW = SWparams[0], SWparams[1], SWparams[2]
+        CME.nSW, CME.vSW, CME.BSW, CME.BSWvec = SWparams[0], SWparams[1], SWparams[2], SWparams[3]
         
         
         # Check if miss or hit  
@@ -712,10 +712,10 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.vShock = PUPresults[0][shIdx]
             CME.comp   = PUPresults[1][shIdx]
             CME.shDur  = PUPresults[4][shIdx]
-            CME.shDens = PUPresults[5][shIdx]
-            CME.shB    = PUPresults[6][shIdx]
-            CME.shTheta = PUPresults[7][shIdx]
-            CME.shvt   = PUPresults[8][shIdx]
+            CME.shDens = PUPresults[6][shIdx]
+            CME.shB    = PUPresults[7][shIdx]
+            CME.shTheta = PUPresults[8][shIdx]
+            CME.shvt   = PUPresults[9][shIdx]
             CME.shv    = ATresults[2][shIdx][0]
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
@@ -873,7 +873,15 @@ def goFIDO(satPath=False):
             if CME.impV > CME.vSW:
                 if doPUP:
                     # sheath params [start time (days from sim start), sheath dur, comp, sheathv, Bx, By, Bz,  vShock] 
-                    sheathParams = [CMEstart-CME.shDur/24., CME.shDur, CME.comp, CME.shv, CME.shB, CME.shTheta, 0., CME.vShock]
+                    # need to convert [Br, Blon, Blat] from PUP to Bx/By/Bz
+                    BrllSW = CME.BSWvec
+                    Br = CME.shB * np.cos(CME.shTheta*3.14159/180.)
+                    Btrans = np.abs(CME.shB * np.sin(CME.shTheta*3.14159/180.))
+                    clockAng = np.arctan2(CME.BSWvec[2], -CME.BSWvec[1])
+                    Bx = - Br
+                    By = Btrans * np.cos(clockAng)
+                    Bz = Btrans * np.sin(clockAng)
+                    sheathParams = [CMEstart-CME.shDur/24., CME.shDur, CME.comp, CME.shv, Bx, By, Bz, CME.vShock]
                 else:
                     vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
                     sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)

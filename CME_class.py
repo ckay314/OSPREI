@@ -134,6 +134,7 @@ class CME:
         self.vSW = 400
         self.nSW = 5.
         self.BSW = 6.9
+        self.BSWvec = [6.9, 0, 0]
         self.TSW = 68000
         self.cs  = 49.5
         self.vA  = 55.4 
