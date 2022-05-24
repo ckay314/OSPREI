@@ -660,7 +660,6 @@ def goANTEATR(makeRestart=False, satPath=False):
         # 1D profile to make FIDO-SIT happy
         CME.nSW, CME.vSW, CME.BSW, CME.BSWvec = SWparams[0], SWparams[1], SWparams[2], SWparams[3]
         
-        
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
@@ -708,15 +707,16 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.t = TotTime
             
             # CME sheath parameters
-            shIdx = np.min(np.where(PUPresults[11]==1))
-            CME.vShock = PUPresults[0][shIdx]
-            CME.comp   = PUPresults[1][shIdx]
-            CME.shDur  = PUPresults[4][shIdx]
-            CME.shDens = PUPresults[6][shIdx]
-            CME.shB    = PUPresults[7][shIdx]
-            CME.shTheta = PUPresults[8][shIdx]
-            CME.shvt   = PUPresults[9][shIdx]
-            CME.shv    = ATresults[2][shIdx][0]
+            if doPUP:
+                shIdx = np.min(np.where(PUPresults[11]==1))
+                CME.vShock = PUPresults[0][shIdx]
+                CME.comp   = PUPresults[1][shIdx]
+                CME.shDur  = PUPresults[4][shIdx]
+                CME.shDens = PUPresults[6][shIdx]
+                CME.shB    = PUPresults[7][shIdx]
+                CME.shTheta = PUPresults[8][shIdx]
+                CME.shvt   = PUPresults[9][shIdx]
+                CME.shv    = ATresults[2][shIdx][0]
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!

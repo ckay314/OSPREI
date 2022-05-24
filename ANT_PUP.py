@@ -1038,7 +1038,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     print ('Est. Duration:    ', estDur)
                     
                 # convenient way to pass SW params if using functions
-                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5] 
+                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5, [fBr(CMElens[0])*1e5, fBlon(CMElens[0])*1e5, 0]] 
                 inCME = True  
                 CMEouts = np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems])
                 if doPUP:
