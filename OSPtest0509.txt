@@ -23,6 +23,7 @@ SWv:		350
 SWn:		5
 SWB:		5
 SWT:		40000
+flagScales:	False
 FRBscale:   4.
 FRTscale:	4
 FRpol:		1
@@ -32,4 +33,5 @@ SatLat:		-3.293
 SatLon:		27.644
 SatR:		213.
 includeSIT: True
+doPUP:		False
 ObsDataFile: OSPtest0509.omni

@@ -11,7 +11,7 @@ from scipy.interpolate import CubicSpline
 # latitude and longitude position -> easy way to convert 
 # from Bxyz to Br
 global xyz
-f3 = open('/Users/ckay/PickleJar/xyz.pkl', 'rb')
+f3 = open('/Users/ckay/Desktop/OSPtest/codes/xyz.pkl', 'rb')
 xyz = pickle.load(f3)
 f3.close()
 
@@ -22,7 +22,7 @@ dtor = math.pi/180.
 def getsubB(date, x1,x2,y1,y2, height):
     # Input is idxs, should correspond to 0.5 deg resolution.
     # Origin for y is lower -> 0 is colat 180, 181 is colat 0 
-    fname = '/Users/ckay/PickleJar/PFSS'+ date + 'a3.pkl'
+    fname = '/Users/ckay/Desktop/OSPtest/MagField/PFSS'+ date + 'a3.pkl'
     
     # Load slice from pickle pickle
     f1 = open(fname, 'rb')
@@ -257,10 +257,10 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
     Bs = []
     # CR, x,x,y,y, height
     for i in range(16):
-        height = 1.1 + i*0.01 
+        height = 1.05 + i*0.01 
         heights.append(height)
         PILxs, PILxs1, ys = extractPIL(date,x1,x2,y1,y2,height)
-        outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=True)
+        outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=False)
         lats.append(outlats)
         lons.append(outlons)
         tilts.append(outtilts)
@@ -315,5 +315,5 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
 # fitPIL('20120712',125,250,110,170,height)
 # fitPIL('20120712',370,430,130,170,height)
 
-ForeCATARPILER('20210222', 60,220,85,160)    
+ForeCATARPILER('20210509', 10,54,130,160)    
 
