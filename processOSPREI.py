@@ -19,12 +19,12 @@ dtor = math.pi / 180.
 plt.rcParams.update({'font.size':14})
 
 # Set up the path variable
-mainpath = '/Users/ckay/OSPREI/' #MTMYS
-
 # I like keeping all the code in a single folder called code
 # but you do you (and update this to match whatever you do)
-sys.path.append(os.path.abspath(mainpath+'codes/')) #MTMYS
 import OSPREI  as OSP
+mainpath = OSP.mainpath
+sys.path.append(os.path.abspath(OSP.codepath)) #MTMYS
+
 from ForeCAT_functions import rotx, roty, rotz, SPH2CART, CART2SPH
 from CME_class import cart2cart
 from PARADE import lenFun
@@ -2147,7 +2147,7 @@ if __name__ == '__main__':
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        #makeEnsplot(ResArr)
+        makeEnsplot(ResArr)
         
         # Contour plot
         makeContours(ResArr)

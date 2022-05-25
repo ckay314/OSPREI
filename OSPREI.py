@@ -8,10 +8,13 @@ from scipy.interpolate import CubicSpline
 
 
 # Import all the OSPREI files, make this match your system
-mainpath = '/Users/ckay/OSPREI/' #MTMYS
+mainpath = '/Users/ckay/Desktop/OSPtest/' #MTMYS
+codepath = mainpath + 'codes/'
+magpath  = mainpath + 'MagField/' 
 # I like keeping all the code in a single folder called code
 # but you do you (and update this to match whatever you do)
-sys.path.append(os.path.abspath(mainpath+'codes/')) #MTMYS
+sys.path.append(os.path.abspath(codepath)) #MTMYS
+
 from ForeCAT import *
 import CME_class as CC
 from ForeCAT_functions import readinputfile, calc_dist, calc_SW
@@ -413,7 +416,7 @@ def goForeCAT(makeRestart=False):
     # CME_params = [shapeA, shapeB, rstart]
     # init_pos = [ilat, ilon, tilt]    
     global iparams, ipos
-    ipos, rmax = initForeCAT(input_values)
+    ipos, rmax = initForeCAT(input_values, magpath)
 
     # option to force PFSS so that it will scale as R^2 from 2.5 to satPos
     if False:
@@ -511,7 +514,7 @@ def makeCMEarray():
     # Called if FC not ran
     global ipos
     if models in ['FIDO', 'ANT', 'IP']:
-        ipos, rmax = initForeCAT(input_values, skipPkl=True)  
+        ipos, rmax = initForeCAT(input_values, magpath, skipPkl=True)  
         rmax = float(input_values['CMEr'])
     else:
         ipos, rmax = initForeCAT(input_values)
@@ -955,7 +958,7 @@ def goFIDO(satPath=False):
                 FIDOfile.write(outprint+'\n')  
         # quick plotting script to check things for ~single case
         # will plot each run individually
-        if True:
+        if False:
             cols = ['k', 'b','r', 'k']  # ISWA colors
             fig = plt.figure()
             for i2 in range(len(Bout)):

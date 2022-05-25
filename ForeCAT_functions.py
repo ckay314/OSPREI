@@ -4,16 +4,16 @@ from pylab import *
 import numpy as np
 import math
 import sys
+import os
 import pickle
 import CME_class as CC
-
 
 global dtor, radeg
 
 dtor  = 0.0174532925  # degrees to radians
 radeg = 57.29577951    # radians to degrees
-global picklejar 
-picklejar = '/Users/ckay/PickleJar/'
+#global picklejar 
+#picklejar = '/Users/ckay/Desktop/OSPtest/MagField/'
 
 def readinputfile():
     # Get the CME number
@@ -202,7 +202,7 @@ def getInps(input_values, flagDate=False):
     return init_pos, rmax, tprint, Ntor, Npol
     
 
-def initdefpickle(CR):
+def initdefpickle(CR, picklejar):
 	global dists
 	# get pickle name
 	fname = 'PFSS' + str(CR) 

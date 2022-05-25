@@ -9,7 +9,7 @@ import ForeCAT_functions as FC
 import CME_class as CC
 import ForceFields as FF
 
-def initForeCAT(input_values, skipPkl=False):
+def initForeCAT(input_values, picklejar, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     # Read in the filename from the command line and load the parameters -------------------|
     #---------------------------------------------------------------------------------------|
@@ -20,10 +20,10 @@ def initForeCAT(input_values, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     if not skipPkl: # option to skip this part if just using getInps for FIDO only
         # Initialize magnetic field data
-        FF.init_CPU(FC.CR, Ntor, Npol)
+        FF.init_CPU(FC.CR, Ntor, Npol, picklejar)
 
         # Initialize magnetic field and distance pickles
-        FC.initdefpickle(FC.CR)
+        FC.initdefpickle(FC.CR, picklejar)
     return ipos, rmax
 
 def initCME(CME_params, ipos):
