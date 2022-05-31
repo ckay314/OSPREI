@@ -405,9 +405,7 @@ if __name__ == '__main__':
     
     # turn magnetogram into harmonic coefficients
     coeff_file = harmonics(fits4har, nHarmonics)
-    
-    coeff_file = 'HMI20210509coeffs.dat'
-    
+        
     # make the PFSS pickles
     pickle_file = makedapickle(coeff_file, nHarmonics, rSS)
     
