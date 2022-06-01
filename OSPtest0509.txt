@@ -35,3 +35,4 @@ SatR:		213.
 includeSIT: True
 doPUP:		False
 ObsDataFile: OSPtest0509.omni
+satPath: OSPtest0509.sat

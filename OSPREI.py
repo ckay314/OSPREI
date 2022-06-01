@@ -8,9 +8,9 @@ from scipy.interpolate import CubicSpline
 
 
 # Import all the OSPREI files, make this match your system
-mainpath = '/Users/ckay/Desktop/OSPtest/' #MTMYS
+mainpath = '/Users/ckay/OSPREI/' #MTMYS
 codepath = mainpath + 'codes/'
-magpath  = mainpath + 'MagField/' 
+magpath  ='/Users/ckay/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
 from ForeCAT import *
@@ -994,11 +994,15 @@ def runOSPREI():
     global currentInps
     currentInps = {}
     for key in input_values: currentInps[key] = input_values[key]
-
-    #global satRf, satLatf, satLonf
-    #satRf, satLatf, satLonf = makeSatPaths('psp_coord_suninertial.txt', dObj, Clon0=326.62)
-    #satRf, satLatf, satLonf = makeSatPaths('psp_coord_suninertial.txt', dObj, Clon0=327.12)
     
+    global doSatPath 
+    doSatPath = False
+    global satRf, satLatf, satLonf
+    if 'satPath' in input_values:
+        doSatPath = True
+        satPath = input_values['satPath']
+        satRf, satLatf, satLonf = makeSatPaths(satPath, dObj, Clon0=satPos[1])
+
     if doFC:
         goForeCAT(makeRestart=False)        
     else:
@@ -1007,9 +1011,9 @@ def runOSPREI():
     
     #readMoreInputs()
         
-    if doANT: goANTEATR(makeRestart=False, satPath=False)
+    if doANT: goANTEATR(makeRestart=False, satPath=doSatPath)
     
-    if doFIDO: goFIDO(satPath=False)
+    if doFIDO: goFIDO(satPath=doSatPath)
 
     if nRuns > 1: ensembleFile.close()
 
