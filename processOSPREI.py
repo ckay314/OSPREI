@@ -21,13 +21,13 @@ plt.rcParams.update({'font.size':14})
 # Set up the path variable
 # I like keeping all the code in a single folder called code
 # but you do you (and update this to match whatever you do)
-import OSPREI  as OSP
+import OSPREI as OSP
 mainpath = OSP.mainpath
 sys.path.append(os.path.abspath(OSP.codepath)) #MTMYS
 
 from ForeCAT_functions import rotx, roty, rotz, SPH2CART, CART2SPH
 from CME_class import cart2cart
-from PARADE import lenFun
+from ANT_PUP import lenFun
 
 # object that will hold all the results for an individual ensemble member
 class EnsRes:
@@ -307,8 +307,21 @@ def readInData():
     # Need to check if goes over into new year...
     base = datetime.datetime(int(dataIn[0,0]), 1, 1, 1, 0)
     obsDTs = np.array([base + datetime.timedelta(days=int(dataIn[i,1])-1, seconds=int(dataIn[i,2]*3600)) for i in range(len(dataIn[:,0]))])
-            
-    dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]/10.])
+    
+    nGiven = len(dataIn[0,:])
+    global hasv, hasKp
+    hasv, hasKp = True, True
+    if nGiven == 10:
+        # have all the things (yr doy hr, B, Bx, By, Bz, n, v, Kp)
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]/10.])
+    elif nGiven == 9:
+        # no Kp
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8]])
+        hasKp = False
+    elif nGiven ==8:
+        # no v or Kp
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7]])
+        hasv, hasKp = False, False        
     return dataOut
 
 def calcKp(Bout, CMEstart, CMEv):
@@ -1050,14 +1063,14 @@ def makeISplot(ResArr):
         axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=4, color='r')
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='r')
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='r')
-        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r')    
-        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
+        if hasKp:
+            axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r')    
+        if hasv:
+            axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
 
     
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
-     
-    #plt.show()
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.'+figtag)    
     
 def makeFIDOhistos(ResArr):
@@ -1593,8 +1606,10 @@ def makeAllprob(ResArr):
         axes[1].plot(obsDates, ObsData[2,:], linewidth=3, color='r', zorder=5)
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=3, color='r', zorder=5)
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=3, color='r', zorder=5)
-        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=3, color='r', zorder=5)    
-        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=3, color='r', zorder=5)
+        if hasKp:
+            axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=3, color='r', zorder=5)  
+        if hasv:  
+            axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=3, color='r', zorder=5)
         
     # add in ensemble seed
     if OSP.noDate:
