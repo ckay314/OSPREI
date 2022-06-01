@@ -516,7 +516,7 @@ def makeCMEarray():
     # Called if FC not ran
     global ipos
     if models in ['FIDO', 'ANT', 'IP']:
-        ipos, rmax = initForeCAT(input_values, magpath, skipPkl=True)  
+        ipos, rmax = initForeCAT(input_values, magpath, None, skipPkl=True)  
         rmax = float(input_values['CMEr'])
     else:
         ipos, rmax = initForeCAT(input_values)
