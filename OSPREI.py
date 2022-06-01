@@ -656,7 +656,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             
         # high fscales = more convective like
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
             ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, flagScales=flagScales, doPUP=doPUP)
         
