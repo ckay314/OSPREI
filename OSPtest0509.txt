@@ -1,8 +1,9 @@
 date:		20210509
 time:		09:00
-suffix:		ens100
+FCmagname:	HMI20210509syncCL
+suffix:		enstest
 models:		ALL
-nRuns:		100
+nRuns:		1
 PFSSscale:	1.
 CMEr:     	1.1
 CMElat:		-12
@@ -23,7 +24,6 @@ SWv:		350
 SWn:		5
 SWB:		5
 SWT:		40000
-flagScales:	False
 FRBscale:   4.
 FRTscale:	4
 FRpol:		1

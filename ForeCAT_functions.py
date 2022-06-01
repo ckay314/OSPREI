@@ -12,8 +12,6 @@ global dtor, radeg
 
 dtor  = 0.0174532925  # degrees to radians
 radeg = 57.29577951    # radians to degrees
-#global picklejar 
-#picklejar = '/Users/ckay/Desktop/OSPtest/MagField/'
 
 def readinputfile():
     # Get the CME number
@@ -31,7 +29,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath', 'SWfile', 'flagScales', 'doPUP']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'calcSheath', 'SWfile', 'flagScales', 'doPUP']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -202,12 +200,10 @@ def getInps(input_values, flagDate=False):
     return init_pos, rmax, tprint, Ntor, Npol
     
 
-def initdefpickle(CR, picklejar):
+def initdefpickle(CR, picklejar, picklename):
 	global dists
-	# get pickle name
-	fname = 'PFSS' + str(CR) 
 	# distance pickle [inCH, fromHCS, fromCH, fromPS(calc later maybe)]
-	f1 = open(picklejar+fname+'dists3.pkl', 'rb')
+	f1 = open(picklejar+'PFSS_'+picklename+'dists3.pkl', 'rb')
 
 	#print "loading distance pickle ..."
 	dists = pickle.load(f1)

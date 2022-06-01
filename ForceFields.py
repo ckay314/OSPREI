@@ -8,7 +8,7 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
-def init_CPU(CR, Ntor, Npol, picklejar):
+def init_CPU(CR, Ntor, Npol, picklejar, picklename):
 	global rsun, kmRs, RSS, dR, RsR
 	rsun  = FC.rsun
 	RSS   = FC.Rss
@@ -25,11 +25,11 @@ def init_CPU(CR, Ntor, Npol, picklejar):
 
 	global B_low, B_high, B_mid
 	# load the pickles which hold the mag field data
-	f1 = open(picklejar+'PFSS'+str(FC.CR)+'a3.pkl', 'rb')
+	f1 = open(picklejar+'PFSS_'+picklename+'a3.pkl', 'rb')
 	#print "loading low pickle ..."
 	B_low = pickle.load(f1)
 	f1.close()
-	f1 = open(picklejar+'PFSS'+str(FC.CR)+'b3.pkl', 'rb')
+	f1 = open(picklejar+'PFSS_'+picklename+'b3.pkl', 'rb')
 	#print "loading high pickle ..."
 	B_high = pickle.load(f1)
 	f1.close() 

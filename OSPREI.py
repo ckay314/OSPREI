@@ -11,9 +11,7 @@ from scipy.interpolate import CubicSpline
 mainpath = '/Users/ckay/Desktop/OSPtest/' #MTMYS
 codepath = mainpath + 'codes/'
 magpath  = mainpath + 'MagField/' 
-# I like keeping all the code in a single folder called code
-# but you do you (and update this to match whatever you do)
-sys.path.append(os.path.abspath(codepath)) #MTMYS
+sys.path.append(os.path.abspath(codepath)) 
 
 from ForeCAT import *
 import CME_class as CC
@@ -29,18 +27,21 @@ global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
+# pick a number to seed the random number generator used by ensembles
 np.random.seed(20210421)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
     # ------------------------------------------------------------------|
-    global input_values, allinputs, date
+    global input_values, allinputs, date, noDate
     input_values, allinputs = FC.readinputfile()
+    noDate = False
     try:
         date = input_values['date']
     except:
         date = '99999999'
+        noDate = True
         #sys.exit('Need name of magnetogram/date to run!!!')    
             
     # Pull in other values from allinputs
@@ -102,15 +103,16 @@ def setupOSPREI():
             global SWfile
             SWfile = temp[1]
     
-    # check if we have a date if models includes ForeCAT
-    # can technically run without if don't need background pickle
-    global noDate
-    noDate = date == '99999999'
-    if noDate:
-        if models in ['FC', 'ALL']:
-            sys.exit('Need name of magnetogram/date to run!!!') 
+    # check if we have a magnetogram name for ForeCAT or if passed only the date
+    global pickleName
+    if models in ['FC', 'ALL']:
+        if 'FCmagname:' in allinputs:
+            pickleName = allinputs[np.where(allinputs == 'FCmagname:')[0]][0,1]
+        elif not noDate:
+            pickleName = date
+            print ('Assuming pickles are named by date ', date)
         else:
-            print ('Running without a given date')
+            sys.exit('Need name of magnetogram/date to run!!!') 
     
     if not noDate:        
         # get the actual time for the given string
@@ -416,7 +418,7 @@ def goForeCAT(makeRestart=False):
     # CME_params = [shapeA, shapeB, rstart]
     # init_pos = [ilat, ilon, tilt]    
     global iparams, ipos
-    ipos, rmax = initForeCAT(input_values, magpath)
+    ipos, rmax = initForeCAT(input_values, magpath, pickleName)
 
     # option to force PFSS so that it will scale as R^2 from 2.5 to satPos
     if False:

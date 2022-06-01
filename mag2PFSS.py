@@ -23,7 +23,7 @@ nPhi = 720  # default 720 -> half deg resolution
 
 
 def sync2carr(input_file):
-        new_file = input_file.replace('sync','')
+        new_file = input_file[:-5]+'CL'+'.fits'
         myfits = fits.open(magpath+input_file)  
         
         # determine Carrington lon of Earth at time of observation
@@ -50,7 +50,7 @@ def sync2carr(input_file):
         myfits.writeto(magpath+new_file, output_verify='ignore', overwrite=True) 
         return new_file
         
-def harmonics(fits4har, nHarmonics):
+def harmonics(obs, IDname, nHarmonics):
     # Script that takes in a magnetogram and produces the harmonic
     # coefficients needed for the PFSS model.
     # The algorithm was originally largely based on the IDL script
@@ -66,9 +66,9 @@ def harmonics(fits4har, nHarmonics):
     # which was used extensively as a reference for this script
     
     # read in the magnetogram using the date provided
-    myfits = fits.open(magpath+fits4har) 
+    myfits = fits.open(magpath+obs+IDname+'.fits') 
     orig_data = myfits[0].data
-    
+
     # Determine the size of the magnetogram
     ny = orig_data.shape[0]
     nx = orig_data.shape[1]
@@ -137,8 +137,7 @@ def harmonics(fits4har, nHarmonics):
 
 
     # Open a file to save the output    
-    f1 = open(magpath+fits4har[:-5]+'coeffs.dat', 'w') #MTMYS
-
+    f1 = open(magpath+obs+IDname+'coeffs.dat', 'w') #MTMYS
 
     # Calculate the harmonic coefficients using the arrays we have and the
     # magnetogram data and save to file
@@ -152,7 +151,7 @@ def harmonics(fits4har, nHarmonics):
             f1.write('%4i %4i %15.8f %15.8f' % (l, m, np.sum(sumforG) * (2*l+1.)/(nTheta*nPhi), np.sum(sumforH) * (2*l+1.)/(nTheta*nPhi))+ '\n') 
     f1.close()
 
-    return fits4har[:-5]+'coeffs.dat'
+    return obs+IDname+'coeffs.dat'
     
 
 # ----------------- PFSS stuff-----------------------------------------------
@@ -249,7 +248,7 @@ def SPH2CARTvec(colat, lon, vr, vt, vp):
     vz = np.cos(colat) * vr - np.sin(colat) * vt
     return [vx,vy,vz]
 
-def makedapickle(coeff_file, nHarmonics, rSS):
+def makedapickle(obs, IDname, nHarmonics, rSS):
     # Main function for calculating the magnetic field for the full volume
     # Set up coefficients and conversion array
     setupMLarrs(nHarmonics)
@@ -308,18 +307,17 @@ def makedapickle(coeff_file, nHarmonics, rSS):
     
     # Open up files for output and dump the pickles 
     # get name from input file
-    temp = coeff_file.replace('HMI', '')
-    pickle_file = temp.replace('coeffs.dat', '')
+    pickle_file = 'PFSS_'+obs+IDname
     # Lower half pickle
-    fa = open(magpath+'PFSS'+pickle_file+'a3.pkl', 'wb')
+    fa = open(magpath+pickle_file+'a3.pkl', 'wb')
     pickle.dump(dataa,fa,-1)
     fa.close()
     # Upper half pickle
-    fb = open(magpath+'PFSS'+pickle_file+'b3.pkl', 'wb')
+    fb = open(magpath+pickle_file+'b3.pkl', 'wb')
     pickle.dump(datab,fb,-1)
     fb.close()
     # Br at source surface pickle (useful for calcHCSdist)
-    fc = open(magpath+'PFSS'+pickle_file+'SS3.pkl', 'wb')
+    fc = open(magpath+pickle_file+'SS3.pkl', 'wb')
     pickle.dump(Brmap[-1,:,:,0],fc,-1)
     fc.close()
 
@@ -333,7 +331,7 @@ def calcHCSdist(pickle_file):
     dtor = math.pi/360.
     
     print ('Finding HCS location...')
-    fa = open(magpath+'PFSS'+pickle_file+'SS3.pkl', 'rb')
+    fa = open(magpath+pickle_file+'SS3.pkl', 'rb')
     Bss = pickle.load(fa)
     fa.close()
     
@@ -386,7 +384,7 @@ def calcHCSdist(pickle_file):
             
     
     # Save the HCS distance to a file
-    f1 = open(magpath+'PFSS'+pickle_file+'dists3.pkl', 'wb') #MTMYS
+    f1 = open(magpath+pickle_file+'dists3.pkl', 'wb') #MTMYS
     pickle.dump(dists,f1,-1)
     f1.close()
     
@@ -394,20 +392,34 @@ def calcHCSdist(pickle_file):
 if __name__ == '__main__':
     # call from the command line as python magnetogram2harmonics.py magnetogram.fits
     input_file = sys.argv[1]
-    # Check if we have a synchronic file and need to convert lons from newest first to Carrington
-    if 'sync' in input_file:
-        fits4har = sync2carr(input_file)
-    else:
-        fits4har = input_file
-        
+    
+    obs = None
+    # check which observatory we are using (assume it's in filename somewhere)
+    if ('HMI' in input_file):
+        obs = 'HMI'
+        tempname = (input_file.replace('HMI',''))
+    elif ('GONG' in input_file):
+        obs = 'GONG'
+        tempname = (input_file.replace('GONG',''))
+    # pull out the unique identifier for this case (no obs or .fits)
+    IDname = tempname.replace('.fits', '')
+
+    fits4har = input_file
+    if 'sync' in IDname:
+        # assume if CL is in IDname we have already ran
+        # sync2carr so don't do it again
+        if 'CL' not in IDname:
+            fits4har = sync2carr(input_file)
+            IDname = IDname + 'CL'
+    
     # make it ignore div by zero in logs, complains about unused part of array
     np.seterr(divide = 'ignore', invalid = 'ignore') 
     
     # turn magnetogram into harmonic coefficients
-    coeff_file = harmonics(fits4har, nHarmonics)
-        
+    coeff_file = harmonics(obs, IDname, nHarmonics)
+
     # make the PFSS pickles
-    pickle_file = makedapickle(coeff_file, nHarmonics, rSS)
+    pickle_file = makedapickle(obs, IDname, nHarmonics, rSS)
     
     # get distance from the HCS
     calcHCSdist(pickle_file)

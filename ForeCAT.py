@@ -3,13 +3,11 @@ import math
 import matplotlib.pyplot as plt
 import sys
 import os
-# give it the path wherever the ForeCAT files are stored
-sys.path.append(os.path.abspath('/Users/ckay/OSPREI/code'))
 import ForeCAT_functions as FC
 import CME_class as CC
 import ForceFields as FF
 
-def initForeCAT(input_values, picklejar, skipPkl=False):
+def initForeCAT(input_values, picklejar, picklename, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     # Read in the filename from the command line and load the parameters -------------------|
     #---------------------------------------------------------------------------------------|
@@ -20,10 +18,10 @@ def initForeCAT(input_values, picklejar, skipPkl=False):
     #---------------------------------------------------------------------------------------|
     if not skipPkl: # option to skip this part if just using getInps for FIDO only
         # Initialize magnetic field data
-        FF.init_CPU(FC.CR, Ntor, Npol, picklejar)
+        FF.init_CPU(FC.CR, Ntor, Npol, picklejar, picklename)
 
         # Initialize magnetic field and distance pickles
-        FC.initdefpickle(FC.CR, picklejar)
+        FC.initdefpickle(FC.CR, picklejar, picklename)
     return ipos, rmax
 
 def initCME(CME_params, ipos):
@@ -128,11 +126,3 @@ def runForeCAT(CME, rmax, silent=False, path=False):
         return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvs, outvdefs, outdeltaAxs, outdeltaCSs, outdeltaCAs])
     else:
         return CME
-
-
-
-if __name__ == '__main__':
-    input_values, allinputs = FC.readinputfile()
-    ipos, rmax = initForeCAT(input_values)
-    CME = initCME([FC.deltaAx, FC.deltaCS, FC.rstart], ipos)
-    CME = runForeCAT(CME, rmax, path=True)
