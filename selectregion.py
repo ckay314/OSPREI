@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 import sys
 import pickle
@@ -6,9 +7,9 @@ import matplotlib.cm as cm
 
 
 # read in inputs from command line
-date = str(sys.argv[1]) 
-pickle_path = '/Users/ckay/PickleJar/' #MTMYS
-fname = pickle_path+'PFSS'+ date + 'a3.pkl'
+pickname = str(sys.argv[1]) 
+pickle_path = '/Users/ckay/Desktop/OSPtest/Magfield/' #MTMYS
+fname = pickle_path+'PFSS_'+ pickname + 'a3.pkl'
 
 
 # init figure
@@ -22,9 +23,30 @@ f1.close()
 Bslice = B[5,:,:,:]
 
 # calc Br
-f3 = open('/Users/ckay/PickleJar/xyz.pkl', 'rb')
-xyz = pickle.load(f3)
-f3.close()
+nTheta = 361
+nPhi = 720
+
+dPhi =2. * math.pi /nPhi
+dTheta = math.pi /nTheta
+dSinTheta = 2.0/nTheta
+Thetas = np.linspace(math.pi,0,nTheta)
+# shift end points slightly to avoid div by sintheta=0
+Thetas[0] -= 0.0001
+Thetas[-1] += 0.0001
+# Non-inclusive endpoint so don't have 0 and 2pi -> half deg spacing
+Phis = np.linspace(0,2*math.pi,nPhi, endpoint=False)
+Thetas2D = np.zeros([nTheta, nPhi])
+Phis2D = np.zeros([nTheta, nPhi])
+for i in range(nTheta):
+   Phis2D[i,:] = Phis
+for i in range(nPhi):
+    Thetas2D[:,i] = Thetas
+
+xyz = np.zeros([nTheta, nPhi, 3])
+xyz[:,:,0] = np.sin(Thetas2D)*np.cos(Phis2D)
+xyz[:,:,1] = np.sin(Thetas2D)*np.sin(Phis2D)
+xyz[:,:,2] = np.cos(Thetas2D)
+        
 Br = np.zeros([361, 720])
 for i in range(361):
 	for j in range(720):

@@ -11,18 +11,37 @@ from scipy.interpolate import CubicSpline
 # latitude and longitude position -> easy way to convert 
 # from Bxyz to Br
 global xyz
-f3 = open('/Users/ckay/Desktop/OSPtest/codes/xyz.pkl', 'rb')
-xyz = pickle.load(f3)
-f3.close()
+nTheta = 361
+nPhi = 720
+
+dPhi =2. * math.pi /nPhi
+dTheta = math.pi /nTheta
+dSinTheta = 2.0/nTheta
+Thetas = np.linspace(math.pi,0,nTheta)
+# shift end points slightly to avoid div by sintheta=0
+Thetas[0] -= 0.0001
+Thetas[-1] += 0.0001
+# Non-inclusive endpoint so don't have 0 and 2pi -> half deg spacing
+Phis = np.linspace(0,2*math.pi,nPhi, endpoint=False)
+Thetas2D = np.zeros([nTheta, nPhi])
+Phis2D = np.zeros([nTheta, nPhi])
+for i in range(nTheta):
+   Phis2D[i,:] = Phis
+for i in range(nPhi):
+    Thetas2D[:,i] = Thetas
+
+xyz = np.zeros([nTheta, nPhi, 3])
+xyz[:,:,0] = np.sin(Thetas2D)*np.cos(Phis2D)
+xyz[:,:,1] = np.sin(Thetas2D)*np.sin(Phis2D)
+xyz[:,:,2] = np.cos(Thetas2D)
 
 global dtor
 dtor = math.pi/180.
 
 
-def getsubB(date, x1,x2,y1,y2, height):
+def getsubB(fname, x1,x2,y1,y2, height):
     # Input is idxs, should correspond to 0.5 deg resolution.
     # Origin for y is lower -> 0 is colat 180, 181 is colat 0 
-    fname = '/Users/ckay/Desktop/OSPtest/MagField/PFSS'+ date + 'a3.pkl'
     
     # Load slice from pickle pickle
     f1 = open(fname, 'rb')
@@ -59,10 +78,10 @@ def getsubB(date, x1,x2,y1,y2, height):
     return subB, [lons*180./math.pi,90.-lats*180./math.pi]
     
 
-def extractPIL(date, x1,x2,y1,y2, height):
+def extractPIL(fname, x1,x2,y1,y2, height):
     # Grab a subsection of the magnetic field around the AR
     global subB, pos
-    subB, pos = getsubB(date, x1,x2,y1,y2, height)
+    subB, pos = getsubB(fname, x1,x2,y1,y2, height)
        
     # Calculate the average properties of the region    
     stdB = np.std(np.abs(subB))
@@ -248,7 +267,7 @@ def fitPIL(PILxs,PILxs2,ys, plotit=False):
     return outlats, outlons, outtilts, outAWs, outBs
 
 
-def ForeCATARPILER(date,x1,x2,y1,y2):
+def ForeCATARPILER(fname,x1,x2,y1,y2):
     heights = []
     lats = []
     lons = []
@@ -259,7 +278,7 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
     for i in range(16):
         height = 1.05 + i*0.01 
         heights.append(height)
-        PILxs, PILxs1, ys = extractPIL(date,x1,x2,y1,y2,height)
+        PILxs, PILxs1, ys = extractPIL(fname,x1,x2,y1,y2,height)
         outlats, outlons, outtilts, outAWs, outBs = fitPIL(PILxs, PILxs1, ys, plotit=False)
         lats.append(outlats)
         lons.append(outlons)
@@ -295,25 +314,7 @@ def ForeCATARPILER(date,x1,x2,y1,y2):
     #for i in range(len(outlats)):
     #    print outlats[i], outlons[i], outtilts[i], outAWs[i], outBs[i]*(1.15/213.)**2*1e5
         
-#ForeCATARPILER('20120712',125,250,110,170)    
-#ForeCATARPILER('20100801', 120,185,185,240)    
-#ForeCATARPILER('20130411', 135,190,175,235)  
-
-#ForeCATARPILER('20200621', 600,700,220,270) 
-#ForeCATARPILER('20200621', 630,720,105,185)    
-   
-#ForeCATARPILER('20201026', 105,185,215,270)    
-
-# new recent test cases
-#ForeCATARPILER('20210422', 510,540,118,143)    
-#ForeCATARPILER('20210422', 510,540,118,143)    
-
-  
-#fitPIL('20120712',125,250,110,170,1.15, plotit=True)        
-
-#fitPIL('20120712',370,430,130,165,1.13)    
-# fitPIL('20120712',125,250,110,170,height)
-# fitPIL('20120712',370,430,130,170,height)
-
-ForeCATARPILER('20210509', 10,54,130,160)    
+fname = str(sys.argv[1])  
+x1, x2, y1, y2 = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]) 
+ForeCATARPILER(fname, x1,x2,y1,y2)    
 
