@@ -50,7 +50,7 @@ def sync2carr(input_file):
         myfits.writeto(magpath+new_file, output_verify='ignore', overwrite=True) 
         return new_file
         
-def harmonics(obs, IDname, nHarmonics):
+def harmonics(obs, IDname, nHarmonics, isSinLat=True):
     # Script that takes in a magnetogram and produces the harmonic
     # coefficients needed for the PFSS model.
     # The algorithm was originally largely based on the IDL script
@@ -96,7 +96,10 @@ def harmonics(obs, IDname, nHarmonics):
 
     # More arrays to hold useful values 
     # Thetas = colatitude
-    Thetas = np.array([math.pi * 0.5 - np.arcsin((float(iTheta)+0.5) * dSinTheta - 1.0) for iTheta in range(nTheta)])
+    if isSinLat:
+        Thetas = np.array([math.pi * 0.5 - np.arcsin((float(iTheta)+0.5) * dSinTheta - 1.0) for iTheta in range(nTheta)])
+    else:
+        Thetas = np.linspace(math.pi, 0, nTheta)
     CosThetas = np.cos(Thetas)
     # Phis = longitude
     Phis = np.array([dPhi*i for i in range(nPhi)])
@@ -258,7 +261,7 @@ def makedapickle(obs, IDname, nHarmonics, rSS):
     rs = np.linspace(1.0,rSS,nR)
     dPhi =2. * math.pi /nPhi
     dTheta = math.pi /nTheta
-    dSinTheta = 2.0/nTheta
+    #dSinTheta = 2.0/nTheta
     Thetas = np.linspace(math.pi,0,nTheta)
     # shift end points slightly to avoid div by sintheta=0
     Thetas[0] -= 0.0001
