@@ -1046,13 +1046,17 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 else:
                     sheathOuts = np.array([[], [], [], [], [], [], [], [], [], [], [], []])
                 return CMEouts, Elon, vs, estDur, thisPsi, parat, SWparams, sheathOuts  
+            # distance between CME and sat is decreasing    
             elif thismin < prevmin:
                 prevmin = thismin
+            # CME is way past the sat
             elif CMElens[0] > Er + 100 * 7e10:
+                print ('Max CME distance reached -> no impact')
                 return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]  
-            else:                
+            # hasn't reached critical distance but separation between sat/CME started increasing    
+            else:      
+                print ('CME approached and began moving away from sat -> no impact')
                 return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]   
-        
 
 if __name__ == '__main__':
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, Bscale, Cd, tau, cnm, Tscale, gammaT]   

@@ -638,7 +638,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         # replace with the correct sat position for this time if using path
         if satPath:
             myParams = [satLatf(CMEarray[0].t*60), satLonf(CMEarray[0].t*60), satRf(CMEarray[0].t*60),0]
-                        
+                                     
         # Add in ensemble variation if desired
         if (i > 0) and useFCSW:
             if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
@@ -655,6 +655,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             SWvec = SWfile
             
         # high fscales = more convective like
+        print (myParams)
         if satPath:
             ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
@@ -1001,8 +1002,9 @@ def runOSPREI():
     if 'satPath' in input_values:
         doSatPath = True
         satPath = input_values['satPath']
+        # functions give correct R/lat/lon if give t in sec from start time
         satRf, satLatf, satLonf = makeSatPaths(satPath, dObj, Clon0=satPos[1])
-
+       
     if doFC:
         goForeCAT(makeRestart=False)        
     else:
