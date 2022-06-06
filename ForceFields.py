@@ -9,37 +9,47 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 def init_CPU(CR, Ntor, Npol, picklejar, picklename):
-	global rsun, kmRs, RSS, dR, RsR
-	rsun  = FC.rsun
-	RSS   = FC.Rss
-	RsR = rsun/7e10 # star radius in solar radii
-	kmRs  = 1.0e5 / rsun   # km (/s) divided by rsun (in cm)
-	dR = (RSS - 1.0) / 150.
+    global rsun, kmRs, RSS, dR, RsR
+    rsun  = FC.rsun
+    RSS   = FC.Rss
+    RsR = rsun/7e10 # star radius in solar radii
+    kmRs  = 1.0e5 / rsun   # km (/s) divided by rsun (in cm)
+    #dR = (RSS - 1.0) / 150.
 
-	# Determine the poloidal and toroidal spacing (already in CME class???)
-	#if Ntor !=1: delta_maj = 120. / (Ntor - 1.) * dtor  # point spacing along toroidal
-	#if Ntor ==1: delta_maj = 0.
-	#delta_min = 120. / (Npol - 1.) * dtor  # point spacing along poloidal
-	#t_angs = np.array([delta_maj * (int(Ntor / 2) - int(i/Npol)) for i in range(Npoints)], dtype=np.float32)
-	#p_angs = np.array([ delta_min * (i - int(Npol / 2)) for i in range(Npol)] * Ntor, dtype=np.float32)
+    # Determine the poloidal and toroidal spacing (already in CME class???)
+    #if Ntor !=1: delta_maj = 120. / (Ntor - 1.) * dtor  # point spacing along toroidal
+    #if Ntor ==1: delta_maj = 0.
+    #delta_min = 120. / (Npol - 1.) * dtor  # point spacing along poloidal
+    #t_angs = np.array([delta_maj * (int(Ntor / 2) - int(i/Npol)) for i in range(Npoints)], dtype=np.float32)
+    #p_angs = np.array([ delta_min * (i - int(Npol / 2)) for i in range(Npol)] * Ntor, dtype=np.float32)
 
-	global B_low, B_high, B_mid
-	# load the pickles which hold the mag field data
-	f1 = open(picklejar+'PFSS_'+picklename+'a3.pkl', 'rb')
-	#print "loading low pickle ..."
-	B_low = pickle.load(f1)
-	f1.close()
-	f1 = open(picklejar+'PFSS_'+picklename+'b3.pkl', 'rb')
-	#print "loading high pickle ..."
-	B_high = pickle.load(f1)
-	f1.close() 
+    global B_low, B_high, B_mid
+    # load the pickles which hold the mag field data
+    f1 = open(picklejar+'PFSS_'+picklename+'a3.pkl', 'rb')
+    #print "loading low pickle ..."
+    B_low = pickle.load(f1)
+    f1.close()
+    f1 = open(picklejar+'PFSS_'+picklename+'b3.pkl', 'rb')
+    #print "loading high pickle ..."
+    B_high = pickle.load(f1)
+    f1.close() 
 
-	# make B mid here?
-	B_mid = np.zeros([80,361,720,4])
-	B_mid[:35,:,:,:] = B_low[40:-1, :, :,:]
-	B_mid[35:,:,:,:] = B_high[:45,:,:,:]
-	# flag for in low/high pickle
-	Bzone = 0
+    # assume that low and high have the same nR
+    global nRlow, nR, dR, midID
+    nRlow = B_low.shape[0]
+    nR = 2*nRlow - 1
+    dR = (RSS - 1.0) / (nR-1)
+    midID = (int(nRlow/10)+1)*5
+    
+    # make B mid here
+    B_mid = np.zeros([2*midID,361,720,4])
+    n1 = nRlow - midID
+    B_mid[:n1,:,:,:] = B_low[midID:, :, :,:]
+    n2 = 2*midID - n1 + 1
+    B_mid[n1-1:,:,:,:] = B_high[:n2,:,:,:]
+    # flag for in low/high pickle
+    Bzone = 0
+    #print (sd)
 
 
 def calc_posCPU(CME):
@@ -216,16 +226,16 @@ def getBCPU(Rin, lat, lon, scangs, printit=False):
 	#minRids = np.min(Rids)
 	maxRids = np.max(Rids)
 	#ssIDs   = np.where(Rids >=150)
-	if maxRids < 75:
+	if maxRids < nRlow-1:
 		theChosenPickle = B_low
-	elif maxRids < 110:
+	elif maxRids < 3*midID - 10:
 		theChosenPickle = B_mid
-		Rids -= 40 # reindex ids
-		bottomR = 1.4
+		Rids -= midID # reindex ids
+		bottomR = 1. + midID * dR
 	else:
 		theChosenPickle = B_high
-		Rids -= 75
-		bottomR = 1.75
+		Rids -= (nRlow - 1)
+		bottomR = 1. + dR * (nRlow -1)
 	latIDs = lat*2 + 179
 	latIDs = latIDs.astype(int)
 	lonIDs = lon*2
@@ -276,7 +286,7 @@ def getBCPU(Rin, lat, lon, scangs, printit=False):
 
 	# adjust to Parker spiral angle above SS
 	# passing scangs = [sc,cc,sl,cl]
-	if maxRids == 150:
+	if maxRids == nR-1:
 		#print np.min(Rids)
 		Br = Bmag[:,3]
 		#FC.SW_v = 400.e5 # for testing!!!!

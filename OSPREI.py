@@ -595,7 +595,7 @@ def goANTEATR(makeRestart=False, satPath=False):
 
     # Pull in ANTEATR values from the input file
     global SatVars0
-    SatVars0, Cd, mySW = processANTinputs(input_values)
+    SatVars0, Cd, mySW = processANTinputs(input_values, hasPath=satPath)
 
     # Assume that the given lon is the time of eruption, need to add in
     # the orbit during the ForeCAT run
@@ -655,11 +655,10 @@ def goANTEATR(makeRestart=False, satPath=False):
             SWvec = SWfile
             
         # high fscales = more convective like
-        print (myParams)
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=False, flagScales=flagScales, doPUP=doPUP)
+            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for

@@ -68,7 +68,7 @@ def rotz(vec, ang):
 	yout = np.sin(ang) * vec[0] + np.cos(ang) * vec[1]
 	return [xout, yout, vec[2]]
     
-def processANTinputs(input_values):
+def processANTinputs(input_values, hasPath=False):
     Epos = [0.,0.,213.,1.141e-5] # sat_lat, sat_lon, sat_rad, sat_rot
     # sat rot default is  360/365.256/24./60./60.
     try: 
@@ -82,11 +82,13 @@ def processANTinputs(input_values):
     try: 
         Epos[2] = float(input_values['SatR'])
     except:
-        print('Assuming satellite at 213 Rs (L1)')
+        if not hasPath:
+            print('Assuming satellite at 213 Rs (L1)')
     try: 
         Epos[3] = float(input_values['SatRot'])
     except:
-        print('Assuming satellite orbits at Earth orbital speed')
+        if not hasPath:
+            print('Assuming satellite orbits at Earth orbital speed')
     try: 
         Cd = float(input_values['SWCd'])
     except:
