@@ -158,6 +158,7 @@ class CME:
         self.shTheta = 0.
         self.shvt = 0.
         self.shv = self.v1AU / 1e5 
+        self.shT = self.TSW
         
         
         # redefine dt in secs and as short name variable for convenience

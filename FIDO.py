@@ -290,10 +290,9 @@ def new_getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
     
 
 # -------------------------------------------------------------------------------------- #
-def getFRprofile(satfs=None):
+def getFRprofile(satfs=None,  FRmass=None, FRtemp=None, FRgamma=5./3):
     # Main function for getting the flux rope profile by propagating a CME outward, 
     # determining when/where it is within the CME, and getting the magnetic field vector
-    
     # Unpack the parameters from inps
     FFlat, FFlon, CMElat, CMElon, CMEtilt, CMEAW, CMEAWp, deltaAx, deltaCS, deltaCSAx, CMEB, CMEH, tshift, CMEstart, FFr, rotspeed, CMEr, cnm, tau = inps[0], inps[1], inps[2], inps[3], inps[4], inps[5], inps[6], inps[7], inps[8], inps[9], inps[10], inps[11], inps[12], inps[13], inps[14], inps[15], inps[16], inps[17], inps[18]
                 
@@ -313,6 +312,14 @@ def getFRprofile(satfs=None):
     B0scaler = B0 * deltaCS**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltaCS**2+1)    
+    
+    # calc n/T
+    if FRmass != None:
+        vol = math.pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6] * (7e10)**3
+        n = FRmass/ vol / 1.67e-24
+    if FRtemp != None:
+        gm1 = FRgamma - 1    
+        tempScaler = np.power(CMElens[3] * CMElens[4] * initlen , gm1) * FRtemp
         
     # Set up arrays to hold values over the spacecraft path
     obsBx = []
@@ -320,6 +327,8 @@ def getFRprofile(satfs=None):
     obsBz = []
     tARR = []
     rCME = []
+    nCME = []
+    tempCME = []
     radfrac = []
     vIS  = []
     
@@ -390,13 +399,29 @@ def getFRprofile(satfs=None):
             temp = rotx(vCMEframe, -(90.-CMEtilt))
             temp2 = roty(temp, CMElat - FFlat) 
             vInSitu = rotz(temp2, CMElon - FFlon)
-
+            
+            # Update n/T
+            if FRmass != None:
+                vol = math.pi*CMElens[3]*CMElens[4] *  lenFun(CMElens[5]/CMElens[6])*CMElens[6] * (7e10)**3
+                n = FRmass/ vol / 1.67e-24
+            else:
+                n = 0
+                
+            if FRtemp !=None:
+                lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6] 
+                tem = tempScaler / np.power(CMElens[3] * CMElens[4] * lenNow, gm1)
+            else:
+                tem = 0
+                
+                
             # Append to output arrays
             obsBx.append(-BSC[0])
             obsBy.append(-BSC[1])
             obsBz.append(BSC[2])
             tARR.append(t/3600.)
             rCME.append(CMElens[0])
+            nCME.append(n)
+            tempCME.append(tem)
             radfrac.append(minb/CME_crossrad)
             vIS.append(vInSitu[0])   
             
@@ -411,7 +436,7 @@ def getFRprofile(satfs=None):
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
         B0 = B0scaler / deltaCS**2 / CMElens[4]**2 
         cnm = cnmscaler * lenNow  / CMElens[4] / (deltaCS**2+1)
-                     
+                             
 	    # Include the orbit of the satellite/Earth
         if not doPath:
             FFlon += dt * rotspeed
@@ -433,10 +458,10 @@ def getFRprofile(satfs=None):
     except:
         isHit = False
     Bout = np.array([obsBx, obsBy, obsBz, obsB])   
-    return Bout, tARR, isHit, ImpParam, np.array(radfrac), np.array(vIS)
+    return Bout, tARR, isHit, ImpParam, np.array(radfrac), np.array(vIS), np.array(nCME), np.array(tempCME)
     
 # -------------------------------------------------------------------------------------- #
-def run_case(inpsIn, shinpsIn, vExpIn, satfs=None):
+def run_case(inpsIn, shinpsIn, vExpIn, satfs=None,  FRmass=None, FRtemp=None, FRgamma=None):
     # Take the values passed in and set to globals for convenience
     global inps, shinps, vExps
     inps = inpsIn
@@ -447,7 +472,7 @@ def run_case(inpsIn, shinpsIn, vExpIn, satfs=None):
     CMEstart = inps[13] + inps[12]/24.
     
     # run the simulation    
-    Bout, tARR, isHit, ImpParam, radfrac, vIS = getFRprofile(satfs=satfs)
+    Bout, tARR, isHit, ImpParam, radfrac, vIS, nCME, tempCME = getFRprofile(satfs=satfs, FRmass=FRmass, FRtemp=FRtemp, FRgamma=FRgamma)
     # execute extra functions as needed
     Bsheath = []
     tsheath = []
@@ -464,7 +489,7 @@ def run_case(inpsIn, shinpsIn, vExpIn, satfs=None):
     # No impact case
     else:
         if canPrint: print ('No impact expected')
-    return Bout, tARR, Bsheath, tsheath, radfrac, isHit, vIS 
+    return Bout, tARR, Bsheath, tsheath, radfrac, isHit, vIS, nCME, tempCME 
 
 # -------------------------------------------------------------------------------------- #
 def radfrac2vprofile(radfrac, vAvg, vExp):

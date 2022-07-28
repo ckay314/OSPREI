@@ -710,6 +710,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.impV = vF
             CME.impVE = vEx
             CME.t = TotTime
+            CME.Tscale = logT
             
             # CME sheath parameters
             if doPUP:
@@ -721,6 +722,7 @@ def goANTEATR(makeRestart=False, satPath=False):
                 CME.shB    = PUPresults[7][shIdx]
                 CME.shTheta = PUPresults[8][shIdx]
                 CME.shvt   = PUPresults[9][shIdx]
+                CME.shT    = PUPresults[10][shIdx]
                 CME.shv    = ATresults[2][shIdx][0]
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
@@ -847,6 +849,10 @@ def goFIDO(satPath=False):
         inps[16] = CME.points[CC.idcent][1,0]
         inps[17] = CME.cnm
         inps[18] = CME.tau
+        
+        FRmass = CME.M
+        FRtemp = np.power(10,CME.Tscale)
+        FRgamma = CME.gamma
 
         # Sat parameters
         if not satPath:
@@ -890,6 +896,14 @@ def goFIDO(satPath=False):
                 else:
                     vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
                     sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
+                    # need to calc T for perpendicular/FIDO case
+                    beta = 2*CME.cs**2/ FRgamma / CME.vA**2
+                    comp = sheathParams[2]
+                    vshock = sheathParams[7]
+                    MA = (vshock-sheathParams[3]) / CME.vA
+                    bigR = 1 + FRgamma * MA**2 * (1-1/comp) + (1/beta) * (1 - 1/comp**2)
+                    Tratio = bigR / comp                   
+                    CME.shT = np.log10(Tratio * CME.TSW)
                 actuallySIT = True
             # If not tell FIDO not to do sheath this time
             else:
@@ -907,9 +921,9 @@ def goFIDO(satPath=False):
             #print (sheathParams)
             #print (vs)
             if satPath:
-                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs, satfs=[satLatf3, satLonf3, satRf3])
+                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf, nCME, tempCME = FIDO.run_case(inps, sheathParams, vs, satfs=[satLatf3, satLonf3, satRf3], FRmass=FRmass, FRtemp=FRtemp, FRgamma=FRgamma)
             else:
-                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf = FIDO.run_case(inps, sheathParams, vs)
+                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf, nCME, tempCME = FIDO.run_case(inps, sheathParams, vs, FRmass=FRmass, FRtemp=FRtemp, FRgamma=FRgamma)
             # Old version of getting velocity profile just using radfrec (less accurate than new)
             # vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
             # turn the sheath back on if we turned it off for a low case
@@ -926,6 +940,8 @@ def goFIDO(satPath=False):
             tARRDS = FIDO.hourify(t_res*tARR, tARR)
             BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
             vProfDS = FIDO.hourify(t_res*tARR, vProf)
+            nProfDS = FIDO.hourify(t_res*tARR, nCME)
+            tempProfDS = FIDO.hourify(t_res*tARR, tempCME)
             # Write sheath stuff first if needed
             if actuallySIT:
                 tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
@@ -935,7 +951,7 @@ def goFIDO(satPath=False):
                 for j in range(len(BsheathDS[0])):
                     outprint = str(i)
                     outprint = outprint.zfill(4) + '   '
-                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]+j*delV, 0]
+                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]+j*delV, sheathParams[2] * CME.nSW, np.power(10,CME.shT), 0]
                     for iii in outstuff:
                         outprint = outprint +'{:6.3f}'.format(iii) + ' '
                     FIDOfile.write(outprint+'\n')
@@ -946,6 +962,7 @@ def goFIDO(satPath=False):
                 n = sheathParams[2] * CME.nSW
                 B = sheathParams[2] * np.abs(CME.BSW)
                 #outstuff = [dur, comp, Mach, n, vsheath, B, vshock]
+                tempSheath = sheathParams[3]
                 outstuff = [sheathParams[1], sheathParams[2], Mach, n, sheathParams[3], B, sheathParams[7]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
@@ -954,7 +971,7 @@ def goFIDO(satPath=False):
             for j in range(len(BvecDS[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], 1]
+                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 FIDOfile.write(outprint+'\n')  
