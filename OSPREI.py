@@ -49,7 +49,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -62,6 +62,7 @@ def setupOSPREI():
     flagScales = False
     flag1DSW = False
     doPUP   = False
+    doMH    = False
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -102,6 +103,10 @@ def setupOSPREI():
             flag1DSW  = True
             global SWfile
             SWfile = temp[1]
+        elif temp[0][:-1] == 'doMH':
+            if temp[1] == 'True':
+                doMH = True
+        
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
@@ -166,7 +171,7 @@ def setupOSPREI():
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'MHarea', 'MHdist']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -174,7 +179,7 @@ def setupEns():
     EnsInputs = {}
     for i in range(len(EnsData)):
         #temp = EnsData[i]
-        if len(EnsData) > 2:
+        if len(EnsData) > 1:
             temp = EnsData[i]
         else:
             temp = EnsData
@@ -198,11 +203,11 @@ def setupEns():
     outstr1 = 'RunID '
     outstr2 = '0000 '
     for item in EnsInputs.keys():
-        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma', 'MHarea', 'MHdist']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     for item in EnsInputs.keys():
-        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRBscale', 'FRTscale', 'CMEvExp', 'IVDf1', 'IVDf2', 'Gamma', 'MHarea', 'MHdist']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
     ensembleFile.write(outstr1+'\n')
@@ -316,7 +321,10 @@ def genEnsMem(runnum=0):
         CME.IVDfs[0] = float(input_values['IVDf'])
         CME.IVDfs[1] = float(input_values['IVDf'])
     if 'Gamma' in input_values: CME.gamma = float(input_values['Gamma'])
-
+    if 'MHdist' in input_values: CME.MHdist = float(input_values['MHdist'])    
+    if 'MHarea' in input_values: CME.MHarea = float(input_values['MHarea'])    
+    
+    print (EnsInputs.keys())
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
         if item == 'SWCd':
@@ -376,6 +384,12 @@ def genEnsMem(runnum=0):
         if item == 'Gamma':
             CME.gamma = np.random.normal(loc=float(input_values['Gamma']), scale=EnsInputs['Gamma'])
             outstr += '{:6.2f}'.format(CME.gamma) + ' '
+        if item == 'MHdist':
+            CME.MHdist = np.random.normal(loc=float(input_values['MHdist']), scale=EnsInputs['MHdist'])
+            outstr += '{:6.3f}'.format(CME.MHdist) + ' '
+        if item == 'MHarea':
+            CME.MHarea = np.random.normal(loc=float(input_values['MHarea']), scale=EnsInputs['MHarea'])
+            outstr += '{:6.2f}'.format(CME.MHarea) + ' '        
     ensembleFile.write(outstr+'\n')  
     # used to set CME.vs here, seems unnecessary b/c done in other parts of code       
     return CME
@@ -545,6 +559,9 @@ def makeCMEarray():
     if 'SWn'    in input_values: CME.nSW = float(input_values['SWn'])
     if 'SWv'    in input_values: CME.vSW = float(input_values['SWv'])
     if 'SWB'    in input_values: CME.BSW = float(input_values['SWB'])
+    if 'MHarea'    in input_values: CME.MHarea = float(input_values['MHarea'])
+    if 'MHdist'    in input_values: CME.MHdist = float(input_values['MHdist'])
+
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
          
@@ -656,9 +673,16 @@ def goANTEATR(makeRestart=False, satPath=False):
             
         # high fscales = more convective like
         if satPath:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
+            if doMH:
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+            else:
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
-            ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
+            if doMH:
+                print (CME.MHarea, CME.MHdist)
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+            else:    
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for
@@ -721,8 +745,8 @@ def goANTEATR(makeRestart=False, satPath=False):
                 CME.shDens = PUPresults[6][shIdx]
                 CME.shB    = PUPresults[7][shIdx]
                 CME.shTheta = PUPresults[8][shIdx]
-                CME.shvt   = PUPresults[9][shIdx]
-                CME.shT    = PUPresults[10][shIdx]
+                CME.shvt   = PUPresults[10][shIdx]
+                CME.shT    = PUPresults[9][shIdx]
                 CME.shv    = ATresults[2][shIdx][0]
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
@@ -1028,7 +1052,7 @@ def runOSPREI():
         makeCMEarray()
     
     #readMoreInputs()
-        
+
     if doANT: goANTEATR(makeRestart=False, satPath=doSatPath)
     
     if doFIDO: goFIDO(satPath=doSatPath)

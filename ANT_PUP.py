@@ -3,9 +3,9 @@ import math
 import sys
 import os.path
 from scipy.interpolate import CubicSpline
-#from perpSheath import getPerpSheath
-#from obSheath import getObSheath
 import pickle
+import empHSS as emp
+
 
 
 global rsun, dtor, radeg, kmRs
@@ -158,47 +158,74 @@ def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     #print (coeff3, coeff4, coeff4sw, coeff3 + coeff4 - coeff4sw)
     return aBr
     
-def getThermF(CMElens, temCME, nCME, nSW):
+def getThermF(CMElens, temCME, nCME, SWfront, SWfrontB, SWedge):
     # Get temperatures
-    temSW = funT(CMElens[0] - CMElens[3])
-    temSWf = funT(CMElens[0])
-    temSWb = funT(CMElens[0] - 2*CMElens[3]) 
-    rE = np.sqrt((CMElens[0] - CMElens[3])**2 + CMElens[4]**2)
-    temSWe = funT(rE) 
+    temSWf = SWfront[4]
+    temSWb = SWfrontB[4] 
+    temSWe = SWedge[4] 
     
     # Scale densities
-    nE = frho(CMElens[1]) / 1.67e-24 
-    nB = frho(CMElens[0] - 2*CMElens[3]) / 1.67e-24 
+    nF = SWfront[0] / 1.67e-24 
+    nE = SWedge[0] / 1.67e-24 
+    nB = SWfrontB[0]  / 1.67e-24 
     
     # average n*T of front and back
-    avgNT = 0.5 * (nB * temSWb + nSW * temSWf)    
+    avgNT = 0.5 * (nB * temSWb + nF * temSWf)    
     
     # Calc difference in pressure
     delPr =  1.38e-16 * 2*(nCME * temCME - avgNT)
     delPp =  1.38e-16 * 2*(nCME * temCME - nE * temSWe)
-        
+
     # Calc gradients
     gradPr = delPr / CMElens[3] 
     gradPp = delPp / CMElens[4]
     return gradPr, gradPp
     
-def getDrag(CMElens, vs, Mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz):
+def getDrag(CMElens, vs, Mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz):
     # dragAccels = [dragR, dragEdge, bulk, dragBr, dragBp, dragA, dragC]
     dragAccels = np.zeros(7)
+    rhoSWn1 = SWfront[0]
+    rhoSWn2 = SWfrontB[0]
+    vSWn1 = SWfront[1]
+    vSWn2 = SWfrontB[1]
     # Radial Drag
     CMEarea = 4*CMElens[1]*CMElens[4] 
-    dragAccels[0] = -Cd*CMEarea*rhoSWn * (vs[0]-vSW) * np.abs(vs[0]-vSW) / Mass
+    dragF1 = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
+    vFback = vs[0] - 2*vs[3]
+    dragF2 = -Cd*CMEarea*rhoSWn2 * (vFback-vSWn2) * np.abs(vFback-vSWn2) / Mass
+    dragF = 0.5 * (dragF1 + dragF2)
+    CSsquishF = 0.5 * (dragF1 - dragF2) 
     # Edge Drag
     CMEarea2 = 2*CMElens[4]*(CMElens[5] + CMElens[3])
-    dragAccels[1] = -Cd*CMEarea2*rhoSWe * (vs[1]-np.sin(AW)*vSW) * np.abs(vs[1]-np.sin(AW)*vSW)  / Mass
+    rhoSWe1 = SWedge[0]
+    rhoSWe2 = SWedgeB[0]
+    vSWe1 = SWedge[1]
+    vSWe2 = SWedgeB[1]
+    dragE1 = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
+    #dragE2 = -Cd*CMEarea2*rhoSWe2 * (vs[1]-np.sin(AW)*vSWe2) * np.abs(vs[1]-np.sin(AW)*vSWe2)  / Mass    
+    dragE2 = -Cd*CMEarea2*rhoSWe2 * (vs[1]-2*vs[3]/ndotz-np.sin(AW)*vSWe2) * np.abs(vs[1]-2*vs[3]/ndotz-np.sin(AW)*vSWe2)  / Mass   
+    dragE = 0.5 * (dragE1 + dragE2)
+    CSsquishE = 0.5 * (dragE1 - dragE2)
+    CSsquish = 0.5 * (CSsquishF + CSsquishE)
     # CS Perp Drag
     CMEarea3 = 2*CMElens[3]*lenFun(CMElens[5] / CMElens[6]) * CMElens[6]
-    dragAccels[4] = -Cd*CMEarea3*rhoSWn * (vs[4]-np.sin(AWp)*vSW) * np.abs(vs[4]-np.sin(AWp)*vSW) / Mass 
+    dragAccels[4] = -Cd*CMEarea3*rhoSWn1 * (vs[4]-np.sin(AWp)*vSWn1) * np.abs(vs[4]-np.sin(AWp)*vSWn1) / Mass 
     # Individual components  
-    dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
+    dragAccels[0] = dragF + CSsquish
+    dragAccels[1] = dragE 
+    dragAccels[2] = dragF* (vs[2]/(vs[2]+vs[5])) 
+    dragAccels[3] = CSsquish 
+    dragAccels[5] = dragF * (vs[5]/(vs[2]+vs[5]))
+    dragAccels[6] = dragAccels[1] - CSsquish / ndotz   
+    
+    # old version of drag
+    #dragAccels[0] = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
+    #dragAccels[1] = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
+    '''dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
     dragAccels[3] = dragAccels[0] * (vs[3]/vs[0])
     dragAccels[5] = dragAccels[0] * (vs[5]/vs[0])
-    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz    
+    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz'''
+    
     return dragAccels
     
 def IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales):
@@ -270,7 +297,7 @@ def updateCME(CMElens, Mass):
     rho = Mass / vol        
     return deltaCS, deltaAx, deltaCSAx, alpha, ndotz, AW, AWp, rho
     
-def makeSW(fname, time=None, doAll=False):
+def makeSWfuncs(fname, time=None, doAll=False, isArr=False):
     SWfs = []
     # assume n in cm^-3, v in km/s, B in nT, T in K
     # rs in AU whether in text file or passed
@@ -287,6 +314,14 @@ def makeSW(fname, time=None, doAll=False):
             Brs = data[:,3]
             Blons = data[:,4]
             Ts = data[:,5]
+            if doAll:
+                vclts = data[:,6]
+                vlons = data[:,7]
+                Bclts = data[:,8]
+                fvlon = CubicSpline(rs, vlons * 1e5, bc_type='natural')
+                fvclt = CubicSpline(rs, vclts * 1e5, bc_type='natural')
+                fBclt = CubicSpline(rs, Bclts / 1e5, bc_type='natural')
+                
         else:
             # dict keys
             #'Blon[nT]', 'vclt[km/s]', 'T[K]', 'n[1/cm^3]', 'vr[km/s]', 'Br[nT]', 'vlon[km/s]', 'Bclt[nT]', 'r[AU]'
@@ -324,7 +359,10 @@ def makeSW(fname, time=None, doAll=False):
         # n profile
         frho = lambda x: 1.67e-24 * nSW * (rSW/x)**2        
         # assume constant v
-        fv = lambda x: vSW
+        if isArr:
+            fv = lambda x: vSW*np.ones(len(x))
+        else:
+            fv = lambda x: vSW
         # B profile
         BphiBr = 2.7e-6 * rSW  / vSW 
         Br_rSW = BSW / np.sqrt(1+BphiBr**2)
@@ -333,179 +371,44 @@ def makeSW(fname, time=None, doAll=False):
         # lon = Br * parker factor
         fBlon = lambda x: Br_rSW * (rSW/x)**2 * 2.7e-6 * x / vSW  / 1e5                   
         # T profile
-        fT = lambda x: TSW * np.power(x/rSW, -0.58)  
+        #fT = lambda x: TSW * np.power(x/rSW, -0.58)  
+        fT = lambda x: TSW * np.power(x/rSW, -1.)  
+        # return empty functions for the other parameters we don't have in empirical model
+        if isArr:
+            fvlon = lambda x: 0*np.ones(len(x))
+            fvclt = lambda x: 0*np.ones(len(x))
+            fBclt = lambda x: 0*np.ones(len(x))
+        else:
+            fvlon = lambda x: 0
+            fvclt = lambda x: 0
+            fBclt = lambda x: 0
         
     if doAll:
         return [frho, fv, fBr, fBlon, fT, fvlon, fvclt, fBclt]  
     else:
         return [frho, fv, fBr, fBlon, fT]  
 
-
-def makeEmpHSS(t, rs, noHSS):
-    # takes in t in days
-
-    # fake v profile ---------------------------------------------------------------
-    v_xc1 = 0.0613 * t**2 - 0.213 * t + 0.279
-    v_xc2 = 0.279 * t - 0.298
-    v_xb  = 0.230 * t - 0.659
-    v_xf  = 0.277 * t - 0.147 # n_xp
-    v_yp = 725 * 1e5
-    v_yl = 385 * 1e5
-    v = np.ones(len(rs)) * v_yl
-
-    # identify zones
-    idx1 = np.where((rs >= v_xb) & (rs <= v_xc1))
-    idx2 = np.where((rs >= v_xc1) & (rs <= v_xc2))
-    idx3 = np.where((rs >= v_xc2) & (rs <= v_xf))
-
-    # zone 1 linear
-    m1 = (v_yp - v_yl) / (v_xc1 - v_xb)
-    v1 = v_yl + m1 * (rs - v_xb)
-    v[idx1] = v1[idx1]
-    # zone 2 flat
-    v[idx2] = v_yp
-    # zone 1 linear
-    m3 = (v_yl - v_yp) / (v_xf - v_xc2)
-    v3 = v_yp + m3 * (rs - v_xc2)
-    v[idx3] = v3[idx3]
-    
-    # fake n profile ---------------------------------------------------------------
-    n_xb = 0.143 * t - 0.371
-    n_xp = 0.277 * t - 0.147
-    n_yl = -0.0062 * t**2 + 0.0239 * t + 0.201
-    n_yp = 0.461 * t + 0.158
-    n_df = 2.676 * t**2 - 10.30 * t + 13.68
-    scale_it = np.ones(len(rs))
-
-    # identify zones
-    idx1 = np.where((rs>=n_xb) & (rs<=(v_xc1)))[0]
-    idx2 = np.where((rs>=(v_xc1)) & (rs<=(v_xc2)))[0]
-    idx3 = np.where((rs>=(v_xc2)) & (rs<=(n_xp-0.045)))[0]
-    idx4 = np.where((rs>=(n_xp-0.045)) & (rs<=n_xp))[0]
-    idx5 = np.where(rs>=n_xp)[0]
-
-    # zone 1 linear
-    m1 = (1. - n_yl) / (v_xc1 - n_xb)
-    scl1 = 1- m1 * (rs - n_xb)
-    scale_it[idx1] = scl1[idx1]
-    # zone 2 linear
-    m2 = n_yl / (v_xc2-v_xc1)
-    scl2 = n_yl + m2 * (rs - (v_xc1))
-    scale_it[idx2] = scl2[idx2]
-    # zone 3 linear
-    m3 = (0.9*(n_yp) - 2 * n_yl) / (n_xp - 0.045 - (v_xc2))
-    scl3 = 2*n_yl + m3 * (rs - (v_xc2))
-    scale_it[idx3] = scl3[idx3]
-    # zone 4 linear
-    m4 = 0.1*n_yp / 0.045
-    scl4 = 0.9*n_yp + m4 * (rs - n_xp + 0.045)
-    scale_it[idx4] = scl4[idx4]
-    # zone 5 exponential
-    scl5 = 1+(n_yp - 1) * np.exp(-n_df * (rs-n_xp))
-    scale_it[idx5] = scl5[idx5]
-
-    # scale the HSS free case
-    n = scale_it * noHSS[0]
-
-    # fake Br profile ---------------------------------------------------------------
-    xp = 0.283 * t - 0.213
-    yp = 0.0850 * t**2 + 0.0852 * t + 0.620
-    xl = 0.307 * t - 0.862
-    yl = -0.224 * t + 1.679
-    xm = 0.342 * t - 0.757
-    scale_it = np.ones(len(rs))
-
-    # identify zones
-    idx1 = np.where((rs>=(xl - (xm-xl))) & (rs<=xm))[0]
-    idx2 = np.where(rs>=xm)[0]
-
-    # zone 1 - 2nd order polynomial
-    a2 = (1-yl) / (xl - xm)**2
-    a1 = -2*a2*xl
-    a0 = yl + a2*xl**2
-    scl1 = a2*rs**2 + a1*rs + a0
-    scale_it[idx1] = scl1[idx1]
-    # zone 2 - normal dist
-    scl2 = 1+(yp - 1) * np.exp(-(rs-xp)**2 / ((xp-xm)/2.5)**2)
-    scale_it[idx2] = scl2[idx2]
-   
-    Br = scale_it * noHSS[2]
-
-
-    # fake Bp profile ---------------------------------------------------------------
-    xp = 0.253 * t - 0.0711
-    yp = 0.0916 * t**2 - 0.185*t + 1.054
-    xm = 0.241 * t - 0.151
-    xl = 0.0609 * t**2 - 0.281*t + 0.581
-    yl = -0.155 * t + 1.154
-    scale_it = np.ones(len(rs))
-
-    # identify zones
-    idx1 = np.where((rs>=(xl - (xm-xl))) & (rs<=xm))[0]
-    idx2 = np.where(rs>=xm)[0]
-
-    # zone 1 - 2nd order polynomial
-    a2 = (1-yl) / (xl - xm)**2
-    a1 = -2*a2*xl
-    a0 = yl + a2*xl**2
-    scl1 = a2*rs**2 + a1*rs + a0
-    scale_it[idx1] = scl1[idx1]
-    # zone 2 - normal dist
-    scl2 = 1+(yp - 1) * np.exp(-(rs-xp)**2 / ((xp-xm)/1.5)**2)
-    scale_it[idx2] = scl2[idx2]
-   
-    Blon = scale_it * noHSS[3]
-
-
-    # fake T profile ---------------------------------------------------------------
-    T_x1 = 0.286*t - 0.894
-    T_x2 = 0.318*t - 0.860
-    T_x4 = 0.303*t - 0.362
-    T_x5 = 0.302*t - 0.248
-    T_x3 = T_x4 - (T_x5 - T_x4)
-    T_y1 = -0.0787*t**2 + 0.454*t + 2.813
-    T_y2 = 0.0824*t**2 + 0.631*t + 2.032
-    scale_it = np.ones(len(rs))
-
-    # identify zones
-    idx1 = np.where((rs>=T_x1) & (rs<=T_x2))[0]
-    idx2 = np.where((rs>=T_x2) & (rs<=T_x3))[0]
-    idx3 = np.where((rs>=T_x3) & (rs<=T_x4))[0]
-    idx4 = np.where((rs>=T_x4) & (rs<=T_x5))[0]
-
-    # zone 1 linear
-    m1 = (T_y1 - 1.) / (T_x2 - T_x1)
-    scl1 = 1+  m1 * (rs -T_x1)
-    scale_it[idx1] = scl1[idx1]
-
-    # zone 2 flat
-    scale_it[idx2] = T_y1
-
-    # zone 3 linear
-    m3 = (T_y2 - T_y1) / (T_x4 - T_x3)
-    scl3 = T_y1 +  m3 * (rs -T_x3)
-    scale_it[idx3] = scl3[idx3]
-
-    # zone 4 linear
-    m4 = (1 - T_y2) / (T_x5 - T_x4)
-    scl4 = T_y2 +  m4 * (rs - T_x4)
-    scale_it[idx4] = scl4[idx4]
-
-    T = scale_it * noHSS[4]
-
-    frho = CubicSpline(rs*1.5e13, n, bc_type='natural')
-    fv = CubicSpline(rs*1.5e13, v, bc_type='natural')
-    fBr = CubicSpline(rs*1.5e13, Br, bc_type='natural')
-    fBlon = CubicSpline(rs*1.5e13, Blon, bc_type='natural')
-    fT = CubicSpline(rs*1.5e13, T, bc_type='natural')   
-
-    return [frho, fv, fBr, fBlon, fT] 
-                
+def getSWvals(r_in, SWfuncs, doMH=False, returnReg=False):
+    # returns the actual values of n, vr, Br, Blon, T
+    SWvec = np.zeros(5)
+    for i in range(5):
+        SWvec[i] = SWfuncs[i](r_in)
+    if hasattr(doMH, '__len__'):
+        if returnReg:
+            MHouts, HSSreg = emp.getHSSprops(r_in/1.5e13, doMH[0], doMH[1], doMH[2], doMH[3], doMH[4], doMH[5], returnReg=True)
+        else:
+            MHouts = emp.getHSSprops(r_in/1.5e13, doMH[0], doMH[1], doMH[2], doMH[3], doMH[4], doMH[5])
+            
+        SWvec = MHouts[:-1]*SWvec # drop vlon term
+    if returnReg:
+        return SWvec, HSSreg
+    else:
+        return SWvec 
     
 def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
     r = rmin
     diffs = []
-    for i in range(nr):
+    for i in range(nr+1):
         r+= dr
         a = 0.5 * (gam + 1 - r * (gam -1))
         term3 = a
@@ -529,7 +432,13 @@ def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
             diffs.append(9999)
     idx = np.where(np.abs(diffs) == np.min(np.abs(diffs)))
     if diffs[idx[0][0]] == 9999:
-        return 9999
+        if ((vCME-vSW)/vA) > 10 and (rmin==1):
+           r = getr(3.7, 0.01, 29, beta, theta, gam, vCME, vSW, vA)
+        elif ((vCME-vSW)/vA) > 10 and (rmin==1):
+            print ('here')
+            return 9999
+        else:
+            return 9999
     else:
         r = rmin+dr*(idx[0][0]+1)
     return r
@@ -557,7 +466,7 @@ def getObSheath(vCME, vSW, theta, cs, vA, gam=5/3):
     return r, vS, prat
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False):
+def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False):
     
     Elat      = Epos[0]
     Elon      = Epos[1]
@@ -590,41 +499,53 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     global Tratio, rratio
     Tratio = 1
     rratio = 1
+           
     
     if flagScales:
         CMEB = invec[10] / 1e5
         CMET = invec[14]
     
+    # Get ambient background SW - still need ambient event if doing
+    # HSS bc scaled off of it
+    # Check if passed 1 AU values -> scaling of empirical model
     if not isinstance(SWparams, str):    
         SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], Er/1.5e13]
-        
-    global funT, frho
-    if isinstance(tEmpHSS, float):
-        rs_HSS = np.linspace(0.1, 1.2, 111)       
-        # get clean SW profile
-        funs0 = makeSW(SWparams)
-        noHSS = []
-        for i in range(5):
-            noHSS.append(funs0[i](rs_HSS*1.5e13))  
-        SWfs = makeEmpHSS(tEmpHSS, rs_HSS, noHSS)
-    else:   
-        SWfs = makeSW(SWparams, time=SWidx)
-    frho, fv, fBr, fBlon, funT = SWfs[0], SWfs[1], SWfs[2], SWfs[3], SWfs[4]
-    #n1AU = frho(Er) / 1.67e-24
-    vSW  = fv(rFront)
-        
+    # If given string, func will convert text file to profile
+    # Otherwise uses the array
+    SWfs = makeSWfuncs(SWparams, time=SWidx)
+
+    # Determine if using MEOW-HiSS or not
+    #MEOWHiSS = [800, 1.2]
+    doMH = False
+    # check if list or array
+    if hasattr(MEOWHiSS, '__len__'):
+        if len(MEOWHiSS) == 2:
+            # If doing MH get the initial values
+            MHt0, MHxs0, MHvs, MHa1 = emp.getxmodel(MEOWHiSS[0], MEOWHiSS[1])
+            # Get the HSS funcs to scale the ambient background
+            vfuncs = emp.getvmodel(MEOWHiSS[0])
+            nfuncs = emp.getnmodel(MEOWHiSS[0])
+            Brfuncs = emp.getBrmodel(MEOWHiSS[0])
+            Blonfuncs = emp.getBlonmodel(MEOWHiSS[0])
+            Tfuncs = emp.getTmodel(MEOWHiSS[0])
+            vlonfuncs = emp.getvlonmodel(MEOWHiSS[0])
+            MHfuncs = [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs]
+            doMH = [MHt0+0, MHt0, MHxs0, MHvs, MHa1, MHfuncs]
+        else:
+            sys.exit('Cannot initiate HSS. Set MEOWHiSS to [CH_area, init_dist]')
+    
     writeFile = False
     if name != 'nosave':
         writeFile = True
-        fname = 'PARADE_'+name+'.dat'
+        fname = 'MH_PARADE_'+name+'.dat'
         f1 = open(fname, 'w')
         if doPUP:
-            fname2 = 'PUP_'+name+'.dat'
+            fname2 = 'MH_PUP_'+name+'.dat'
             f2 = open(fname2, 'w')
         if saveForces:
-            fname3 = 'forces_'+name+'.dat'
+            fname3 = 'MH_forces_'+name+'.dat'
             f3 = open(fname3, 'w')
-    
+
     t = 0.
     dt = 60. # in seconds
     CMElens = np.zeros(8)
@@ -635,29 +556,36 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     thisR = CMElens[0] - CMElens[3]
     sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
     avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
-    Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
-    rhoSWn = frho(CMElens[0])
-    rhoSWe = frho(CMElens[1])
+    SWavgAx = getSWvals(avgAxR, SWfs, doMH=doMH)
+    Btot2 = SWavgAx[2]**2 + SWavgAx[3]**2
+    
+    if doMH:
+        SWfront, HSSreg  = getSWvals(CMElens[0], SWfs, doMH=doMH, returnReg = doMH)
+    else:
+        SWfront  = getSWvals(CMElens[0], SWfs, doMH=doMH, returnReg = doMH)
+        HSSreg = 0
+    SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
+    SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
+    SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
         
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
     B0 = Bscale * np.sqrt(Btot2) / deltap / tau
     if flagScales: B0 = CMEB/ deltap / tau
-    
     B0scaler = B0 * deltap**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
     initcs = CMElens[3] * CMElens[4]
 
     # get CME temperature based on expected SW temp at center of nose CS
-    temSW = funT(CMElens[0] - CMElens[3])
+    temSW = getSWvals(CMElens[0]-CMElens[3], SWfs, doMH=doMH)[4]
     temCME = temScale * temSW
     if flagScales: temCME = CMET
     temscaler = np.power(CMElens[3] * CMElens[4] * initlen , fT) * temCME
     
     # use to pull out inputs for uniform B/T across multiple cases instead
     # of using B/Tscales
-    #print (B0*deltap*tau, temCME)
+    #print (B0*deltap*tau, np.log10(temCME))
 
     # Set up the initial velocities
     if fscales == None:
@@ -695,6 +623,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     outCnms   = []
     outns     = []
     outTems   = []
+    outRegs   = []
     
     if doPUP:
         outvShocks  = []
@@ -709,8 +638,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         outShTs     = []
         outShVts    = []
         outInSh     = []
-        
-            
+                
     while not inCME:
     #while CMElens[0] <= 0.9*Er:
         # Accels order = [Front, Edge, Center, CSr, CSp, Axr, Axp,]
@@ -728,35 +656,40 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
             magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 
-        totAccels += magAccels
-        
-        
+        totAccels += magAccels        
+
         # Thermal Expansion
         if not thermOff:
-            aPTr, aPTp = getThermF(CMElens, temCME, rho/1.67e-24, rhoSWe/1.627e-24)/rho
+            rside = np.sqrt((CMElens[0] - CMElens[3])**2 + CMElens[4]**2) # side of CS at front
+            SWside = getSWvals(rside, SWfs, doMH=doMH)
+            aPTr, aPTp = getThermF(CMElens, temCME, rho/1.67e-24, SWfront, SWfrontB, SWside)/rho
             thermAccels += [aPTr, aPTr * ndotz, 0, aPTr, aPTp, 0., 0.] 
         totAccels += thermAccels
                
         # Drag Force
         if not dragOff:
-            dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, rhoSWn, rhoSWe, vSW, ndotz)
+            dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz)
             # Update accels to include drag forces
             totAccels += dragAccels
             
         # Sheath stuff
         if doPUP:
             gam = 5/3.
-            cs = np.sqrt(2*(5/3.) * 1.38e-16 * temSW / 1.67e-24) #SW gamma not CME gamma
-            vA = np.sqrt(Btot2 / 4 / 3.14159 / rhoSWn)
-            #thetaB = np.arctan(CMElens[0] * 2.87e-6 / vSW) # Parker version
-            BSWr, BSWlon = fBr(CMElens[0])*1e5, fBlon(CMElens[0])*1e5
+            BSWr, BSWlon = SWfront[2]*1e5, SWfront[3]*1e5 
+            Btot2F = (BSWr**2 + BSWlon**2)/1e10
+            cs = np.sqrt(2*(5/3.) * 1.38e-16 * SWfront[4] / 1.67e-24) #SW gamma not CME gamma
+            vA = np.sqrt(Btot2F / 4 / 3.14159 / SWfront[0])
             thetaB = np.arctan(np.abs(BSWlon / BSWr))
-            r, vShock, Pratio = getObSheath(vs[0]/1e5, vSW/1e5, thetaB, cs=cs/1e5, vA=vA/1e5)    
+            if vs[0]/1e5 > SWfront[1]/1e5:
+                r, vShock, Pratio = getObSheath(vs[0]/1e5, SWfront[1]/1e5, thetaB, cs=cs/1e5, vA=vA/1e5)    
+            else:
+                r, vShock, Pratio = 9999, 9999, 9999
+                
             if r == 9999:
-                r, vShock, Pratio, u1, Btscale, Ma, Tratio = 1, 0, 1, vSW, 1, 0, 1
+                r, vShock, Pratio, u1, Btscale, Ma, Tratio = 1, 0, 1, SWfront[1], 1, 0, 1
                 Blonsh, Bsh, thetaBsh, vtSh = 0, 0, 0, 0
             else: 
-                u1 = vShock*1e5 - vSW
+                u1 = vShock*1e5 - SWfront[1]
                 Ma = u1 / vA
                 Btscale = r * (Ma**2 - np.cos(thetaB)**2) / (Ma**2 - r * np.cos(thetaB)**2)
                 sheath_wid += (vShock-vs[0]/1e5)*dt / 7e5                
@@ -769,6 +702,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             Bsh = np.sqrt(Blonsh**2 + BSWr**2)
             
             thetaBsh = np.arctan(Blonsh/BSWr)*180/3.14159
+                        
                                                                 
         # Update CME shape
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
@@ -777,14 +711,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # sheath mass 
         if doPUP:
             SHarea = 4*CMElens[6]*CMElens[4] 
-            rhoSWup = frho(CMElens[0]+sheath_wid*7e10)
+            SWup = getSWvals(CMElens[0]+sheath_wid*7e10, SWfs, doMH=doMH)
+            rhoSWup = SWup[0]
             if r != 1:
-                new_mass = rhoSWup * (vShock*1e5 - vSW) * dt * SHarea
+                new_mass = rhoSWup * (vShock*1e5 - SWfront[1]) * dt * SHarea
                 sheath_mass += new_mass
                 rratio = r
-            sheath_dens = sheath_mass/(sheath_wid*7e10*SHarea)/1.67e-24
-            
-            
+            if sheath_wid != 0:
+                sheath_dens = sheath_mass/(sheath_wid*7e10*SHarea)/1.67e-24
+                    
         # Update velocities
         vs += totAccels * dt
         
@@ -794,8 +729,19 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Calc shape params and new AWs
         deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
         if alpha < 0: 
-            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888, [8888, 8888, 8888], [[8888]*12]  
+            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888, [8888, 8888, 8888], [[8888]*12] , 
                 
+        t += dt
+        if hasattr(MEOWHiSS, '__len__'):
+            doMH[0] = MHt0+t/3600
+
+        if not doPath:    
+            Elon += Erotrate * dt
+        else:
+            Elat = fLat(t)
+            Elon = fLon(t)
+            Er   = fR(t)*7e10
+                        
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
         B0 = B0scaler / deltap**2 / CMElens[4]**2 
@@ -810,43 +756,47 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         thisR = CMElens[0] - CMElens[3]
         sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
         avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
-        Btot2 = fBr(avgAxR)**2+fBlon(avgAxR)**2
-        
-        if isinstance(tEmpHSS, float) and tDepSW:         
-            SWfs = makeEmpHSS(tEmpHSS+t/3600./24., rs_HSS, noHSS)
-            frho, fv, fBr, fBlon, funT = SWfs[0], SWfs[1], SWfs[2], SWfs[3], SWfs[4]
-            
-        vSW = fv(CMElens[0])
-        rhoSWn = frho(CMElens[0])
-        rhoSWe = frho(CMElens[1])
-        temSW = funT(CMElens[0])
-        
-        if not doPath:    
-            Elon += Erotrate * dt
+        if doMH:
+            SWavgAx, reg2 = getSWvals(avgAxR, SWfs, doMH=doMH, returnReg=doMH)
         else:
-            Elat = fLat(t)
-            Elon = fLon(t)
-            Er   = fR(t)*7e10
-                        
-        t += dt
+            SWavgAx = getSWvals(avgAxR, SWfs, doMH=doMH, returnReg=doMH)
+            reg2 = 0
+        Btot2 = SWavgAx[2]**2 + SWavgAx[3]**2
+        
+        theFront = CMElens[0]
+        if doPUP:
+            theFront += sheath_dur*7e10
+        if doMH:            
+            SWfront, HSSreg  = getSWvals(theFront, SWfs, doMH=doMH, returnReg=doMH)
+        else:
+            SWfront = getSWvals(theFront, SWfs, doMH=doMH, returnReg = doMH)
+            HSSreg = 0
+        SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
+        SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
+        SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
+        
         if (CMElens[0]>printR):
             if CMElens[0] < 50*7e10: 
                 printR += 7e10
             else:
-                printR += 5*7e10
+                printR += 7e10
                 
             if not silent:
-                printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5]
-                if doPUP:
-                    inint = 0
-                    if hitSheath: inint = 1
-                    printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*temSW), Tratio, Bsh, thetaBsh, vtSh, inint]
+                printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
                 printThis = ''
                 for item in printStuff:
                     printThis = printThis + '{:6.2f}'.format(item) + ' '
                 print (printThis)
-            
-                
+                if doPUP:
+                    inint = 0
+                    if hitSheath: inint = 1
+                    printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
+                    printThis = ''
+                    for item in printStuff:
+                        printThis = printThis + '{:6.2f}'.format(item) + ' '
+                    print ('      ', printThis)            
+                #print (CMElens[0]/7e10/215, Ma, Btot2, SWavgAx[2], SWavgAx[3], avgAxR/7e10, vA/1e5, reg2)
+                                          
             outTs.append(t/3600./24.)
             outRs.append(CMElens[0]/7e10)
             outvs.append(vs/1e5)
@@ -859,6 +809,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             outCnms.append(cnm)
             outns.append(rho/1.67e-24)
             outTems.append(np.log10(temCME))
+            outRegs.append(HSSreg)
             if doPUP:
                 outvShocks.append(vShock)  
                 outcomps.append(r) 
@@ -869,13 +820,13 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 outDens.append(sheath_dens) 
                 outShBs.append(Bsh) 
                 outThetaBs.append(thetaBsh) 
-                outShTs.append(np.log10(Tratio*temSW)) 
+                outShTs.append(np.log10(Tratio*SWfront[4])) 
                 outShVts.append(vtSh) 
-                outInSh.append(inint)            
+                outInSh.append(inint)    
             
             # print to file (if doing)
             if writeFile:
-                fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME)] 
+                fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg] 
                 outstuff2 = ''
                 for item in fullstuff:
                     outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
@@ -883,12 +834,12 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 
                 # Print PUP stuff to its own file
                 if doPUP:
-                    PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*temSW), Bsh, thetaBsh, vtSh, inint]
+                    PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
                     outstuffPUP = ''
                     for item in PUPstuff:
                         outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
                     f2.write(outstuffPUP+'\n') 
-                
+                                
                 # Print forces if doing    
                 # [Front, Edge, Center, CSr, CSp, Axr, Axp,]
                 if saveForces:
@@ -901,6 +852,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
          
         # Determine if sat is inside CME once it gets reasonably close
         # Need to check both when first enters sheath (if doing) and CME
+        
+        #Er = 50 * 7e10 # quick switch for debugging and not runnning full thing
+        # cant' just swap Er in inputs if scaling SW params off of it...
+        
         check_dist = 0.95*Er
         theFront = CMElens[0]
         if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
@@ -947,14 +902,24 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     if not hitSheath:
                         hitSheath = True
                         inint = 1
-                        printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, r, vShock,  Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*temSW), Tratio, Bsh, thetaBsh, vtSh, inint]
                         if not silent:
+                            printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
                             printThis = ''
                             for item in printStuff:
                                 printThis = printThis + '{:6.2f}'.format(item) + ' '
-                            print (printThis)    
+                            print (printThis)
+                            if doPUP:
+                                inint = 0
+                                if hitSheath: inint = 1
+                                printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
+                                printThis = ''
+                                for item in printStuff:
+                                    printThis = printThis + '{:6.2f}'.format(item) + ' '
+                                print ('      ', printThis)
+                            
+                             
                         if writeFile:
-                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*temSW), Bsh, thetaBsh, vtSh, inint]
+                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
                             outstuffPUP = ''
                             for item in PUPstuff:
                                 outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
@@ -978,7 +943,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     outCnms.append(cnm)
                     outns.append(rho/1.67e-24)
                     outTems.append(np.log10(temCME))
-                    
+                    outRegs.append(HSSreg)
                     if doPUP:
                         outvShocks.append(vShock)  
                         outcomps.append(r) 
@@ -989,12 +954,12 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                         outDens.append(sheath_dens) 
                         outShBs.append(Bsh) 
                         outThetaBs.append(thetaBsh) 
-                        outShTs.append(np.log10(Tratio*temSW)) 
+                        outShTs.append(np.log10(Tratio*SWfront[4])) 
                         outShVts.append(vtSh) 
                         outInSh.append(inint)
                         
                     if writeFile:
-                        fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME)] 
+                        fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg] 
                         outstuff2 = ''
                         for item in fullstuff:
                             outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' ' 
@@ -1005,12 +970,13 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                         if doPUP:
                             inint = 0
                             if hitSheath: inint = 1
-                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*temSW), Bsh, thetaBsh, vtSh, inint]
+                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
                             outstuffPUP = ''
                             for item in PUPstuff:
                                 outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
                             f2.write(outstuffPUP+'\n') 
                             f2.close()
+                            
                             
                         if saveForces:
                             forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]  
@@ -1020,15 +986,20 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             f3.write(outprint+'\n')
                             f3.close()
                             
-                    
-                    printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5]
-                    if doPUP:
-                        printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, r, vShock,  Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*temSW), Tratio, Bsh, thetaBsh, vtSh, inint, vSW/1e5]
                     if not silent:
+                        printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
                         printThis = ''
                         for item in printStuff:
                             printThis = printThis + '{:6.2f}'.format(item) + ' '
                         print (printThis)
+                        if doPUP:
+                            inint = 0
+                            if hitSheath: inint = 1
+                            printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
+                            printThis = ''
+                            for item in printStuff:
+                                printThis = printThis + '{:6.2f}'.format(item) + ' '
+                            print ('      ', printThis)            
                     
                 
                 estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
@@ -1040,37 +1011,63 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     print ('Est. Duration:    ', estDur)
                     
                 # convenient way to pass SW params if using functions
-                SWparams = [frho(CMElens[0])/1.67e-24, fv(CMElens[0])/1e5, np.sqrt(fBr(CMElens[0])**2 + fBlon(CMElens[0])**2)*1e5, [fBr(CMElens[0])*1e5, fBlon(CMElens[0])*1e5, 0]] 
                 inCME = True  
-                CMEouts = np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems])
+                CMEouts = np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems, outRegs])
                 if doPUP:
                     sheathOuts = np.array([outvShocks, outcomps, outMachs, outWidths, outDurs, outMass, outDens, outShBs, outThetaBs, outShTs, outShVts, outInSh])
                 else:
-                    sheathOuts = np.array([[], [], [], [], [], [], [], [], [], [], [], []])
-                return CMEouts, Elon, vs, estDur, thisPsi, parat, SWparams, sheathOuts  
-            # distance between CME and sat is decreasing    
+                    sheathOuts = np.array([[], [], [], [], [], [], [], [], [], [], [], [], []])
+                                        
+                return CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts 
             elif thismin < prevmin:
                 prevmin = thismin
-            # CME is way past the sat
             elif CMElens[0] > Er + 100 * 7e10:
-                print ('Max CME distance reached -> no impact')
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]  
-            # hasn't reached critical distance but separation between sat/CME started increasing    
-            else:      
-                print ('CME approached and began moving away from sat -> no impact')
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]   
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]  
+            else:                
+                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]
+        
 
 if __name__ == '__main__':
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, Bscale, Cd, tau, cnm, Tscale, gammaT]   
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth    
     # SWparams = [nSW, vSW, BSW, TSW] at Eradius
     
-    invecs = [0, 0, 0, 1200.0, 10.0, 46, 18, 0.6, 0.6, 21.5, 3200, 1.0, 1., 1.927, 7.5e5, 1.33]
-    invecsSlow = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 3.9e5, 1.33] # avg, use with flagScales = True 
+    invecs = [0, 0, 0, 1200.0, 10.0, 46, 18, 0.6, 0.6, 21.5, 3200, 1.0, 1., 1.927, 7.5e5, 1.33] # fast, use with flagScales = True 
+    invecsAvg = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 3.9e5, 1.33] # avg, use with flagScales = True 
+    invecsAvgLT = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
+    invecsSlow = [0, 0, 0, 350, 2., 25, 7, 0.7, 0.7, 21.5, 500, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
 
     satParams = [0.0, 00.0, 215.0, 0.0]
     SWparams = [5.0, 440, 6.9, 6.2e4]
     MHDparams = [4.5, 386, 3.1, 4.52e4]
     
     fname0 = 'SWnoHSS.dat'
-    getAT(invecs, satParams, fname0, silent=False, flagScales=True, doPUP=True)
+    
+    fname = 'StefanDataFull/' + 'HSS_artificial_latfromcenter=00' + 'deg_CHarea=' + '8.0e+10' + 'km2.npy'
+    
+    CHtag = ['A', 'B', 'C']
+    HSStag = ['1', '2', '3', '4']
+    vtag = ['F', 'A', 'L']
+    CHareas = [300, 800, 1500]
+    HSSdists = [0.2, 0.5, 0.8, 1.1]
+    allIns = [invecs, invecsAvg, invecsAvgLT]
+    
+    for k in [2]:#range(2):
+        print ('')
+        print ('')
+        print ('')
+        print ('')
+        for i in [0]:#range(3):
+            for j in [0]:#range(4):
+                print (i+1, j+1, vtag[k]+'T'+CHtag[i]+HSStag[j])
+                #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(allIns[k], satParams, MHDparams, silent=True, flagScales=True, doPUP=True, name=vtag[k]+'T'+CHtag[i]+HSStag[j], MEOWHiSS = [CHareas[i], HSSdists[j]], saveForces=True)
+                #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsSlow, satParams, MHDparams, silent=False, flagScales=True, doPUP=True, MEOWHiSS = [CHareas[i], HSSdists[j]], saveForces=True)
+
+                CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True)
+            
+                print (vtag[k]+'S'+CHtag[i]+HSStag[j])
+                shidx = -1
+                if sheathOuts[-1][-1] == 1:
+                    shidx = np.min(np.where(sheathOuts[-1] ==1 ))
+                print (vs[0]/1e5, vs[3]/1e5, CMEouts[3][-1], CMEouts[4][-1], CMEouts[5][-1], CMEouts[6][-1], CMEouts[8][-1], CMEouts[10][-1], CMEouts[11][-1], CMEouts[0][-1]*24, estDur, sheathOuts[1][shidx], sheathOuts[0][shidx], sheathOuts[2][shidx], sheathOuts[3][shidx], sheathOuts[4][shidx], sheathOuts[5][shidx], sheathOuts[6][shidx], sheathOuts[9][shidx], sheathOuts[7][shidx], sheathOuts[8][shidx], sheathOuts[10][shidx], CMEouts[0][shidx]*24, CMEouts[12][-1])
+    

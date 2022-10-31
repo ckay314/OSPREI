@@ -159,6 +159,9 @@ class CME:
         self.shvt = 0.
         self.shv = self.v1AU / 1e5 
         self.shT = self.TSW
+        # MEOW-HiSS properties
+        self.MHdist = 0.5
+        self.MHarea = 800
         
         
         # redefine dt in secs and as short name variable for convenience
