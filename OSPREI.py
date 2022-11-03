@@ -465,6 +465,8 @@ def goForeCAT(makeRestart=False):
     if 'IVDf1'  in input_values: CME.IVDfs[0] = float(input_values['IVDf1'])
     if 'IVDf2'  in input_values: CME.IVDfs[1] = float(input_values['IVDf2'])
     if 'Gamma'  in input_values: CME.gamma = float(input_values['Gamma'])
+    if 'MHarea'    in input_values: CME.MHarea = float(input_values['MHarea'])
+    if 'MHdist'    in input_values: CME.MHdist = float(input_values['MHdist'])
     
     
     for i in range(nRuns):
@@ -677,7 +679,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             
         # high fscales = more convective like
         if satPath:
-            isSilent = True
+            isSilent = False
             if doMH:
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
             else:
