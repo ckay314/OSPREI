@@ -150,6 +150,7 @@ class CME:
         self.Tscale = 2.
         self.gamma = 1.3333
         # CME sheath properties
+        self.hasSheath = False
         self.vShock = 0
         self.comp = 1
         self.shDur = 0.

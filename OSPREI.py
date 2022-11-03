@@ -673,16 +673,17 @@ def goANTEATR(makeRestart=False, satPath=False):
             
         # high fscales = more convective like
         if satPath:
+            isSilent = False
             if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
             else:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
             if doMH:
                 print (CME.MHarea, CME.MHdist)
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
             else:    
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=True, flagScales=flagScales, doPUP=doPUP)
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for
@@ -738,16 +739,20 @@ def goANTEATR(makeRestart=False, satPath=False):
             
             # CME sheath parameters
             if doPUP:
-                shIdx = np.min(np.where(PUPresults[11]==1))
-                CME.vShock = PUPresults[0][shIdx]
-                CME.comp   = PUPresults[1][shIdx]
-                CME.shDur  = PUPresults[4][shIdx]
-                CME.shDens = PUPresults[6][shIdx]
-                CME.shB    = PUPresults[7][shIdx]
-                CME.shTheta = PUPresults[8][shIdx]
-                CME.shvt   = PUPresults[10][shIdx]
-                CME.shT    = PUPresults[9][shIdx]
-                CME.shv    = ATresults[2][shIdx][0]
+                # check if it was able to form a sheath (might not if vCME < vSW)
+                print (PUPresults[11])
+                if (1 in PUPresults[11]):
+                    CME.hasSheath = True
+                    shIdx = np.min(np.where(PUPresults[11]==1))
+                    CME.vShock = PUPresults[0][shIdx]
+                    CME.comp   = PUPresults[1][shIdx]
+                    CME.shDur  = PUPresults[4][shIdx]
+                    CME.shDens = PUPresults[6][shIdx]
+                    CME.shB    = PUPresults[7][shIdx]
+                    CME.shTheta = PUPresults[8][shIdx]
+                    CME.shvt   = PUPresults[10][shIdx]
+                    CME.shT    = PUPresults[9][shIdx]
+                    CME.shv    = ATresults[2][shIdx][0]
             
             print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
             # prev would take comp of v's in radial direction, took out for now !!!!
@@ -768,10 +773,18 @@ def goANTEATR(makeRestart=False, satPath=False):
                 ANTEATRfile.write(outprint+'\n')
             # save PUP results (if doing)
             if doPUP:
-                for j in range(len(PUPresults[0])):
+                if CME.hasSheath:
+                    for j in range(len(PUPresults[0])):
+                        outprint = str(i)
+                        outprint = outprint.zfill(4) + '   '
+                        outstuff = [PUPresults[0,j], PUPresults[1,j], PUPresults[2,j], PUPresults[3,j], PUPresults[4,j], PUPresults[5,j], PUPresults[6,j], PUPresults[7,j], PUPresults[8,j], PUPresults[9,j], PUPresults[10,j], PUPresults[11,j]]
+                        for iii in outstuff:
+                            outprint = outprint + '{:6.3f}'.format(iii) + ' '
+                        PUPfile.write(outprint+'\n')
+                else:
                     outprint = str(i)
                     outprint = outprint.zfill(4) + '   '
-                    outstuff = [PUPresults[0,j], PUPresults[1,j], PUPresults[2,j], PUPresults[3,j], PUPresults[4,j], PUPresults[5,j], PUPresults[6,j], PUPresults[7,j], PUPresults[8,j], PUPresults[9,j], PUPresults[10,j], PUPresults[11,j]]
+                    outstuff = np.zeros(12)+8888
                     for iii in outstuff:
                         outprint = outprint + '{:6.3f}'.format(iii) + ' '
                     PUPfile.write(outprint+'\n')
@@ -906,7 +919,7 @@ def goFIDO(satPath=False):
         if includeSIT:
             # check if front velocity greater than SW
             if CME.impV > CME.vSW:
-                if doPUP:
+                if doPUP and CME.hasSheath:
                     # sheath params [start time (days from sim start), sheath dur, comp, sheathv, Bx, By, Bz,  vShock] 
                     # need to convert [Br, Blon, Blat] from PUP to Bx/By/Bz
                     BrllSW = CME.BSWvec
