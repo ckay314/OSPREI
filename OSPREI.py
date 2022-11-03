@@ -684,7 +684,6 @@ def goANTEATR(makeRestart=False, satPath=False):
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
         else:
             if doMH:
-                print (CME.MHarea, CME.MHdist)
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
             else:    
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP)
@@ -744,7 +743,6 @@ def goANTEATR(makeRestart=False, satPath=False):
             # CME sheath parameters
             if doPUP:
                 # check if it was able to form a sheath (might not if vCME < vSW)
-                print (PUPresults[11])
                 if (1 in PUPresults[11]):
                     CME.hasSheath = True
                     shIdx = np.min(np.where(PUPresults[11]==1))
