@@ -49,7 +49,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH
+    global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -63,6 +63,7 @@ def setupOSPREI():
     flag1DSW = False
     doPUP   = False
     doMH    = False
+    isSat   = False
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -106,6 +107,9 @@ def setupOSPREI():
         elif temp[0][:-1] == 'doMH':
             if temp[1] == 'True':
                 doMH = True
+        elif temp[0][:-1] == 'isSat':
+            if temp[1] == 'True':
+                isSat = True
         
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
@@ -673,7 +677,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             
         # high fscales = more convective like
         if satPath:
-            isSilent = False
+            isSilent = True
             if doMH:
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
             else:
@@ -1008,7 +1012,12 @@ def goFIDO(satPath=False):
             for j in range(len(BvecDS[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
+                if isSat:
+                    # save B in sat coords
+                    outstuff = [tARRDS[j], BvecDS[3][j], -BvecDS[0][j], -BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
+                else:
+                    # save B in GSE coords
+                    outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 FIDOfile.write(outprint+'\n')  
