@@ -6,6 +6,9 @@ from scipy.interpolate import CubicSpline
 import pickle
 import empHSS as emp
 
+mainpath = '/Users/ckay/OSPREI/' #MTMYS
+codepath = mainpath + 'codes/'
+import FIDO
 
 
 global rsun, dtor, radeg, kmRs
@@ -464,9 +467,153 @@ def getObSheath(vCME, vSW, theta, cs, vA, gam=5/3):
         if prat < 0:
             r, vS, prat = 9999, 9999, 9999
     return r, vS, prat
+    
+def print2file(vec, fname, fmat):
+    outstuff = ''
+    for item in vec:
+        outstuff = outstuff + fmat.format(item) + ' '
+    fname.write(outstuff+'\n')
+
+def print2screen(vec, prefix=''):
+    outstuff = prefix
+    for item in vec:
+        outstuff = outstuff + '{:6.2f}'.format(item) + ' '
+    print (outstuff)
+    
+def makeFailArr(val):
+    return np.array([[val], [val], [val],  [val], [val], [val], [val], [val], [val], [val], [val]]), val, [val, val, val, val, val, val], val, val, val, [val, val, val, val], [[val]*12], [[val]*8]
+
+def add2outs(outsCME, outsSheath, outsFIDO, CMEarr, sheatharr, FIDOarr):
+    # CME: 0 t, 1 r, 2 vs, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 reg
+    # Sheath: 0 vS, 1 comp, 2 MA, 3 Wid, 4 Dur, 5 Mass, 6 Dens, 7 B, 8 Theta, 9 Temp, 10 Vt, 11 InSheath
+
+    #fullCMEstuff = [0 t/3600./24., 1 CMElens[0]/rsun, 2 AW*180/pi,  3 AWp*180/pi, 4 CMElens[5]/rsun, 5 CMElens[3]/rsun, 6 CMElens[4]/rsun, 7 CMElens[6]/rsun, 8 CMElens[2]/rsun, 9 vs[0]/1e5, 10 vs[1]/1e5, 11 vs[5]/1e5, 12 vs[3]/1e5, 13 vs[4]/1e5, 14 vs[6]/1e5, 15 vs[2]/1e5, 16 rho/1.67e-24, 17 B0*1e5, 18 cnm, 19 np.log10(temCME), 20 HSSreg]
+    outsCME[0].append(CMEarr[0]) 
+    outsCME[1].append(CMEarr[1])
+    outsCME[2].append([CMEarr[9], CMEarr[10], CMEarr[11], CMEarr[12], CMEarr[13], CMEarr[14], CMEarr[15]])
+    outsCME[3].append(CMEarr[2])
+    outsCME[4].append(CMEarr[3])
+    outsCME[5].append(CMEarr[4] / CMEarr[7]) # CMElens[5] / CMElens[6]
+    outsCME[6].append(CMEarr[5] / CMEarr[6]) # CMElens[3] / CMElens[4]
+    outsCME[7].append(CMEarr[5] / CMEarr[7]) # CMElens[3] / CMElens[6]
+    outsCME[8].append(CMEarr[17])
+    outsCME[9].append(CMEarr[18])
+    outsCME[10].append(CMEarr[16])
+    outsCME[11].append(CMEarr[19])
+    outsCME[12].append(CMEarr[20])
+    
+    if len(sheatharr) != 0:
+        #PUPstuff = [0 r, 1 vShock, 2 Ma, 3 sheath_wid, 4 sheath_dur, 5 sheath_mass/1e15, 6 sheath_dens, 7 np.log10(Tratio*SWfront[4]), 8 Tratio, 9 Bsh, 10 thetaBsh, 11 vtSh, 12 inint]
+        
+        # 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
+        outsSheath[0].append(sheatharr[1])
+        outsSheath[1].append(sheatharr[0])
+        outsSheath[2].append(sheatharr[2])
+        outsSheath[3].append(sheatharr[3])
+        outsSheath[4].append(sheatharr[4])
+        outsSheath[5].append(sheatharr[5])
+        outsSheath[6].append(sheatharr[6])
+        outsSheath[7].append(sheatharr[7])
+        outsSheath[8].append(sheatharr[10])
+        outsSheath[9].append(sheatharr[9])
+        outsSheath[10].append(sheatharr[11])
+        outsSheath[11].append(sheatharr[12])
+    
+    if len(FIDOarr) != 0:
+        outsFIDO[0].append(FIDOarr[0])
+        outsFIDO[1].append(FIDOarr[1])
+        outsFIDO[2].append(FIDOarr[2])
+        outsFIDO[3].append(FIDOarr[3])
+        outsFIDO[4].append(FIDOarr[4])
+        outsFIDO[5].append(FIDOarr[5])
+        outsFIDO[6].append(FIDOarr[6])
+        outsFIDO[7].append(FIDOarr[7])
+
+    return outsCME, outsSheath, outsFIDO  
+
+def whereAmI(Epos, CMEpos, CMElens, deltax, deltap):
+    # [Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens
+    # Get Earth/sat pos in CME coordinate frame
+    Epos1 = SPH2CART(Epos)
+    temp = rotz(Epos1, -CMEpos[1])
+    temp2 = roty(temp, CMEpos[0])
+    Epos2 = rotx(temp2, 90.-CMEpos[2])
+    # Get the CME axis
+    psis = np.linspace(-math.pi/2, math.pi/2, 1001)
+    sns = np.sign(psis)
+    xFR = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
+    zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))   
+    
+    # Determine the closest point on the axis and that distance
+    dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMElens[4])**2
+    thismin = np.min(dists2)
+    thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
+    sn = np.sign(thisPsi)
+    if sn == 0: sn = 1
+    thisPsi = np.abs(thisPsi)
+    thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[6] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
+    vp = np.array(Epos2) - np.array(thisAx)
+    # Get the normal vector
+    if thisPsi == 0: thisPsi = 0.00001
+    Nvec = [0.5 * sn*(np.cos(thisPsi) + 0.5*np.sin(thisPsi)/np.sqrt(1-np.cos(thisPsi))), 0., deltax * np.sin(thisPsi)] 
+    Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+    norm = np.array(Nvec) / Nmag
+    if norm[0] < 0:
+        norm = - norm
+    thisPsi *= sn
+
+    # Find the sat position within the CS
+    vpmag = np.sqrt(np.sum(vp**2))
+    # poloidal angle, not the same as parametric t
+    CSpol = np.arccos(np.dot(vp, norm) / vpmag) 
+    if (vp[1] < 0) and (vp[0] > 0):
+        CSpol = -np.abs(CSpol)
+    elif (vp[1] < 0) and (vp[0] < 0):
+            CSpol = -np.abs(CSpol)
+    elif (vp[1] > 0) and (vp[0] > 0):
+            CSpol = np.abs(CSpol)
+    
+    CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
+    parat = np.arctan2(np.sin(CSpol)*deltap, np.cos(CSpol))
+    
+    # Get the max R for that parametric t
+    maxrFR = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
+    return vpmag, maxrFR, thisPsi, parat
+ 
+def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=1.):
+    # Get Btor/Bpol at s/c location
+    Btor = B0 * deltap * (tau - (axDist / maxDistFR)**2)
+    ecH  = np.sqrt(deltap**2 * np.sin(thisParat)**2 + np.cos(thisParat)**2)
+    Bpol = - 2 * deltap * B0 * CMEH * ecH / (deltap**2 + 1) / cnm * (axDist / maxDistFR)
+    # Get unit vectors    
+    axR = CMElens[0] - CMElens[3]
+    tdir, pdir = FIDO.new_getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
+    # Convert to s/c field
+    Bt_vec = Btor * tdir #* comp 
+    Bp_vec = Bpol * pdir
+    Btot = Bt_vec + Bp_vec
+    # Convert to spacecraft coord system
+    temp = rotx(Btot, -(90.-CMEtilt))
+    temp2 = roty(temp, CMElat - Elat) 
+    Bvec = rotz(temp2, CMElon - Elon)
+    
+    # get velocity vector
+    vCMEframe, vExpCME = FIDO.getvCMEframe(axDist / maxDistFR, thisPsi, thisParat, deltax, deltap, vs)
+    #print ('          ',thisParat*180/3.14, vCMEframe, vExpCME)
+    # rotate to s/c frame
+    temp = rotx(vCMEframe, -(90.-CMEtilt))
+    temp2 = roty(temp, CMElat - Elat) 
+    vInSitu = rotz(temp2, CMElon - Elon)
+    
+    # rotate vexp
+    #temp = rotx(vExpCME, -(90.-CMEtilt))
+    #temp2 = roty(temp, CMElat - Elat) 
+    #vexp = rotz(temp2, CMElon - Elon)
+    
+    return Bvec, vInSitu, vExpCME
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False):
+def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1):
     
     Elat      = Epos[0]
     Elon      = Epos[1]
@@ -489,6 +636,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     cnm        = invec[13] # 1.927 for Lundquist
     temScale   = invec[14] 
     fT         = invec[15] - 1 # 0 for isothermal, 2./3 for adiabatic
+    
+    # polarity of FR for aFIDOinside set by CMEH, defaults to 1 for positive/right hand (-1 for left)
+    # amb SW in or out set by inorout, defaults to 1 for out (-1 for in)
+    
+    # FIDO returns in satellite coords, not GSE
+    
+    # if want FIDO profile force it to do full contact
+    if aFIDOinside:
+        fullContact = True
     
     # sheath properties
     sheath_mass = 0.
@@ -545,9 +701,13 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if saveForces:
             fname3 = 'MH_forces_'+name+'.dat'
             f3 = open(fname3, 'w')
+        if aFIDOinside:
+            fname4 = 'MH_FIDO_'+name+'.dat'
+            f4 = open(fname4, 'w')
 
     t = 0.
     dt = 60. # in seconds
+    deltaPrintR = 7e10
     CMElens = np.zeros(8)
     #CMElens = [rFront, rEdge, d, br, bp, a, c, rXCent]
     CMElens[0] = rFront
@@ -607,52 +767,33 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         fR   = satfs[2]
         
     printR = rFront
-    inCME = False
+    runSim = True
     prevmin = 9999.
+    reachedCME = False
     
-    # arrays for saving profiles
-    outTs     = []
-    outRs     = []
-    outvs     = []
-    outAWs    = []
-    outAWps   = []
-    outdelxs  = []
-    outdelps  = []
-    outdelCAs = []
-    outBs     = []
-    outCnms   = []
-    outns     = []
-    outTems   = []
-    outRegs   = []
-    
-    if doPUP:
-        outvShocks  = []
-        outcomps    = []
-        outMachs    = []
-        outWidths   = []
-        outDurs     = []
-        outMass     = []
-        outDens     = []
-        outShBs     = []
-        outThetaBs  = []
-        outShTs     = []
-        outShVts    = []
-        outInSh     = []
-                
-    while not inCME:
+    outsCME = [[] for i in range(13)]
+    outsSheath = [[] for i in range(12)]
+    outsFIDO = [[] for i in range(8)]
+
+    while runSim:
     #while CMElens[0] <= 0.9*Er:
+        # -----------------------------------------------------------------------------
+        # Stuff that's done whether sat in CME or not
+        # -----------------------------------------------------------------------------
+        
         # Accels order = [Front, Edge, Center, CSr, CSp, Axr, Axp,]
         totAccels = np.zeros(7)
         magAccels = np.zeros(7)
-        thermAccels = np.zeros(7)  
-        # Calculate forces
+        thermAccels = np.zeros(7) 
+         
+        #--------------------------- Calculate forces ---------------------------------
         # Internal flux rope forces
         if not axisOff:
             aTotNose, aTotEdge = getAxisF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho)
             if (aTotNose != 9999) & (aTotEdge != 9999):
                 magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
             else:
-                return np.array([[8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, 8888, 8888, 8888, 8888, [8888, 8888, 8888], [[8888]*12]     
+                makeFailArr(8888)   
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
             magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 
@@ -671,8 +812,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz)
             # Update accels to include drag forces
             totAccels += dragAccels
+        
+        
             
-        # Sheath stuff
+        # ------------------ Run Sheath model ---------------------------------
         if doPUP:
             gam = 5/3.
             BSWr, BSWlon = SWfront[2]*1e5, SWfront[3]*1e5 
@@ -702,13 +845,16 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             Bsh = np.sqrt(Blonsh**2 + BSWr**2)
             
             thetaBsh = np.arctan(Blonsh/BSWr)*180/3.14159
+            
+            
                         
-                                                                
-        # Update CME shape
+        # ---------------- Update everything ---------------------------------------                                                        
+        # Update CME shape + position
         CMElens[:7] += vs*dt + 0.5*totAccels*dt**2    
         CMElens[7] = CMElens[2] + CMElens[5]
+        theFront = CMElens[0]
         
-        # sheath mass 
+        # Update sheath mass 
         if doPUP:
             SHarea = 4*CMElens[6]*CMElens[4] 
             SWup = getSWvals(CMElens[0]+sheath_wid*7e10, SWfs, doMH=doMH)
@@ -729,12 +875,16 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Calc shape params and new AWs
         deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)
         if alpha < 0: 
-            return np.array([[8888], [8888], [8888],  [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888], [8888]]), 8888, [8888, 8888, 8888, 8888, 8888, 8888], 8888, 8888, 8888, [8888, 8888, 8888], [[8888]*12] , 
-                
+            return makeFailArr(8888)   
+        
+        # Update time        
         t += dt
+        
+        # Update HSS position
         if hasattr(MEOWHiSS, '__len__'):
             doMH[0] = MHt0+t/3600
 
+        # Update Earth/satellite position
         if not doPath:    
             Elon += Erotrate * dt
         else:
@@ -748,6 +898,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         cnm = cnmscaler * lenNow  / CMElens[4] / (deltap**2+1)
         Btor = deltap * tau * B0
         Bpol = 2*deltap*B0/cnm/(deltap**2+1)
+        
         # Update temperature
         temCME = temscaler / np.power(CMElens[3] * CMElens[4] * lenNow, fT)
         nowcs = CMElens[3] * CMElens[4]
@@ -755,15 +906,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Update solar wind properties
         thisR = CMElens[0] - CMElens[3]
         sideR = np.sqrt(CMElens[2]**2 + (CMElens[1]-CMElens[3])**2)
-        avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)   
+        avgAxR = 0.5*(CMElens[0] - CMElens[3] + sideR)  
+        # values at avg axis distance 
         if doMH:
             SWavgAx, reg2 = getSWvals(avgAxR, SWfs, doMH=doMH, returnReg=doMH)
         else:
             SWavgAx = getSWvals(avgAxR, SWfs, doMH=doMH, returnReg=doMH)
             reg2 = 0
         Btot2 = SWavgAx[2]**2 + SWavgAx[3]**2
-        
-        theFront = CMElens[0]
+        # values at front
         if doPUP:
             theFront += sheath_dur*7e10
         if doMH:            
@@ -771,260 +922,266 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         else:
             SWfront = getSWvals(theFront, SWfs, doMH=doMH, returnReg = doMH)
             HSSreg = 0
+        # other (simpler) locations
         SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
         SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
         SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
         
-        if (CMElens[0]>printR):
-            if CMElens[0] < 50*7e10: 
-                printR += 7e10
-            else:
-                printR += 7e10
-                
-            if not silent:
-                printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
-                printThis = ''
-                for item in printStuff:
-                    printThis = printThis + '{:6.2f}'.format(item) + ' '
-                print (printThis)
-                if doPUP:
-                    inint = 0
-                    if hitSheath: inint = 1
-                    printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
-                    printThis = ''
-                    for item in printStuff:
-                        printThis = printThis + '{:6.2f}'.format(item) + ' '
-                    print ('      ', printThis)            
-                #print (CMElens[0]/7e10/215, Ma, Btot2, SWavgAx[2], SWavgAx[3], avgAxR/7e10, vA/1e5, reg2)
-                                          
-            outTs.append(t/3600./24.)
-            outRs.append(CMElens[0]/7e10)
-            outvs.append(vs/1e5)
-            outAWs.append(AW*180./3.14159)
-            outAWps.append(AWp*180/pi)
-            outdelxs.append(deltax)
-            outdelps.append(deltap)
-            outdelCAs.append(deltaCSAx)
-            outBs.append(B0*1e5)
-            outCnms.append(cnm)
-            outns.append(rho/1.67e-24)
-            outTems.append(np.log10(temCME))
-            outRegs.append(HSSreg)
-            if doPUP:
-                outvShocks.append(vShock)  
-                outcomps.append(r) 
-                outMachs.append(Ma) 
-                outWidths.append(sheath_wid) 
-                outDurs.append(sheath_dur) 
-                outMass.append(sheath_mass/1e15) 
-                outDens.append(sheath_dens) 
-                outShBs.append(Bsh) 
-                outThetaBs.append(thetaBsh) 
-                outShTs.append(np.log10(Tratio*SWfront[4])) 
-                outShVts.append(vtSh) 
-                outInSh.append(inint)    
-            
-            # print to file (if doing)
-            if writeFile:
-                fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg] 
-                outstuff2 = ''
-                for item in fullstuff:
-                    outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' '
-                f1.write(outstuff2+'\n')  
-                
-                # Print PUP stuff to its own file
-                if doPUP:
-                    PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
-                    outstuffPUP = ''
-                    for item in PUPstuff:
-                        outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
-                    f2.write(outstuffPUP+'\n') 
-                                
-                # Print forces if doing    
-                # [Front, Edge, Center, CSr, CSp, Axr, Axp,]
-                if saveForces:
-                    forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]  
-                    outprint = ''
-                    for item in forcestuff:
-                        outprint = outprint + '{:11.3f}'.format(item)
-                    f3.write(outprint+'\n') 
-                
-         
-        # Determine if sat is inside CME once it gets reasonably close
-        # Need to check both when first enters sheath (if doing) and CME
         
+        # ------Set up state vectors at the end of a time step--------------
+        # CME array
+        CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
+        fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg]
+        
+        # PUP/sheath array
+        inint = 0
+        if hitSheath: inint = 1
+        PUPstuff = []
+        if doPUP:
+            PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
+        
+        # Forces
+        forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]
+        
+        FIDOstuff = [] # will replace if needed
+        
+        
+        
+        
+        # ----------------- Save and print everything ----------------------
+        # Printing/saving at lower time resolution so check if it is go time
+        printNow = False
+        if (CMElens[0]>printR):
+            printNow = True
+            printR += deltaPrintR
+            
+            # print to screen    
+            if not silent:
+                print2screen(CMEstuff)                
+                if doPUP:
+                    print2screen(PUPstuff, prefix='      ') 
+                 
+                                        
+            # print to file (if doing)
+            if writeFile: 
+                print2file(fullCMEstuff, f1, '{:8.5f}')
+                if doPUP:
+                    print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')                
+                if saveForces:  
+                    print2file(forcestuff, f3, '{:11.3f}')
+            
+            # save SW values to FIDO file (if doing)
+            if aFIDOinside and (CMElens[0] > Er*0.5) and not hitSheath and not reachedCME:
+                # get SW values
+                if doMH:
+                    SWatsat, HSSreg   = getSWvals(Er, SWfs, doMH=doMH, returnReg=doMH)
+                    FIDOstuff = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
+                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
+                else:
+                    SWatsat   = getSWvals(Er, SWfs)
+                    FIDOstuff = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100]
+                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
+                    
+                    
+                    
+                    
+        # -----------------------------------------------------------------------------
+        # Stuff that's only done once inside the CME/sheath
+        # -----------------------------------------------------------------------------
+         
         #Er = 50 * 7e10 # quick switch for debugging and not runnning full thing
         # cant' just swap Er in inputs if scaling SW params off of it...
         
+        # Start checking when close to sat distances, don't waste code time before close
         check_dist = 0.95*Er
+        # front for checking purposes -> could be sheath or CME
         theFront = CMElens[0]
         if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
+        
         if theFront >= check_dist:
-            # Get Earth/sat pos in CME coordinate frame
-            Epos1 = SPH2CART([Er,Elat,Elon])
-            temp = rotz(Epos1, -CMElon)
-            temp2 = roty(temp, CMElat)
-            Epos2 = rotx(temp2, 90.-CMEtilt)
-            # Get the CME axis
-            psis = np.linspace(-math.pi/2, math.pi/2, 1001)
-            sns = np.sign(psis)
-            xFR = CMElens[2] + deltax * CMElens[6] * np.cos(psis)
-            zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))   
-            
-            # Determine the closest point on the axis and that distance
-            dists2 = ((Epos2[0] - xFR)**2 + Epos2[1]**2 + (Epos2[2] - zFR)**2) / (CMElens[4])**2
-            thismin = np.min(dists2)
-            thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
-            sn = np.sign(thisPsi)
-            if sn == 0: sn = 1
-            thisPsi = np.abs(thisPsi)
-            thisAx = [CMElens[2] + deltax * CMElens[6] * np.cos(thisPsi), 0.,  0.5 * sn * CMElens[6] * (np.sin(thisPsi) + np.sqrt(1 - np.cos(thisPsi)))]
-            vp = np.array(Epos2) - np.array(thisAx)
-            # Get the normal vector
-            if thisPsi == 0: thisPsi = 0.00001
-            Nvec = [0.5 * sn*(np.cos(thisPsi) + 0.5*np.sin(thisPsi)/np.sqrt(1-np.cos(thisPsi))), 0., deltax * np.sin(thisPsi)] 
-            Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
-            norm = np.array(Nvec) / Nmag
-            thisPsi *= sn
+            # Get Earth/sat pos in CME coordinate frame            
+            axDist, maxDistFR, thisPsi, thisParat = whereAmI([Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap)
 
-            # Find the sat position within the CS
-            vpmag = np.sqrt(np.sum(vp**2))
-            CSpol = np.arccos(np.dot(vp, norm) / vpmag) 
-            CSxy = np.array([vpmag*np.cos(CSpol), vpmag*np.sin(CSpol)])
-            parat = np.arctan(np.tan(CSpol)*deltap)
-            # Get the max R for that parametric t
-            maxrFR = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
-            if doPUP: maxrSH = maxrFR + sheath_wid * 7e10
+            if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
 
             # check if in sheath
             if doPUP:
-                if (vpmag < maxrSH) and (maxrFR != maxrSH):
+                if (axDist < maxrSH) and (maxDistFR != maxrSH):
                     if not hitSheath:
                         hitSheath = True
                         inint = 1
+                        # Add this specific time step if not already included
+                        if not printNow:
+                            if not silent:
+                                print2screen(CMEstuff)     
+                                if doPUP:
+                                    # need to update init
+                                    PUPstuff[12] = inint
+                                    print2screen(PUPstuff, prefix='      ')                                            
+                            if writeFile:
+                                print2file(fullCMEstuff, f1, '{:8.5f}')
+                                print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
+                    # print sheath info to FIDO output file
+                    if (axDist > maxDistFR) and (Er > CMElens[0]) and printNow and aFIDOinside:
+                        tdir, pdir = FIDO.new_getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
+                        ndir = np.cross(tdir, pdir)
+                        # attempt to get signs correct in sheath based on inorout, flip unit vecs to most aligned choice
+                        temp = rotx(ndir, -(90.-CMEtilt))
+                        temp2 = roty(temp, CMElat - Elat) 
+                        ndirSAT = np.array(rotz(temp2, CMElon - Elon))
+                        
+                        temp = rotx(pdir, -(90.-CMEtilt))
+                        temp2 = roty(temp, CMElat - Elat) 
+                        pdirSAT = np.array(rotz(temp2, CMElon - Elon))
+                        
+                        # figure out what is most aligned
+                        if np.dot(ndirSAT, np.array([inorout,0,0])) < 0:
+                            ndirSAT = -ndirSAT
+                        if np.dot(pdirSAT, np.array([0, -inorout,0])) < 0:
+                            pdirSAT = -pdirSAT
+                        
+                        BinSitu = Bsh * np.cos(thetaBsh*math.pi/180.) * ndirSAT + Bsh * np.sin(thetaBsh*math.pi/180.) * pdirSAT 
+                        
+                        FIDOstuff = [t/3600., BinSitu[0], BinSitu[1], BinSitu[2], vs[0]/1e5, sheath_dens, np.log10(Tratio*SWfront[4]),0]
+                        if writeFile: print2file(FIDOstuff,  f4, '{:8.5f}')
+                        
                         if not silent:
-                            printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
-                            printThis = ''
-                            for item in printStuff:
-                                printThis = printThis + '{:6.2f}'.format(item) + ' '
-                            print (printThis)
-                            if doPUP:
-                                inint = 0
-                                if hitSheath: inint = 1
-                                printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
-                                printThis = ''
-                                for item in printStuff:
-                                    printThis = printThis + '{:6.2f}'.format(item) + ' '
-                                print ('      ', printThis)
-                            
-                             
-                        if writeFile:
-                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
-                            outstuffPUP = ''
-                            for item in PUPstuff:
-                                outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
-                            f2.write(outstuffPUP+'\n')
-                    
-            
+                            print ('      ', '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
             # check if in FR
-            if vpmag < maxrFR:
-                deltap, deltax, deltaCSAx, alpha, ndotz, AW, AWp, rho = updateCME(CMElens, Mass)          
-                TT = t/3600./24.
-                if (t/3600./24.) != outTs[-1]:
-                    outTs.append(t/3600./24.)
-                    outRs.append(CMElens[0]/7e10)
-                    outvs.append(vs/1e5)
-                    outAWs.append(AW*180./3.14159)
-                    outAWps.append(AWp*180/pi)
-                    outdelxs.append(deltax)
-                    outdelps.append(deltap)
-                    outdelCAs.append(deltaCSAx)
-                    outBs.append(B0*1e5)
-                    outCnms.append(cnm)
-                    outns.append(rho/1.67e-24)
-                    outTems.append(np.log10(temCME))
-                    outRegs.append(HSSreg)
-                    if doPUP:
-                        outvShocks.append(vShock)  
-                        outcomps.append(r) 
-                        outMachs.append(Ma) 
-                        outWidths.append(sheath_wid) 
-                        outDurs.append(sheath_dur) 
-                        outMass.append(sheath_mass/1e15) 
-                        outDens.append(sheath_dens) 
-                        outShBs.append(Bsh) 
-                        outThetaBs.append(thetaBsh) 
-                        outShTs.append(np.log10(Tratio*SWfront[4])) 
-                        outShVts.append(vtSh) 
-                        outInSh.append(inint)
+            thismin = axDist/maxDistFR
+            if axDist < maxDistFR:
+                # start saving at higher res once in CME
+                if not reachedCME:
+                     deltaPrintR = deltaPrintR/2.
+                     FRstart = t
+                
+                if aFIDOinside and printNow:
+                    BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs)         
+                    #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
+                    CMEgam = fT+1
+                    cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
+                    mch = -vs[3]*(axDist/maxDistFR)/1e5 / cs
+                    comp = 1
+                    if mch >1:
+                        comp = (CMEgam+1)*mch**2 / (2 + (gam-1)*mch**2)
+                        if comp < 1: comp = 1
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=comp) 
+                        
+                    if not silent:
+                        print ('      ', '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
+                    
+                    
+                    # save to file
+                    FIDOstuff = [t/3600., BSC[0]*1e5, BSC[1]*1e5, BSC[2]*1e5, vInSitu[0]/1e5, rho/1.67e-24 * comp, np.log10(temCME), 1]
+                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
+                
+                # Add this specific timestep if it isn't already included
+                if not printNow and not reachedCME:
+                    outsCME, outsSheath, outsFIDO = add2outs(outsCME, outsSheath, outsFIDO, fullCMEstuff, PUPstuff, FIDOstuff)                 
                         
                     if writeFile:
-                        fullstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg] 
-                        outstuff2 = ''
-                        for item in fullstuff:
-                            outstuff2 = outstuff2 + '{:8.5f}'.format(item) + ' ' 
-                        f1.write(outstuff2+'\n')  
-                        f1.close()  
-                        
-                        # Print PUP stuff to its own file
+                        print2file(fullCMEstuff, f1, '{:8.5f}')
                         if doPUP:
-                            inint = 0
-                            if hitSheath: inint = 1
-                            PUPstuff = [t/3600./24., CMElens[0]/rsun, r, vShock,  Ma, sheath_wid,  sheath_dur, sheath_mass/1e15, sheath_dens, Tratio, np.log10(Tratio*SWfront[4]), Bsh, thetaBsh, vtSh, inint]
-                            outstuffPUP = ''
-                            for item in PUPstuff:
-                                outstuffPUP = outstuffPUP + '{:8.5f}'.format(item) + ' '
-                            f2.write(outstuffPUP+'\n') 
-                            f2.close()
-                            
-                            
+                            print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')   
                         if saveForces:
-                            forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]  
-                            outprint = ''
-                            for item in forcestuff:
-                                outprint = outprint + '{:11.3f}'.format(item)
-                            f3.write(outprint+'\n')
-                            f3.close()
+                            print2file(forcestuff, f3, '{:11.3f}')
+                        if aFIDOinside:
+                            print2file(FIDOstuff,  f4, '{:8.5f}')
                             
                     if not silent:
-                        printStuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
-                        printThis = ''
-                        for item in printStuff:
-                            printThis = printThis + '{:6.2f}'.format(item) + ' '
-                        print (printThis)
+                        print2screen(CMEstuff)
                         if doPUP:
-                            inint = 0
-                            if hitSheath: inint = 1
-                            printStuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
-                            printThis = ''
-                            for item in printStuff:
-                                printThis = printThis + '{:6.2f}'.format(item) + ' '
-                            print ('      ', printThis)            
-                    
+                            print2screen(PUPstuff, prefix='      ')                 
+
+                reachedCME = True
+                TT = t/3600./24.
                 
-                estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
+                # If not doing full contact mode return everything at the time of first FR impact    
+                if not fullContact:
+                    estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
+                    if not silent:
+                        print ('Transit Time:     ', TT)
+                        print ('Final Velocity:   ', vs[0]/1e5, vs[3]/1e5)
+                        print ('CME nose dist:    ', CMElens[0]/7e10)
+                        print ('Earth longitude:  ', Elon)
+                        print ('Est. Duration:    ', estDur)
+                        
+                    # Stop simulation and return results 
+                    runSim = False  
+                    outsCME = np.array(outsCME)
+                    outsSheath = np.array(outsSheath)
+                    outsFIDO = np.array(outsFIDO)
+                    for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
+                    for i in range(len(outsSheath)): outsSheath[i] = np.array(outsSheath[i])
+                    for i in range(len(outsFIDO)): outsFIDO[i] = np.array(outsFIDO[i])
+                    return outsCME, Elon, vs, estDur, thisPsi, thisParat, SWfront, outsSheath, outsFIDO 
+            elif reachedCME:
+                runSim = False
+                actDur = (t-FRstart)/3600
                 if not silent:
-                    print ('Transit Time:     ', TT)
+                    print ('Transit Time:     ', FRstart/3600)
                     print ('Final Velocity:   ', vs[0]/1e5, vs[3]/1e5)
                     print ('CME nose dist:    ', CMElens[0]/7e10)
                     print ('Earth longitude:  ', Elon)
-                    print ('Est. Duration:    ', estDur)
+                    print ('Est. Duration:    ', actDur)
                     
-                # convenient way to pass SW params if using functions
-                inCME = True  
-                CMEouts = np.array([outTs, outRs, outvs, outAWs, outAWps, outdelxs, outdelps, outdelCAs, outBs, outCnms, outns, outTems, outRegs])
-                if doPUP:
-                    sheathOuts = np.array([outvShocks, outcomps, outMachs, outWidths, outDurs, outMass, outDens, outShBs, outThetaBs, outShTs, outShVts, outInSh])
-                else:
-                    sheathOuts = np.array([[], [], [], [], [], [], [], [], [], [], [], [], []])
-                                        
-                return CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts 
-            elif thismin < prevmin:
+                    
+                # if aFIDOinside add SW padding behind the CME
+                for i in range(18):
+                    t += 3600.
+                    # Update HSS position
+                    if hasattr(MEOWHiSS, '__len__'):
+                        doMH[0] = MHt0+t/3600
+
+                    # Update Earth/satellite position
+                    if not doPath:    
+                        Elon += Erotrate * dt
+                    else:
+                        Elat = fLat(t)
+                        Elon = fLon(t)
+                        Er   = fR(t)*7e10
+                    # get SW values
+                    if doMH:
+                        SWatsat, HSSreg   = getSWvals(Er, SWfs, doMH=doMH, returnReg=doMH)
+                    else:
+                        SWatsat   = getSWvals(Er, SWfs)
+                        HSSreg = 0
+                    
+                    FIDOarr = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
+                    outsFIDO[0].append(FIDOarr[0])
+                    outsFIDO[1].append(FIDOarr[1])
+                    outsFIDO[2].append(FIDOarr[2])
+                    outsFIDO[3].append(FIDOarr[3])
+                    outsFIDO[4].append(FIDOarr[4])
+                    outsFIDO[5].append(FIDOarr[5])
+                    outsFIDO[6].append(FIDOarr[6])
+                    outsFIDO[7].append(FIDOarr[7])
+                        
+                    if writeFile:
+                        print2file([t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg], f4, '{:8.5f}')
+                        
+                
+                    
+                outsCME = np.array(outsCME)
+                outsSheath = np.array(outsSheath)
+                outsFIDO = np.array(outsFIDO)
+                for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
+                for i in range(len(outsSheath)): outsSheath[i] = np.array(outsSheath[i])
+                for i in range(len(outsFIDO)): outsFIDO[i] = np.array(outsFIDO[i])
+                return outsCME, Elon, vs, actDur, thisPsi, thisParat, SWfront, outsSheath, outsFIDO
+            elif (thismin < prevmin):
                 prevmin = thismin
             elif CMElens[0] > Er + 100 * 7e10:
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]  
+                return makeFailArr(9999)   
             else:                
-                return np.array([[9999], [9999], [9999],  [9999], [9999], [9999], [9999], [9999], [9999], [9999], [9999]]), 9999, [9999, 9999, 9999, 9999, 9999, 9999], 9999, 9999, 9999, [9999, 9999, 9999], [[9999]*12]
+                return makeFailArr(9999)   
+
+        # save data in arrays with outsFIDO set to whatever is appropriate based on region checking       
+        if printNow:
+            outsCME, outsSheath, outsFIDO = add2outs(outsCME, outsSheath, outsFIDO, fullCMEstuff, PUPstuff, FIDOstuff)  
+        
+        
+        
         
 
 if __name__ == '__main__':
@@ -1037,7 +1194,7 @@ if __name__ == '__main__':
     invecsAvgLT = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
     invecsSlow = [0, 0, 0, 350, 2., 25, 7, 0.7, 0.7, 21.5, 500, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
 
-    satParams = [0.0, 00.0, 215.0, 0.0]
+    satParams = [1.0, 00.0, 215.0, 0.0]
     SWparams = [5.0, 440, 6.9, 6.2e4]
     MHDparams = [4.5, 386, 3.1, 4.52e4]
     
@@ -1052,22 +1209,22 @@ if __name__ == '__main__':
     HSSdists = [0.2, 0.5, 0.8, 1.1]
     allIns = [invecs, invecsAvg, invecsAvgLT]
     
-    for k in [2]:#range(2):
+    for k in [0]:#range(2): # CME speed
         print ('')
         print ('')
         print ('')
         print ('')
-        for i in [0]:#range(3):
-            for j in [0]:#range(4):
+        for i in [0]:#range(3): # CH size
+            for j in [0]:#range(4): # HSS dists
                 print (i+1, j+1, vtag[k]+'T'+CHtag[i]+HSStag[j])
                 #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(allIns[k], satParams, MHDparams, silent=True, flagScales=True, doPUP=True, name=vtag[k]+'T'+CHtag[i]+HSStag[j], MEOWHiSS = [CHareas[i], HSSdists[j]], saveForces=True)
-                #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsSlow, satParams, MHDparams, silent=False, flagScales=True, doPUP=True, MEOWHiSS = [CHareas[i], HSSdists[j]], saveForces=True)
-
-                CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True)
+                CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts, FIDOouts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True, MEOWHiSS=[400,0.], saveForces=True, name='new')
+                
+                #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True)
             
-                print (vtag[k]+'S'+CHtag[i]+HSStag[j])
+                '''print (vtag[k]+'S'+CHtag[i]+HSStag[j])
                 shidx = -1
                 if sheathOuts[-1][-1] == 1:
                     shidx = np.min(np.where(sheathOuts[-1] ==1 ))
-                print (vs[0]/1e5, vs[3]/1e5, CMEouts[3][-1], CMEouts[4][-1], CMEouts[5][-1], CMEouts[6][-1], CMEouts[8][-1], CMEouts[10][-1], CMEouts[11][-1], CMEouts[0][-1]*24, estDur, sheathOuts[1][shidx], sheathOuts[0][shidx], sheathOuts[2][shidx], sheathOuts[3][shidx], sheathOuts[4][shidx], sheathOuts[5][shidx], sheathOuts[6][shidx], sheathOuts[9][shidx], sheathOuts[7][shidx], sheathOuts[8][shidx], sheathOuts[10][shidx], CMEouts[0][shidx]*24, CMEouts[12][-1])
+                print (vs[0]/1e5, vs[3]/1e5, CMEouts[3][-1], CMEouts[4][-1], CMEouts[5][-1], CMEouts[6][-1], CMEouts[8][-1], CMEouts[10][-1], CMEouts[11][-1], CMEouts[0][-1]*24, estDur, sheathOuts[1][shidx], sheathOuts[0][shidx], sheathOuts[2][shidx], sheathOuts[3][shidx], sheathOuts[4][shidx], sheathOuts[5][shidx], sheathOuts[6][shidx], sheathOuts[9][shidx], sheathOuts[7][shidx], sheathOuts[8][shidx], sheathOuts[10][shidx], CMEouts[0][shidx]*24, CMEouts[12][-1])'''
     

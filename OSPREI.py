@@ -114,7 +114,7 @@ def setupOSPREI():
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
-    if models in ['FC', 'ALL']:
+    if models in ['FC', 'ALL', 'All']:
         if 'FCmagname:' in allinputs:
             pickleName = allinputs[np.where(allinputs == 'FCmagname:')[0]][0,1]
         elif not noDate:
@@ -328,7 +328,6 @@ def genEnsMem(runnum=0):
     if 'MHdist' in input_values: CME.MHdist = float(input_values['MHdist'])    
     if 'MHarea' in input_values: CME.MHarea = float(input_values['MHarea'])    
     
-    print (EnsInputs.keys())
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
         if item == 'SWCd':
@@ -609,6 +608,10 @@ def goANTEATR(makeRestart=False, satPath=False):
     ANTEATRfile = open(Dir+'/ANTEATRresults'+thisName+'.dat', 'w')
     if doPUP:
         PUPfile = open(Dir+'/PUPresults'+thisName+'.dat', 'w')
+        SITfile = open(Dir+'/SITresults'+thisName+'.dat', 'w')
+    if doFIDO:
+        FIDOfile = open(Dir+'/FIDOresults'+thisName+'.dat', 'w')
+        
 
 
     # ANTEATR takes inputs
@@ -676,25 +679,26 @@ def goANTEATR(makeRestart=False, satPath=False):
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile
-            
+        
+        # SW polarity in or out
+        inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
         if satPath:
-            isSilent = False
+            isSilent = True
             if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout, name='testt')
             else:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP)
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, aFIDOinside=doFIDO, inorout=inorout)
         else:
             if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist])
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout)
             else:    
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP)
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, aFIDOinside=doFIDO, inorout=inorout)
         
         # update background SW params to current values
         # will do nothing if using given values but needed for
         # 1D profile to make FIDO-SIT happy
-        CME.nSW, CME.vSW, CME.BSW, CME.BSWvec = SWparams[0], SWparams[1], SWparams[2], SWparams[3]
-        
+        CME.nSW, CME.vSW, CME.BSW, CME.BSWvec = SWparams[0], SWparams[1], SWparams[2], SWparams[3]        
         # Check if miss or hit  
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
@@ -712,18 +716,25 @@ def goANTEATR(makeRestart=False, satPath=False):
             vEx = vExVec[0] / 1e5
         
             # Can add in ForeCAT time to ANTEATR time
-            TotTime  = ATresults[0][-1]+CME.t/60./24
-            rCME     = ATresults[1][-1]
-            CMEvs    = ATresults[2][-1]
-            CMEAW    = ATresults[3][-1]
-            CMEAWp   = ATresults[4][-1]
-            deltax   = ATresults[5][-1]
-            deltap   = ATresults[6][-1]
-            deltaCA  = ATresults[7][-1]
-            B0       = ATresults[8][-1]/1e5
-            cnm      = ATresults[9][-1]
-            CMEn     = ATresults[10][-1]
-            logT     = ATresults[11][-1]
+            FCATtime = CME.t/60./24
+            # want time of first contact, which is not idx -1 if do fullContact/FIDO
+            hitIdx = -1
+            if doFIDO:
+                regs = FIDOresults[7]
+                hitTime = FIDOresults[0][np.min(np.where(regs == 1))]/24
+                hitIdx = np.min(np.where(ATresults[0] >= hitTime))
+            TotTime  = ATresults[0][hitIdx]+FCATtime
+            rCME     = ATresults[1][hitIdx]
+            CMEvs    = ATresults[2][hitIdx]
+            CMEAW    = ATresults[3][hitIdx]
+            CMEAWp   = ATresults[4][hitIdx]
+            deltax   = ATresults[5][hitIdx]
+            deltap   = ATresults[6][hitIdx]
+            deltaCA  = ATresults[7][hitIdx]
+            B0       = ATresults[8][hitIdx]/1e5
+            cnm      = ATresults[9][hitIdx]
+            CMEn     = ATresults[10][hitIdx]
+            logT     = ATresults[11][hitIdx]
             # Store things to pass to FIDO ensembles
             ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
             # update CME if has that variable
@@ -739,7 +750,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             CME.vTrans = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
             CME.impV = vF
             CME.impVE = vEx
-            CME.t = TotTime
+            #CME.t = TotTime
             CME.Tscale = logT
             
             # CME sheath parameters
@@ -771,7 +782,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j]]
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j], ATresults[12,j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')
@@ -811,7 +822,35 @@ def goANTEATR(makeRestart=False, satPath=False):
                 PUPfile.write(outprint+'\n')
         else:
             print('Miss')
-        # write a file to restart ANTEATR/FIDO from current CME values
+        
+        if doFIDO:
+            # Save FIDO profiles
+            for j in range(len(FIDOresults[0])):
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                Btot = np.sqrt(FIDOresults[1][j]**2 + FIDOresults[2][j]**2 + FIDOresults[3][j]**2)
+                if isSat:
+                    outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, FIDOresults[1][j], FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]
+                else:
+                    # GSE coords, flip R,T to xy
+                    outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, -FIDOresults[1][j], -FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]    
+                for iii in outstuff:
+                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                FIDOfile.write(outprint+'\n')
+                
+            # Save sheath/shock properties at first contact
+            #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
+            # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
+            shIdx = np.min(np.where(PUPresults[11,:] == 1))
+            outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
+            outprint = str(i)
+            outprint = outprint.zfill(4) + '   '
+            for iii in outstuff:
+                outprint = outprint +'{:6.3f}'.format(iii) + ' '
+            SITfile.write(outprint+'\n')
+            
+            
+            
         # write a file to restart ANTEATR/FIDO from current CME values
         if makeRestart:      
             # update current inps with things that have changed in ForeCAT to pass to
@@ -830,10 +869,18 @@ def goANTEATR(makeRestart=False, satPath=False):
             # SW params if using those...
             genNXTtxt(CME, num=str(i), tag='FIDO')
         
+        
     ANTEATRfile.close()  
-    if doPUP: PUPfile.close()
-     
+    if doPUP: 
+        PUPfile.close()
+        SITfile.close()
+    if doFIDO:
+        FIDOfile.close()
     
+    
+             
+# This is old since FIDO is now integrated into ANT_PUP but keeping
+# in case random need to run ensembles of (less-evolving) FIDO only
 def goFIDO(satPath=False):
     # FIDO portion -----------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -1077,7 +1124,8 @@ def runOSPREI():
 
     if doANT: goANTEATR(makeRestart=False, satPath=doSatPath)
     
-    if doFIDO: goFIDO(satPath=doSatPath)
+    # Outdated option for FIDO separate from ANTEATR
+    #if doFIDO: goFIDO(satPath=doSatPath)
 
     if nRuns > 1: ensembleFile.close()
 

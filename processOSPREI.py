@@ -84,6 +84,8 @@ class EnsRes:
             self.FIDOBzs    = None
             self.FIDOBs     = None
             self.FIDOvs     = None
+            self.FIDOns     = None
+            self.FIDOtems   = None
             self.FIDOKps    = None
             self.FIDOnormrs = None
             self.isSheath   = None
@@ -181,6 +183,10 @@ def txt2obj(GCStime):
                 thisRes.miss = False
                 nHits += 1
                 thisRes.ANTtimes = ANTdata[myidxs,1]
+                if OSP.doFC:
+                    thisRes.ANTtimes = ANTdata[myidxs,1]+thisRes.FCtimes[-1]/60/24.
+                else:
+                    thisRes.ANTtimes = ANTdata[myidxs,1]
                 thisRes.ANTrs    = ANTdata[myidxs,2]
                 thisRes.ANTAWs   = ANTdata[myidxs,3]
                 thisRes.ANTAWps  = ANTdata[myidxs,4]
@@ -201,13 +207,20 @@ def txt2obj(GCStime):
                 thisRes.ANTtaus  = ANTdata[myidxs,17]
                 thisRes.ANTns    = ANTdata[myidxs,18]
                 thisRes.ANTlogTs = ANTdata[myidxs,19] 
+                
+                # idx of where sheath and/or FR start, will be replaced if FIDOing
+                thisRes.ANTshidx = -1
+                thisRes.ANTFRidx = -1
+                
                 # assuming [m,n] = [0,1]
                 thisRes.ANTBtors = thisRes.ANTdelCSs * thisRes.ANTB0s * thisRes.ANTtaus
                 thisRes.ANTBpols = 2 * thisRes.ANTdelCSs * thisRes.ANTB0s / (thisRes.ANTdelCSs**2+1) / thisRes.ANTCnms
                 # calc est (max) duration - for nose impact
                 Deltabr = thisRes.ANTdelCSs[-1] * np.tan(thisRes.ANTAWps[-1]*dtor) / (1 + thisRes.ANTdelCSs[-1] * np.tan(thisRes.ANTAWps[-1]*dtor))
                 thisRes.ANTrr = Deltabr * thisRes.ANTrs[-1]
-                thisRes.ANTdur = 4 * thisRes.ANTrr * 7e10 * (2*thisRes.ANTvBs[-1]+3*thisRes.ANTvCSrs[-1]) / (2*thisRes.ANTvBs[-1]+thisRes.ANTvCSrs[-1])**2 / 1e5 / 3600.
+                vB = thisRes.ANTvFs[-1]-thisRes.ANTvCSrs[-1]
+                thisRes.ANTdur = 4 * thisRes.ANTrr * 7e10 * (2*vB+3*thisRes.ANTvCSrs[-1]) / (2*vB+thisRes.ANTvCSrs[-1])**2 / 1e5 / 3600.
+                
                 # calc Kp
                 dphidt = np.power(thisRes.ANTvFs[-1], 4/3.) * np.power(thisRes.ANTBpols[-1], 2./3.) 
                 # Mays/Savani expression, best behaved for high Kp
@@ -226,7 +239,6 @@ def txt2obj(GCStime):
         ids = FIDOdata[:,0].astype(int)
         unFIDOids = np.unique(ids)
         
-        
         if OSP.includeSIT:
             SITfile = OSP.Dir+'/SITresults'+OSP.thisName+'.dat'
             SITdata = np.genfromtxt(SITfile, dtype=float, encoding='utf8')
@@ -238,7 +250,7 @@ def txt2obj(GCStime):
                     SITdata = SITdata.reshape([1,-1])
                 else:
                     SITids = []
-        
+            
         for i in unFIDOids:
             if OSP.doFC or OSP.doANT:
                 thisRes = ResArr[i]
@@ -248,22 +260,48 @@ def txt2obj(GCStime):
             thisRes.miss = False
             myidxs = np.where(ids==i)[0]
             thisRes.FIDOtimes = FIDOdata[myidxs,1]
+            
             thisRes.FIDOBs    = FIDOdata[myidxs,2]
             thisRes.FIDOBxs   = FIDOdata[myidxs,3]
             thisRes.FIDOBys   = FIDOdata[myidxs,4]
             thisRes.FIDOBzs   = FIDOdata[myidxs,5]
             thisRes.FIDOvs    = FIDOdata[myidxs,6]
-            isSheath = FIDOdata[myidxs,7]
-            thisRes.FIDOidx = np.where(isSheath==1)[0]
-                  
+            thisRes.FIDOns    = FIDOdata[myidxs,7]
+            thisRes.FIDOtems  = np.power(10,FIDOdata[myidxs,8])
+            thisRes.regions = FIDOdata[myidxs,9]
+            regions = FIDOdata[myidxs,9]
+            thisRes.FIDO_shidx = np.where(thisRes.regions==0)[0]
+            thisRes.FIDO_FRidx = np.where(thisRes.regions==1)[0]
+            thisRes.FIDO_SWidx = np.where(np.abs(thisRes.regions-100)<10)[0]
+            
+            # derived paramters
+            thisRes.FIDO_FRdur = (thisRes.FIDOtimes[thisRes.FIDO_FRidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]) * 24
+            thisRes.FIDO_shdur = (thisRes.FIDOtimes[thisRes.FIDO_shidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_shidx[0]]) * 24
+            thisRes.FIDO_FRexp = 0.5*(thisRes.FIDOvs[thisRes.FIDO_FRidx[0]] - thisRes.FIDOvs[thisRes.FIDO_FRidx[-1]]) 
+            
+            # get corresponding idxs for ANT data
+            if OSP.doANT:
+                if OSP.doPUP:
+                    tSH =thisRes.FIDOtimes[thisRes.FIDO_shidx[0]], 
+                    thisRes.ANTshidx = np.min(np.where(thisRes.ANTtimes >= tSH))
+                tFR = thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]
+                thisRes.ANTFRidx = np.min(np.where(thisRes.ANTtimes >= tFR))
+                
+                # redo calc Kp with actual front
+                dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx], 4/3.) * np.power(thisRes.ANTBpols[thisRes.ANTFRidx], 2./3.) 
+                # Mays/Savani expression, best behaved for high Kp
+                thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
+                
+                # reset ANT dur with more accurate version
+                thisRes.ANTdur = thisRes.FIDO_FRdur
+
             Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
             Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
             thisRes.FIDOKps   = Kp
             if (OSP.includeSIT) and (i in SITids):  
                 thisRes.hasSheath = True
                 myID = np.where(SITids == i)[0][0]
-                isSheath = FIDOdata[myidxs,7]
-                thisRes.SITidx = np.where(isSheath==0)[0]
+                thisRes.SITidx = np.where(thisRes.regions==0)[0]
                 thisRes.SITdur = SITdata[myID, 1] #thisRes.FIDOtimes[thisRes.SITidx[-1]]-thisRes.FIDOtimes[0] 
                 thisRes.SITcomp = SITdata[myID, 2]
                 thisRes.SITMach = SITdata[myID, 3]
@@ -271,6 +309,7 @@ def txt2obj(GCStime):
                 thisRes.SITvSheath = SITdata[myID, 5]
                 thisRes.SITB    = SITdata[myID, 6]     
                 thisRes.SITvShock = SITdata[myID,7]    
+                thisRes.SITtemp = SITdata[myID,8]
                 thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
                 thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
                 thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
@@ -298,30 +337,32 @@ def txt2obj(GCStime):
                 if int(row[0]) in ResArr.keys():
                     ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
-        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'Gamma', 'IVDf1', 'IVDf2', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz']  
+        myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'CMEvExp', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRBscale', 'FRtau', 'FRCnm', 'FRTscale', 'Gamma', 'IVDf1', 'IVDf2', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'MHarea', 'MHdist']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))      
     return ResArr
 
 def readInData():
-    dataIn = np.genfromtxt(OSP.ObsDataFile, dtype=float, encoding='utf8', skip_header=10)
+    dataIn = np.genfromtxt(OSP.ObsDataFile, dtype=float)
+    dataIn[np.where(dataIn == -9999)] = math.nan
+    
     # Need to check if goes over into new year...
     base = datetime.datetime(int(dataIn[0,0]), 1, 1, 1, 0)
     obsDTs = np.array([base + datetime.timedelta(days=int(dataIn[i,1])-1, seconds=int(dataIn[i,2]*3600)) for i in range(len(dataIn[:,0]))])
     
     nGiven = len(dataIn[0,:])
     global hasv, hasKp
-    hasv, hasKp = True, True
-    if nGiven == 10:
-        # have all the things (yr doy hr, B, Bx, By, Bz, n, v, Kp)
-        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]/10.])
-    elif nGiven == 9:
+    hasv, hasKp, hasT = True, True, True
+    if nGiven == 11:
+        # have all the things (yr doy hr, B, Bx, By, Bz, n, v, T, Kp)
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9], dataIn[:,10]/10.])
+    elif nGiven == 10:
         # no Kp
-        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8]])
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]])
         hasKp = False
     elif nGiven ==8:
-        # no v or Kp
+        # no v T or Kp
         dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7]])
-        hasv, hasKp = False, False        
+        hasv, hasKp, hasT = False, False, False       
     return dataOut
 
 def calcKp(Bout, CMEstart, CMEv):
@@ -925,19 +966,18 @@ def makeAThisto(ResArr):
     all_vFs, all_vExps, all_TTs, all_durs, all_Bfs, all_Bms, all_ns, all_Kps, all_Ts, FC_times  = [], [], [], [], [], [], [], [], [], []
     # Collect the ensemble results
     for key in ResArr.keys(): 
+        # figure out when hits FR, may not be last pt if doing internal FIDO
+        thisidx = ResArr[key].ANTFRidx
         if (not ResArr[key].miss) and (not ResArr[key].fail):
-            all_vFs.append(ResArr[key].ANTvFs[-1])
-            all_vExps.append(ResArr[key].ANTvCSrs[-1])
-            if OSP.doFC:
-                all_TTs.append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)
-            else:
-                all_TTs.append(ResArr[key].ANTtimes[-1])                
+            all_vFs.append(ResArr[key].ANTvFs[thisidx])
+            all_vExps.append(ResArr[key].ANTvCSrs[thisidx])
+            all_TTs.append(ResArr[key].ANTtimes[thisidx])    
             all_durs.append(ResArr[key].ANTdur)
-            all_Bfs.append(ResArr[key].ANTBpols[-1])
-            all_Bms.append(ResArr[key].ANTBtors[-1])
-            all_ns.append(ResArr[key].ANTns[-1])
+            all_Bfs.append(ResArr[key].ANTBpols[thisidx])
+            all_Bms.append(ResArr[key].ANTBtors[thisidx])
+            all_ns.append(ResArr[key].ANTns[thisidx])
             all_Kps.append(ResArr[key].ANTKp0)
-            all_Ts.append(ResArr[key].ANTlogTs[-1])
+            all_Ts.append(ResArr[key].ANTlogTs[thisidx])
     # Ordered Data
     ordData = [all_vFs, all_vExps, all_TTs, all_Bfs, all_Bms, all_durs, all_Ts, all_ns, all_Kps] 
     names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_C$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
@@ -973,11 +1013,16 @@ def makeAThisto(ResArr):
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.'+figtag)
      
-def makeISplot(ResArr):
-    fig, axes = plt.subplots(6, 1, sharex=True, figsize=(8,12))
+def makeISplot(ResArr, SWpad=18):
+    fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
     mindate = None
     maxdate = None
     for key in ResArr.keys():
+        if key == 0:
+            lw, co, zord = 4, 'b', 11
+        else:
+            lw, co, zord = 2, 'DarkGray', 2
+            
         if ResArr[key].FIDOtimes is not None: #not ResArr[key].miss:
             if OSP.noDate:
                 dates = ResArr[key].FIDOtimes
@@ -987,54 +1032,78 @@ def makeISplot(ResArr):
                     dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes])
                 else:
                     dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes])
+            # plot the flux rope
+            nowIdx = ResArr[key].FIDO_FRidx
+            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], linewidth=lw, color=co, zorder=zord)
+            if OSP.isSat:
+                axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], linewidth=lw, color=co, zorder=zord)
+            else:
+                axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], linewidth=lw, color=co, zorder=zord)
             if mindate is None: 
-                mindate = np.min(dates)
-                maxdate = np.max(dates)
-            axes[0].plot(dates, ResArr[key].FIDOBs, '--', linewidth=2, color='DarkGray')
-            axes[1].plot(dates, ResArr[key].FIDOBxs, '--', linewidth=2, color='DarkGray')
-            axes[2].plot(dates, ResArr[key].FIDOBys, '--', linewidth=2, color='DarkGray')
-            axes[3].plot(dates, ResArr[key].FIDOBzs, '--', linewidth=2, color='DarkGray')
-            axes[4].plot(dates, ResArr[key].FIDOKps, '--', linewidth=2, color='DarkGray')
-            axes[5].plot(dates, ResArr[key].FIDOvs, '--', linewidth=2, color='DarkGray')
-            axes[0].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOBs[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            axes[1].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOBxs[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            axes[2].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOBys[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            axes[3].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOBzs[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            axes[4].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOKps[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            axes[5].plot(dates[ResArr[key].FIDOidx], ResArr[key].FIDOvs[ResArr[key].FIDOidx], linewidth=2, color='DarkGray')
-            if np.min(dates) < mindate: mindate = np.min(dates)
-            if np.max(dates) > maxdate: maxdate = np.max(dates)        
-    
-    # Plot the ensemble seed
-    if OSP.noDate:
-        dates = ResArr[0].FIDOtimes
-    else:
-        dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
-    axes[0].plot(dates, ResArr[0].FIDOBs, '--', linewidth=4, color='b', zorder=10)
-    axes[1].plot(dates, ResArr[0].FIDOBxs, '--', linewidth=4, color='b', zorder=10)
-    axes[2].plot(dates, ResArr[0].FIDOBys, '--', linewidth=4, color='b', zorder=10)
-    axes[3].plot(dates, ResArr[0].FIDOBzs, '--', linewidth=4, color='b', zorder=10)
-    axes[4].plot(dates, ResArr[0].FIDOKps, '--', linewidth=4, color='b', zorder=10)
-    axes[5].plot(dates, ResArr[0].FIDOvs, '--', linewidth=4, color='b', zorder=10)
-    axes[0].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOBs[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    axes[1].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOBxs[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    axes[2].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOBys[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    axes[3].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOBzs[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    axes[4].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOKps[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    axes[5].plot(dates[ResArr[0].FIDOidx[0]:], ResArr[0].FIDOvs[ResArr[0].FIDOidx[0]:], linewidth=4, color='b', zorder=11)
-    #ResArr[0].FIDOidx[0]
-    
-    # Make Kps integers only
-    Kpmin, Kpmax = int(np.min(ResArr[0].FIDOKps)), int(np.max(ResArr[0].FIDOKps))+1
-    axes[4].set_yticks(range(Kpmin, Kpmax+2))
-    
+                mindate = dates[nowIdx[0]]
+                maxdate = dates[nowIdx[-1]]
+
+            # plot the sheath (and the FR start so connected)
+            if len(ResArr[key].FIDO_shidx) != 0:
+                nowIdx = ResArr[key].FIDO_shidx
+                nowIdx = np.append(nowIdx, ResArr[key].FIDO_FRidx[0])
+                axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                if OSP.isSat:
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                else:
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                #axes[4].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=2, color='DarkGray')
+            
+            # plot SW outside of sh+FR
+            if len(ResArr[key].FIDO_SWidx) > 0:
+                if len(ResArr[key].FIDO_shidx) != 0:
+                    frontEnd, backStart = dates[ResArr[key].FIDO_shidx[0]], dates[ResArr[key].FIDO_FRidx[-1]]
+                    frontStart, backEnd = frontEnd-datetime.timedelta(hours=12), backStart+datetime.timedelta(hours=12)
+                    frontIdx = np.where((dates>=frontStart) & (dates <=frontEnd))[0]
+                    backIdx = np.where((dates>=backStart) & (dates <=backEnd))[0]
+                    for nowIdx in [frontIdx, backIdx]:
+                        axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        if OSP.isSat:
+                            axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        else:
+                            axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                
+                
+                
+            if len(ResArr[key].FIDO_SWidx) > 0:    
+                if dates[frontIdx[0]] < mindate: mindate = dates[frontIdx[0]]
+                if dates[backIdx[-1]] > maxdate: maxdate = dates[backIdx[-1]]  
+            else:
+                # will be either sheath or FR as appropriate
+                if dates[nowIdx[0]] < mindate: mindate = dates[nowIdx[0]]
+                if dates[nowIdx[-1]] > maxdate: maxdate = dates[nowIdx[-1]]
+                    
     
     axes[0].set_ylabel('B (nT)')
     axes[1].set_ylabel('B$_x$ (nT)')
     axes[2].set_ylabel('B$_y$ (nT)')
     axes[3].set_ylabel('B$_z$ (nT)')
-    axes[4].set_ylabel('Kp')
-    axes[5].set_ylabel('v (km/s)')
+    axes[4].set_ylabel('v (km/s)')
+    axes[5].set_ylabel('T (K)')
+    if OSP.isSat:
+        axes[6].set_ylabel('n (cm$^{-3}$)')
+    else:
+        axes[6].set_ylabel('Kp')
     
     if not OSP.noDate:
         # Set up date format
@@ -1057,16 +1126,18 @@ def makeISplot(ResArr):
                 ticks2hide = np.array(range(len(yticks)-1))[::2]
                 for j in ticks2hide:
                     yticks[j].label1.set_visible(False)
-                
+    
     if ObsData is not None:
         axes[0].plot(ObsData[0,:], ObsData[1,:], linewidth=4, color='r')
         axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=4, color='r')
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=4, color='r')
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='r')
-        if hasKp:
-            axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r')    
-        if hasv:
-            axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
+        axes[4].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
+        axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r')    
+        if OSP.isSat:
+            axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=4, color='r')
+        elif hasKp:
+            axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=4, color='r')
 
     
     if not OSP.noDate: fig.autofmt_xdate()
@@ -1086,12 +1157,12 @@ def makeFIDOhistos(ResArr):
     # Collect the ensemble results
     for key in ResArr.keys(): 
         if ResArr[key].FIDOtimes is not None:
-            all_dur.append((ResArr[key].FIDOtimes[-1]-ResArr[key].FIDOtimes[ResArr[key].FIDOidx[0]])*24)
+            all_dur.append(ResArr[key].FIDO_FRdur)
             all_Bz.append(np.min(ResArr[key].FIDOBzs))
             all_Kp.append(np.max(ResArr[key].FIDOKps))
             all_B.append(np.max(ResArr[key].FIDOBs))
-            all_vF.append(ResArr[key].FIDOvs[ResArr[key].FIDOidx[0]])
-            all_vE.append(0.5*(ResArr[key].FIDOvs[ResArr[key].FIDOidx[0]] - ResArr[key].FIDOvs[-1]))
+            all_vF.append(ResArr[key].FIDOvs[ResArr[key].FIDO_FRidx[0]])
+            all_vE.append(ResArr[key].FIDO_FRexp )
             
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
@@ -1226,12 +1297,12 @@ def makeallIShistos(ResArr):
     for key in ResArr.keys(): 
         if ResArr[key].hasSheath:
             if (not ResArr[key].miss) and (not ResArr[key].fail):
-                all_AT.append(ResArr[key].FIDOtimes[0])
-                all_dur.append(ResArr[key].SITdur)
-                all_durS.append((ResArr[key].FIDOtimes[-1]-ResArr[key].FIDOtimes[ResArr[key].FIDOidx[0]])*24)
+                all_AT.append(ResArr[key].FIDOtimes[ResArr[key].FIDO_shidx[0]])
+                all_durS.append(ResArr[key].SITdur)
+                all_dur.append(ResArr[key].FIDO_FRdur)
                 all_vS.append(ResArr[key].SITvSheath)
-                all_vF.append(ResArr[key].FIDOvs[ResArr[key].FIDOidx[0]])
-                all_vE.append(0.5*(ResArr[key].FIDOvs[ResArr[0].FIDOidx[0]] - ResArr[key].FIDOvs[-1]))
+                all_vF.append(ResArr[key].FIDOvs[ResArr[key].FIDO_FRidx[0]])
+                all_vE.append(ResArr[key].FIDO_FRexp)
                 all_Bz.append(np.min(ResArr[key].FIDOBzs))
                 all_B.append(np.max(ResArr[key].FIDOBs))
                 all_Kp.append(np.max(ResArr[key].FIDOKps))
@@ -1239,8 +1310,8 @@ def makeallIShistos(ResArr):
     # Determine the maximum bin height so we can add extra padding for the 
     # mean and uncertainty
     n1, bins, patches = axes[0].hist(all_AT, bins=10, color='b', histtype='bar', ec='black')
-    n2, bins, patches = axes[1].hist(all_dur, bins=10, color='b', histtype='bar', ec='black')
-    n3, bins, patches = axes[2].hist(all_durS, bins=10, color='b', histtype='bar', ec='black')
+    n2, bins, patches = axes[1].hist(all_durS, bins=10, color='b', histtype='bar', ec='black')
+    n3, bins, patches = axes[2].hist(all_dur, bins=10, color='b', histtype='bar', ec='black')
     n4, bins, patches = axes[3].hist(all_vS, bins=10, color='b', histtype='bar', ec='black')
     n5, bins, patches = axes[4].hist(all_vF, bins=10, color='b', histtype='bar', ec='black')
     n6, bins, patches = axes[5].hist(all_vE, bins=10, color='b', histtype='bar', ec='black')
@@ -1253,8 +1324,8 @@ def makeallIShistos(ResArr):
     
     # Add the mean and sigma from a normal fit
     fitAT = norm.fit(all_AT)
-    fitDur = norm.fit(all_dur)
     fitDurS = norm.fit(all_durS)
+    fitDur = norm.fit(all_dur)
     fitvS = norm.fit(all_vS)
     fitvF = norm.fit(all_vF)
     fitvE = norm.fit(all_vE)
@@ -1271,8 +1342,8 @@ def makeallIShistos(ResArr):
     axes[0].text(0.97, 0.82, '{:.2f}'.format(fitAT[0])+'$\pm$'+'{:.2f}'.format(fitAT[1]) + ' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
 
     #axes[0].text(0.97, 0.95, '{:4.1f}'.format(fitAT[0])+'$\pm$'+'{:4.1f}'.format(fitAT[1]), horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-    axes[1].text(0.97, 0.92, '{:.1f}'.format(fitDur[0])+'$\pm$'+'{:.1f}'.format(fitDur[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.92, '{:.1f}'.format(fitDurS[0])+'$\pm$'+'{:.1f}'.format(fitDurS[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+    axes[1].text(0.97, 0.92, '{:.1f}'.format(fitDurS[0])+'$\pm$'+'{:.1f}'.format(fitDurS[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+    axes[2].text(0.97, 0.92, '{:.1f}'.format(fitDur[0])+'$\pm$'+'{:.1f}'.format(fitDur[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
     axes[3].text(0.97, 0.92, '{:.0f}'.format(fitvS[0])+'$\pm$'+'{:.0f}'.format(fitvS[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
     axes[4].text(0.97, 0.92, '{:.0f}'.format(fitvF[0])+'$\pm$'+'{:.0f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
     axes[5].text(0.97, 0.92, '{:.0f}'.format(fitvE[0])+'$\pm$'+'{:.0f}'.format(fitvE[1])+ ' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
@@ -1297,13 +1368,12 @@ def makeallIShistos(ResArr):
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist.'+figtag)
     
-
 def makeEnsplot(ResArr, critCorr=0.5):
     deg = '('+'$^\circ$'+')'
 
     out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRBscale':'B scale', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRTscale':'T scale',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
     
     configID = 0
     if OSP.doFC: configID += 100
@@ -1430,6 +1500,9 @@ def makeEnsplot(ResArr, critCorr=0.5):
                 col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])#*np.ones(len(goodIDs))
                 #axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.turbo(col))
             corrs[j,i] = col
+    # clean out any NaNs (might have for zero variation params)
+    corrs[~np.isfinite(corrs)] = 0
+    
     # figure out which can be thrown out
     goodVidx = []
     goodHidx = []
@@ -1510,10 +1583,10 @@ def makeAllprob(ResArr):
             if np.min(dates) < mindate: mindate = np.min(dates)
             if np.max(dates) > maxdate: maxdate = np.max(dates)
     plotlen = (maxdate - mindate)*24
-    nx = int(plotlen/3.)+1
+    nx = int(plotlen/3.)#+1
     
     nBins = 10
-    allArr = np.zeros([6, nBins, nx])
+    allArr = np.zeros([7, nBins, nx])
     
     # want first cell to start at first multiple of 3 hrs before first arrival
     hrs3 = int((mindate+DoY - int(mindate+DoY))*8)
@@ -1523,36 +1596,50 @@ def makeAllprob(ResArr):
     centtimes = np.array([startPlot + 1.5/24. + i*3./24. for i in range(nx+1)])
     
     # need min/max for each parameter
-    minmax = np.zeros([6,2])
-    minmax[5,0] = 400 # set v min to 350 km/s so will probably include steady state vSW range
+    minmax = np.zeros([7,2])
+    minmax[4,0] = 400 # set v min to 350 km/s so will probably include steady state vSW range
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None:
             thisRes = ResArr[key]
-            allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOKps, thisRes.FIDOvs]
-            for i in range(6):
+            if OSP.isSat:
+                allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOns]
+            else:
+                allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOKps]
+            for i in range(7):
                 thismin, thismax = np.min(allParams[i]), np.max(allParams[i]) 
                 if thismin < minmax[i,0]: minmax[i,0] = thismin
                 if thismax > minmax[i,1]: minmax[i,1] = thismax 
+
     # need to compare to min/max of obs data (if given)
     if not OSP.noDate: 
-        obsIdx = [1, 2, 3, 4, 7, 6]
-        for i in range(6):
-            thismin, thismax = np.min(ObsData[obsIdx[i],:]), np.min(ObsData[obsIdx[i],:])
+        obsIdx = [1, 2, 3, 4, 6, 7, 5]
+        if not OSP.isSat:
+            obsIdx[-1] = 8
+        for i in range(7):
+            thisParam = ObsData[obsIdx[i],:].astype(np.float)
+            thisParam =  thisParam[~np.isnan(thisParam.astype(float))]
+            thismin, thismax = np.min(thisParam), np.max(thisParam)
             if thismin < minmax[i,0]: minmax[i,0] = thismin
             if thismax > minmax[i,1]: minmax[i,1] = thismax
-                    
+
     # fill in grid
     counter = 0
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None:
             counter += 1
             thisTime = ResArr[key].FIDOtimes + DoY
-            allParams = [ResArr[key].FIDOBs, ResArr[key].FIDOBxs, ResArr[key].FIDOBys, ResArr[key].FIDOBzs, ResArr[key].FIDOKps, ResArr[key].FIDOvs ]
-            for j in range(6):
+            thisRes = ResArr[key]
+            if OSP.isSat:
+                allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOns]
+            else:
+                allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOKps]
+            
+            for j in range(7):
                 thismin = minmax[j,0]
                 thisrange = minmax[j,1] - minmax[j,0]
                 thisbin = thisrange / nBins
                 thisParam = allParams[j]
+                
                 try:
                     thefit = CubicSpline(thisTime, thisParam)
                 except:
@@ -1580,9 +1667,9 @@ def makeAllprob(ResArr):
     cmap1.set_bad("w")
     allMasked = np.ma.masked_less(allPerc,0.01)
                      
-    fig, axes = plt.subplots(6, 1, sharex=True, figsize=(8,12))
+    fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
     uplim = 0.9*np.max(allMasked)
-    for i in range(6):
+    for i in range(7):
         ys = np.linspace(minmax[i,0], minmax[i,1],nBins+1)
         XX, YY = np.meshgrid(gridtimes,ys)
         # draw a grid because mask away a lot of it
@@ -1596,20 +1683,20 @@ def makeAllprob(ResArr):
         obsDates =  ObsData[0,:]
         for i in range(len(obsDates)):
              obsDates[i] = (obsDates[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-        axes[0].plot(obsDates, ObsData[1,:], linewidth=6, color='k', zorder=5)
-        axes[1].plot(obsDates, ObsData[2,:], linewidth=6, color='k', zorder=5)
-        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=6, color='k', zorder=5)
-        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=6, color='k', zorder=5)
-        axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=6, color='k', zorder=5)    
-        axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=6, color='k', zorder=5)
-        axes[0].plot(obsDates, ObsData[1,:], linewidth=3, color='r', zorder=5)
-        axes[1].plot(obsDates, ObsData[2,:], linewidth=3, color='r', zorder=5)
-        axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=3, color='r', zorder=5)
-        axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=3, color='r', zorder=5)
-        if hasKp:
-            axes[4].plot(ObsData[0,:], ObsData[7,:], linewidth=3, color='r', zorder=5)  
-        if hasv:  
-            axes[5].plot(ObsData[0,:], ObsData[6,:], linewidth=3, color='r', zorder=5)
+        cs = ['k', 'r']
+        lw = [6,3]
+        for i in range(2):
+            axes[0].plot(obsDates, ObsData[1,:], linewidth=lw[i], color=cs[i], zorder=5)
+            axes[1].plot(obsDates, ObsData[2,:], linewidth=lw[i], color=cs[i], zorder=5)
+            axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=lw[i], color=cs[i], zorder=5)
+            axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=lw[i], color=cs[i], zorder=5)
+            axes[4].plot(ObsData[0,:], ObsData[6,:], linewidth=lw[i], color=cs[i], zorder=5)    
+            axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=lw[i], color=cs[i], zorder=5)
+            if OSP.isSat:
+                axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=lw[i], color=cs[i], zorder=5)
+            else:
+                axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=lw[i], color=cs[i], zorder=5)
+        
         
     # add in ensemble seed
     if OSP.noDate:
@@ -1618,21 +1705,18 @@ def makeAllprob(ResArr):
         dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes])
         for i in range(len(dates2)):
              dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-    thiscol = 'w'
-    axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=6, color=thiscol, zorder=6)
-    axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=6, color=thiscol, zorder=6)
-    axes[2].plot(dates2, ResArr[0].FIDOBys, linewidth=6, color=thiscol, zorder=6)
-    axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=6, color=thiscol, zorder=6)
-    axes[4].plot(dates2, ResArr[0].FIDOKps, linewidth=6, color=thiscol, zorder=6)
-    axes[5].plot(dates2, ResArr[0].FIDOvs, linewidth=6, color=thiscol, zorder=6)
-    thiscol='b'
-    axes[0].plot(dates2, ResArr[0].FIDOBs,  linewidth=3, color=thiscol, zorder=6)
-    axes[1].plot(dates2, ResArr[0].FIDOBxs,  linewidth=3, color=thiscol, zorder=6)
-    axes[2].plot(dates2, ResArr[0].FIDOBys,  linewidth=3, color=thiscol, zorder=6)
-    axes[3].plot(dates2, ResArr[0].FIDOBzs,  linewidth=3, color=thiscol, zorder=6)
-    axes[4].plot(dates2, ResArr[0].FIDOKps,  linewidth=3, color=thiscol, zorder=6)
-    axes[5].plot(dates2, ResArr[0].FIDOvs,  linewidth=3, color=thiscol, zorder=6)
-    
+    thiscol = ['w', 'b']
+    for i in range(2):
+        axes[0].plot(dates2, ResArr[0].FIDOBs, linewidth=lw[i], color=thiscol[i], zorder=6)
+        axes[1].plot(dates2, ResArr[0].FIDOBxs, linewidth=lw[i], color=thiscol[i], zorder=6)
+        axes[2].plot(dates2, ResArr[0].FIDOBys, linewidth=lw[i], color=thiscol[i], zorder=6)
+        axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=lw[i], color=thiscol[i], zorder=6)
+        axes[4].plot(dates2, ResArr[0].FIDOvs, linewidth=lw[i], color=thiscol[i], zorder=6)
+        axes[5].plot(dates2, ResArr[0].FIDOtems, linewidth=lw[i], color=thiscol[i], zorder=6)
+        if OSP.isSat:
+            axes[6].plot(dates2, ResArr[0].FIDOns, linewidth=lw[i], color=thiscol[i], zorder=6)
+        else:
+            axes[6].plot(dates2, ResArr[0].FIDOKps, linewidth=lw[i], color=thiscol[i], zorder=6)
         
     axes[0].set_xlim(gridtimes[0],gridtimes[-1])
         
@@ -1640,9 +1724,18 @@ def makeAllprob(ResArr):
     axes[1].set_ylabel('B$_x$ (nT)')
     axes[2].set_ylabel('B$_y$ (nT)')
     axes[3].set_ylabel('B$_z$ (nT)')
-    axes[4].set_ylabel('Kp')
-    axes[5].set_ylabel('v (km/s)')
-           
+    axes[4].set_ylabel('v (km/s)')
+    axes[5].set_ylabel('T (K)')
+    if OSP.isSat:
+        axes[6].set_ylabel('n (cm$^{-3}$)')
+    else:
+        axes[6].set_ylabel('Kp')
+        
+        
+    
+    xlims = list(axes[6].get_xlim())
+    xlims[1] = xlims[1]- 3/24.
+    axes[6].set_xlim(xlims)
     if not OSP.noDate: 
         plt.xticks(labelDays, dateLabels)
         fig.autofmt_xdate()
@@ -1682,26 +1775,28 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         # pull in things from ResArr
         if OSP.doFC:
             thisLat = ResArr[key].FClats[-1]
-            thisLon = ResArr[key].FClons[-1]
+            thisLon = ResArr[key].FClons[-1] % 360.
             thisTilt  = ResArr[key].FCtilts[-1]
         else:
             thisLat = float(OSP.input_values['CMElat'])
             thisLon = float(OSP.input_values['CMElon'])
             thisTilt = float(OSP.input_values['CMEtilt'])
-        thisAW    = ResArr[key].ANTAWs[-1]
-        thisAWp   = ResArr[key].ANTAWps[-1]
-        thisR     = ResArr[key].ANTrs[-1]
-        thisDelAx = ResArr[key].ANTdelAxs[-1]
-        thisDelCS = ResArr[key].ANTdelCSs[-1]
-        thisDelCA = ResArr[key].ANTdelCSAxs[-1]
-        thesevs = np.array([ResArr[key].ANTvFs[-1], ResArr[key].ANTvEs[-1], ResArr[key].ANTvBs[-1], ResArr[key].ANTvCSrs[-1], ResArr[key].ANTvCSps[-1], ResArr[key].ANTvAxrs[-1], ResArr[key].ANTvAxps[-1]])   
-        thisB0    = ResArr[key].ANTB0s[-1] * np.sign(float(OSP.input_values['FRBscale']))
-        thisTau   = ResArr[key].ANTtaus[-1]
-        thisCnm   = ResArr[key].ANTCnms[-1]
+        # use time of first impact
+        thisidx   = ResArr[key].ANTFRidx    
+        thisAW    = ResArr[key].ANTAWs[thisidx]
+        thisAWp   = ResArr[key].ANTAWps[thisidx]
+        thisR     = ResArr[key].ANTrs[thisidx]
+        thisDelAx = ResArr[key].ANTdelAxs[thisidx]
+        thisDelCS = ResArr[key].ANTdelCSs[thisidx]
+        thisDelCA = ResArr[key].ANTdelCSAxs[thisidx]
+        thesevs = np.array([ResArr[key].ANTvFs[thisidx], ResArr[key].ANTvEs[thisidx], ResArr[key].ANTvBs[thisidx], ResArr[key].ANTvCSrs[thisidx], ResArr[key].ANTvCSps[thisidx], ResArr[key].ANTvAxrs[thisidx], ResArr[key].ANTvAxps[thisidx]])   
+        thisB0    = ResArr[key].ANTB0s[thisidx] * np.sign(float(OSP.input_values['FRBscale']))
+        thisTau   = ResArr[key].ANTtaus[thisidx]
+        thisCnm   = ResArr[key].ANTCnms[thisidx]
         thisPol   = int(float(OSP.input_values['FRpol']))
-        thislogT  = ResArr[key].ANTlogTs[-1]
-        thisn     = ResArr[key].ANTns[-1]
-
+        thislogT  = ResArr[key].ANTlogTs[thisidx]
+        thisn     = ResArr[key].ANTns[thisidx]
+        
         # Calculate the CME lengths 
         # CMElens = [CMEnose, rEdge, rCent, rr, rp, Lr, Lp]
         CMElens = np.zeros(7)
@@ -1744,7 +1839,8 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         maxn = ncalc-1
         if minlat+shifty < 0: minlat = -shifty
         if maxlat+1+shifty > maxn: maxlat = maxn-1-shifty
-        minlat2, maxlat2 = int(round(maxlat)), int(round(topSPH[1]))        
+        minlat2, maxlat2 = int(round(maxlat)), int(round(topSPH[1]))  
+        
         if maxlat2+1+shifty > maxn: maxlat2 = maxn-1-shifty
         
         # Loop through in latitude and fill in points that are in the CME
@@ -1780,6 +1876,7 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
             idy2 =  i+shifty
             nowAWp = np.round(lat2AWpEd(i))
             minlon, maxlon = shiftx-int(nowAWp),shiftx+int(nowAWp)
+            
             # Fill from minlon to maxlon
             newGrid[idy,  np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,0] = 1
             newGrid[idy2, np.maximum(0,minlon):np.minimum(maxn,maxlon)+1,0] = 1
@@ -2113,7 +2210,6 @@ if __name__ == '__main__':
     if OSP.ObsDataFile is not None:
         ObsData = readInData()
     
-
     global nEns
     nEns = len(ResArr.keys())
 
@@ -2123,13 +2219,13 @@ if __name__ == '__main__':
         makeCPAplot(ResArr)      
         # Make the AW, delta, v plot
         # Non-forecast plot
-        #makeADVplot(ResArr)    
+        #makeADVplot(ResArr)    # haven't checked post FIDO integration into ANT
 
     if OSP.doANT:
         # Make drag profile
         makeDragless(ResArr)
         # Non-forecast version with more params
-        #makeDragplot(ResArr)
+        #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
 
     if OSP.doFIDO:
         # Make in situ plot
@@ -2162,7 +2258,7 @@ if __name__ == '__main__':
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        makeEnsplot(ResArr)
+        makeEnsplot(ResArr,critCorr=0.5)
         
         # Contour plot
         makeContours(ResArr)
