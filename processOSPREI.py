@@ -160,6 +160,11 @@ def txt2obj(GCStime):
         # might have some missing if it misses
         ANTids = ANTdata[:,0].astype(int)
         unANTids = np.unique(ANTdata[:,0].astype(int))
+        
+        if OSP.doPUP:
+            PUPfile = OSP.Dir+'/PUPresults'+OSP.thisName+'.dat'
+            PUPdata = np.genfromtxt(PUPfile, dtype=float, encoding='utf8')
+            
         global nHits, nFails
         nHits = 0
         nFails = 0
@@ -220,6 +225,7 @@ def txt2obj(GCStime):
                 thisRes.ANTrr = Deltabr * thisRes.ANTrs[-1]
                 vB = thisRes.ANTvFs[-1]-thisRes.ANTvCSrs[-1]
                 thisRes.ANTdur = 4 * thisRes.ANTrr * 7e10 * (2*vB+3*thisRes.ANTvCSrs[-1]) / (2*vB+thisRes.ANTvCSrs[-1])**2 / 1e5 / 3600.
+                thisRes.ANTCMEwids = thisRes.ANTdelCSs * np.tan(thisRes.ANTAWps*dtor) / (1 + thisRes.ANTdelCSs* np.tan(thisRes.ANTAWps*dtor)) * thisRes.ANTrs[-1]
                 
                 # calc Kp
                 dphidt = np.power(thisRes.ANTvFs[-1], 4/3.) * np.power(thisRes.ANTBpols[-1], 2./3.) 
@@ -231,6 +237,22 @@ def txt2obj(GCStime):
                 thisRes.ANTLp = (np.tan(thisRes.ANTAWs[-1]*dtor)*(1-Deltabr) - alpha*Deltabr)/(1+thisRes.ANTdelAxs[-1]*np.tan(np.tan(thisRes.ANTAWs[-1]*dtor))) * thisRes.ANTrs[-1]
                 vol = math.pi*thisRes.ANTrr*thisRes.ANTrp *  lenFun(thisRes.ANTdelAxs[-1])*thisRes.ANTrs[-1]
                 thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3'''
+                
+                
+                if OSP.doPUP:
+                    thisRes.PUPvshocks = PUPdata[myidxs,1]
+                    thisRes.PUPcomps = PUPdata[myidxs,2]
+                    thisRes.PUPMAs = PUPdata[myidxs,3]
+                    thisRes.PUPwids = PUPdata[myidxs,4]
+                    thisRes.PUPdurs = PUPdata[myidxs,5]
+                    thisRes.PUPMs = PUPdata[myidxs,6]
+                    thisRes.PUPns = PUPdata[myidxs,7]
+                    thisRes.PUPlogTs = PUPdata[myidxs,8]
+                    thisRes.PUPBthetas = PUPdata[myidxs,9]
+                    thisRes.PUPBs = PUPdata[myidxs,10]
+                    thisRes.PUPvts = PUPdata[myidxs,11]
+                    thisRes.PUPinit = PUPdata[myidxs,12]
+                                        
                 ResArr[thisRes.myID] = thisRes
 
     if OSP.doFIDO:
@@ -791,6 +813,119 @@ def makeDragless(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.93,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.'+figtag)
+
+def makePUPplot(ResArr):
+    fig, axes = plt.subplots(2, 4, sharex=True, figsize=(16,8))
+    axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[0,2], axes[0,2], axes[0,3], axes[0,3], axes[1,0], axes[1,0], axes[1,0], axes[1,1], axes[1,1], axes[1,2],  axes[1,2], axes[1,3], axes[1,3]]
+    c1 = '#882255'
+    c2 = '#332288'
+    
+    rStart = ResArr[0].ANTrs[0]
+    rEnd = ResArr[0].ANTrs[-1]
+    
+    # get number of impacts, may be less than nEns
+    nImp = 0
+    hits = []
+    for i in range(nEns):
+        if (not ResArr[i].miss) and (not ResArr[i].fail):
+            nImp += 1
+            hits.append(i)
+            
+    # Arrays to hold spline results
+    nParams = 17
+    fakers = np.linspace(rStart,rEnd,100, endpoint=True)
+    splineVals = np.zeros([nImp, 100, nParams])
+    means = np.zeros([100, nParams])
+    stds  = np.zeros([100, nParams])
+    lims  = np.zeros([100, 2, nParams])
+    
+    #axes[11] = axes[10].twinx()   
+    i = 0     
+    for key in hits:
+        thisRes = ResArr[key]
+        thexs = [thisRes.ANTrs+thisRes.PUPwids,thisRes.ANTrs,  thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, thisRes.ANTrs, ]
+        theParams = [thisRes.ANTtimes*24, thisRes.ANTtimes*24, thisRes.ANTAWs, thisRes.ANTAWps, thisRes.ANTdelAxs, thisRes.ANTdelCSs, thisRes.PUPBs, thisRes.ANTBtors,  thisRes.PUPvshocks, thisRes.ANTvFs, thisRes.ANTvCSrs, thisRes.PUPwids, thisRes.ANTCMEwids, thisRes.PUPns, thisRes.ANTns, np.power(10,thisRes.PUPlogTs), np.power(10,thisRes.ANTlogTs)]
+        
+        if nEns > 1:
+            # Fit a spline to data since may be different lengths since take different times
+            for k in range(nParams):
+                thefit = CubicSpline(thexs[k], theParams[k],bc_type='natural')
+                splineVals[i,:, k] = thefit(fakers)
+            i += 1
+    
+    for i in range(nParams):
+        col = c1
+        if i == 10: 
+            col = 'k'
+        else:
+            calci = i
+            if i > 10:
+                calci = i - 1
+            if calci % 2 == 0: col = c2
+        
+        if nEns > 1:
+            means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
+            stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
+            lims[:,0,i] = np.max(splineVals[:,:,i], axis=0) 
+            lims[:,1,i] = np.min(splineVals[:,:,i], axis=0)
+        
+            rmidx = 3
+            axes[i].fill_between(fakers[:-rmidx], lims[:-rmidx,0,i], lims[:-rmidx,1,i], color=col, alpha=0.25) 
+            axes[i].fill_between(fakers[:-rmidx], means[:-rmidx,i]+stds[:-rmidx,i], means[:-rmidx,i]-stds[:-rmidx,i], color=col, alpha=0.25)
+        
+        axes[i].plot(thexs[i],theParams[i], linewidth=4, color=col, zorder=3)
+        
+    # Add the final position as text
+    labels = ['AT$_{Sh}$', 'AT$_{CME}$', 'AW', 'AW$_{\perp}$', '$\delta_{Ax}$', '$\delta_{CS}$', 'B$_{sh}$', 'B$_{CME}$', 'v$_{Sh}$', 'v$_{CME}$', 'v$_{Exp}$', 'Wid$_{sh}$', 'Wid$_{CME}$', 'n$_{sh}$', 'n$_{CME}$', 'log(T$_{Sh}$)', 'log(T$_{CME}$)']
+    deg = '$^\circ$'
+    units = ['hr', 'hr', deg, deg, '', '', 'nT', 'nT', 'km/s', 'km/s', 'km/s', 'R$_S$', 'R$_S$', 'cm$^{-3}$', 'cm$^{-3}$', 'K', 'K']
+    
+    
+    if nEns > 1:
+        all_Params = [[] for i in range(nParams)]
+        for key in hits:
+            thisRes = ResArr[key]
+            theParams = [thisRes.ANTtimes*24, thisRes.ANTtimes*24, thisRes.ANTAWs, thisRes.ANTAWps, thisRes.ANTdelAxs, thisRes.ANTdelCSs, thisRes.PUPBs, thisRes.ANTBtors,  thisRes.PUPvshocks, thisRes.ANTvFs, thisRes.ANTvCSrs, thisRes.PUPwids, thisRes.ANTCMEwids, thisRes.PUPns, thisRes.ANTns, thisRes.PUPlogTs, thisRes.ANTlogTs]
+        
+            for i in range(nParams):
+                if i == 0:
+                    all_Params[i].append(theParams[i][thisRes.ANTshidx]) 
+                elif i == 1:
+                    all_Params[i].append(theParams[i][thisRes.ANTFRidx]) 
+                else:
+                    all_Params[i].append(theParams[i][-1])
+    
+        for i in range(nParams):
+            thefit = norm.fit(all_Params[i])
+            endMean = thefit[0]
+            endSTD  = thefit[1]    
+            ytext = 0.96
+            col = c1
+            if i == 10: 
+                col = 'k'
+                ytext = 0.82
+            else:
+                calci = i
+                if i > 10:
+                    calci = i - 1
+                if calci % 2 == 1: ytext = 0.89
+                if calci % 2 == 0: col = c2
+            axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(endMean)+'$\pm$'+'{:.2f}'.format(endSTD)+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center')
+    
+    
+    ylabels = ['Time (hr)', 'AW ('+deg+')', '$\delta$', 'B (nT)', 'v (km/s)', 'Width (R$_S$)', 'n (cm$^{-3}$)', 'log(T) (T)']
+
+    for i in range(8):
+        axes[2*i+1].set_ylabel(ylabels[i])
+        if i > 3:
+            axes[2*i+1].set_xlabel('R (au)')
+    
+    for i in [7,13,15]:
+        axes[i].set_yscale('log')
+    axes[0].set_xlim([rStart, rEnd])
+    plt.subplots_adjust(wspace=0.3, hspace=0.01,left=0.06,right=0.99,top=0.98,bottom=0.1)
+    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANTPUP.'+figtag)
 
 def makeDragplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
@@ -1539,31 +1674,49 @@ def makeEnsplot(ResArr, critCorr=0.5):
     f, a = plt.subplots(1, 1)
     img = a.imshow(np.array([[0,1]]), cmap="turbo")
     
-    fig, axes = plt.subplots(newnVert, newnHoriz, figsize=(1.5*newnHoriz,1.5*(newnVert+0.5)))
+    if newnHoriz > 1:
+        fig, axes = plt.subplots(newnVert, newnHoriz, figsize=(1.5*newnHoriz,1.5*(newnVert+0.5)))
+        for i in range(newnVert-1):
+            for j in range(newnHoriz):
+                axes[i,j].set_xticklabels([])
+        for j in range(newnHoriz-1):
+            for i in range(newnVert):
+                axes[i,j+1].set_yticklabels([])
     
-    for i in range(newnVert-1):
-        for j in range(newnHoriz):
-            axes[i,j].set_xticklabels([])
-    for j in range(newnHoriz-1):
-        for i in range(newnVert):
-            axes[i,j+1].set_yticklabels([])
+        for i in range(newnHoriz):
+            for j in range(newnVert):
+                if len(OSPres[newOuts[j]]) == nEns:
+                    axes[j,i].scatter(newEnsVal[i,:], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,:]))))   
+                else:
+                    axes[j,i].scatter(newEnsVal[i,goodIDs], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,goodIDs])))) 
+                
+        # Rotate bottom axes labels34w34
+        for i in range(newnHoriz):
+            plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
     
-    for i in range(newnHoriz):
+        # Add labels
+        for i in range(newnHoriz): axes[-1,i].set_xlabel(myLabs[newIns[i]])  
+        for j in range(newnVert):  axes[j,0].set_ylabel(out2outLab[newOuts[j]])  
+        plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.15, bottom=0.2, top=0.97, right=0.99)
+        
+    
+    else:
+        # need to reformat plot if only single significant input parameter    
+        fig, axes = plt.subplots(newnVert, newnHoriz, figsize=(6,1.5*(newnVert+0.5)))
+        for j in range(newnVert-1):
+            axes[j].set_xticklabels([])
         for j in range(newnVert):
             if len(OSPres[newOuts[j]]) == nEns:
-                axes[j,i].scatter(newEnsVal[i,:], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,:]))))   
+                axes[j].scatter(newEnsVal[0,:], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,0]*np.ones(len(newEnsVal[0,:]))))
             else:
-                axes[j,i].scatter(newEnsVal[i,goodIDs], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,i]*np.ones(len(newEnsVal[i,goodIDs])))) 
-                
-    # Rotate bottom axes labels34w34
-    for i in range(newnHoriz):
-        plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
-    
-    # Add labels
-    for i in range(newnHoriz): axes[-1,i].set_xlabel(myLabs[newIns[i]])  
-    for j in range(newnVert):  axes[j,0].set_ylabel(out2outLab[newOuts[j]])  
+                axes[j].scatter(newEnsVal[0,goodIDs], OSPres[newOuts[j]], c=cm.turbo(newCorr[j,0]*np.ones(len(newEnsVal[0,goodIDs]))))
+        
+        axes[-1].set_xlabel(myLabs[newIns[0]])  
+        for j in range(newnVert): 
+            axes[j].set_ylabel(out2outLab[newOuts[j]])
+        plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.25, bottom=0.2, top=0.97, right=0.98)
+        
        
-    plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.15, bottom=0.2, top=0.97, right=0.99)
     cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02])    
     cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
     cb.set_label('Correlation') 
@@ -2216,16 +2369,20 @@ if __name__ == '__main__':
     # Plots we can make for single CME simulations
     if OSP.doFC:
         # Make CPA plot
-        makeCPAplot(ResArr)      
+        makeCPAplot(ResArr)
         # Make the AW, delta, v plot
         # Non-forecast plot
         #makeADVplot(ResArr)    # haven't checked post FIDO integration into ANT
 
     if OSP.doANT:
-        # Make drag profile
-        makeDragless(ResArr)
-        # Non-forecast version with more params
-        #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
+        if OSP.doPUP:
+            # make IP plot including sheath stuff
+            makePUPplot(ResArr)
+        else:
+            # Make drag profile
+            makeDragless(ResArr)
+            # Non-forecast version with more params
+            #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
 
     if OSP.doFIDO:
         # Make in situ plot

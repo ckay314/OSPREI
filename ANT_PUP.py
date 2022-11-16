@@ -6,11 +6,6 @@ from scipy.interpolate import CubicSpline
 import pickle
 import empHSS as emp
 
-mainpath = '/Users/ckay/OSPREI/' #MTMYS
-codepath = mainpath + 'codes/'
-import FIDO
-
-
 global rsun, dtor, radeg, kmRs
 rsun  =  7e10		 # convert to cm, 0.34 V374Peg
 dtor  = 0.0174532925  # degrees to radians
@@ -580,6 +575,53 @@ def whereAmI(Epos, CMEpos, CMElens, deltax, deltap):
     maxrFR = np.sqrt(deltap**2 * np.cos(parat)**2 + np.sin(parat)**2) * CMElens[4]
     return vpmag, maxrFR, thisPsi, parat
  
+def getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
+    # Takes in the CME shape and point within CME and gets the poloidal and
+    # toroidal direction at that point
+    # Normal direction for that theta along axis
+    sn = np.sign(mythetaT)
+    mythetaT = np.abs(mythetaT)
+    # took out sn from Nvec[0], pretty sure this fixes weird jumps
+    Nvec = [0.5 * (np.cos(mythetaT) + 0.5*np.sin(mythetaT)/np.sqrt(1-np.cos(mythetaT))), 0., deltaAx * np.sin(mythetaT)] 
+    Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+    norm = np.array(Nvec) / Nmag
+    axAng = np.arccos(np.abs(norm[0]))
+    # tangent direction
+    tan  = np.zeros(3)
+    tan[0], tan[2] = -norm[2], norm[0] 
+    # CS angular direction
+    pol = -np.array([-deltaCS * np.sin(thetaP), np.cos(thetaP), 0.])
+    return tan, pol
+    
+def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
+    # CMElens/vExps = [CMEnose, rEdge, d, br, bp, a, c]
+    aTT = np.abs(thetaT)
+    pmTT = np.sign(thetaT)    
+    # can take out the Lp part in calc xAx and zAx
+    xAx = delAx * np.cos(aTT)
+    zAx = 0.5 * (np.sin(aTT) + np.sqrt(1 - np.cos(aTT))) * pmTT
+    thisL = np.sqrt(xAx**2 + zAx**2)
+    vAx = thisL * vExps[5] / delAx
+    nAx = np.array([0.5 * (np.cos(aTT) + 0.5 * np.sin(aTT)/np.sqrt(1-np.cos(aTT))), 0, delAx * np.sin(thetaT)])
+    normN = np.sqrt(np.sum(nAx**2))
+    nAx = nAx / normN
+    vAxVec = vAx * nAx
+    
+    xCS = delCS * rbar * np.cos(thetaP)
+    yCS = rbar * np.sin(thetaP)
+    thisr = np.sqrt(xCS**2 + yCS**2) 
+    vCS = thisr * vExps[3] / delCS
+    nCS = np.array([np.cos(thetaP)/delCS, np.sin(thetaP), 0.])
+    normN2 = np.sqrt(np.sum(nCS**2))
+    nCS = nCS / normN2
+    nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
+    vCSVec = vCS * nCSatAx
+    vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
+   
+    return vCMEframe, vCSVec
+
+
+
 def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=1.):
     # Get Btor/Bpol at s/c location
     Btor = B0 * deltap * (tau - (axDist / maxDistFR)**2)
@@ -587,7 +629,7 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     Bpol = - 2 * deltap * B0 * CMEH * ecH / (deltap**2 + 1) / cnm * (axDist / maxDistFR)
     # Get unit vectors    
     axR = CMElens[0] - CMElens[3]
-    tdir, pdir = FIDO.new_getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
+    tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
     # Convert to s/c field
     Bt_vec = Btor * tdir #* comp 
     Bp_vec = Bpol * pdir
@@ -598,7 +640,7 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     Bvec = rotz(temp2, CMElon - Elon)
     
     # get velocity vector
-    vCMEframe, vExpCME = FIDO.getvCMEframe(axDist / maxDistFR, thisPsi, thisParat, deltax, deltap, vs)
+    vCMEframe, vExpCME = getvCMEframe(axDist / maxDistFR, thisPsi, thisParat, deltax, deltap, vs)
     #print ('          ',thisParat*180/3.14, vCMEframe, vExpCME)
     # rotate to s/c frame
     temp = rotx(vCMEframe, -(90.-CMEtilt))
@@ -1023,7 +1065,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                                 print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
                     # print sheath info to FIDO output file
                     if (axDist > maxDistFR) and (Er > CMElens[0]) and printNow and aFIDOinside:
-                        tdir, pdir = FIDO.new_getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
+                        tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
                         ndir = np.cross(tdir, pdir)
                         # attempt to get signs correct in sheath based on inorout, flip unit vecs to most aligned choice
                         temp = rotx(ndir, -(90.-CMEtilt))
@@ -1162,7 +1204,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                         
                 
                     
-                outsCME = np.array(outsCME)
+                outsCME = np.array(outsCME, dtype=object)
                 outsSheath = np.array(outsSheath)
                 outsFIDO = np.array(outsFIDO)
                 for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
