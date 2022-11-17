@@ -133,7 +133,9 @@ def txt2obj(GCStime):
             thisRes.FCtimes = FCdata[myidxs,1]
             thisRes.FCrs    = FCdata[myidxs,2]
             thisRes.FClats  = FCdata[myidxs,3]
-            thisRes.FClons  = FCdata[myidxs,4]
+            thisRes.FClons  = FCdata[myidxs,4] % 360.
+            if (thisRes.FClons[0] < 100.) & (thisRes.FClons[-1] > 250):
+                thisRes.FClons[np.where(thisRes.FClons > 250)] -= 360.
             thisRes.FClonsS = thisRes.FClons - (OSP.satPos[1] - (360./27.2753) * (GCStime/24.))
             thisRes.FCtilts = FCdata[myidxs,5]
             thisRes.FCAWs   = FCdata[myidxs,6]
@@ -274,78 +276,81 @@ def txt2obj(GCStime):
                     SITids = []
             
         for i in unFIDOids:
+            skipit = False
             if OSP.doFC or OSP.doANT:
                 thisRes = ResArr[i]
+                if thisRes.fail or thisRes.miss:
+                    skipit = True        
             else:
                 thisRes = EnsRes(OSP.thisName)
-            # Set as an impact not a miss (might not have run ANTEATR)
-            thisRes.miss = False
-            myidxs = np.where(ids==i)[0]
-            thisRes.FIDOtimes = FIDOdata[myidxs,1]
+            if not skipit:
+                # Set as an impact not a miss (might not have run ANTEATR)
+                thisRes.miss = False
+                myidxs = np.where(ids==i)[0]
+                thisRes.FIDOtimes = FIDOdata[myidxs,1]
             
-            thisRes.FIDOBs    = FIDOdata[myidxs,2]
-            thisRes.FIDOBxs   = FIDOdata[myidxs,3]
-            thisRes.FIDOBys   = FIDOdata[myidxs,4]
-            thisRes.FIDOBzs   = FIDOdata[myidxs,5]
-            thisRes.FIDOvs    = FIDOdata[myidxs,6]
-            thisRes.FIDOns    = FIDOdata[myidxs,7]
-            thisRes.FIDOtems  = np.power(10,FIDOdata[myidxs,8])
-            thisRes.regions = FIDOdata[myidxs,9]
-            regions = FIDOdata[myidxs,9]
-            thisRes.FIDO_shidx = np.where(thisRes.regions==0)[0]
-            thisRes.FIDO_FRidx = np.where(thisRes.regions==1)[0]
-            thisRes.FIDO_SWidx = np.where(np.abs(thisRes.regions-100)<10)[0]
+                thisRes.FIDOBs    = FIDOdata[myidxs,2]
+                thisRes.FIDOBxs   = FIDOdata[myidxs,3]
+                thisRes.FIDOBys   = FIDOdata[myidxs,4]
+                thisRes.FIDOBzs   = FIDOdata[myidxs,5]
+                thisRes.FIDOvs    = FIDOdata[myidxs,6]
+                thisRes.FIDOns    = FIDOdata[myidxs,7]
+                thisRes.FIDOtems  = np.power(10,FIDOdata[myidxs,8])
+                thisRes.regions = FIDOdata[myidxs,9]
+                regions = FIDOdata[myidxs,9]
+                thisRes.FIDO_shidx = np.where(thisRes.regions==0)[0]
+                thisRes.FIDO_FRidx = np.where(thisRes.regions==1)[0]
+                thisRes.FIDO_SWidx = np.where(np.abs(thisRes.regions-100)<10)[0]
             
-            # derived paramters
-            thisRes.FIDO_FRdur = (thisRes.FIDOtimes[thisRes.FIDO_FRidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]) * 24
-            thisRes.FIDO_shdur = (thisRes.FIDOtimes[thisRes.FIDO_shidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_shidx[0]]) * 24
-            thisRes.FIDO_FRexp = 0.5*(thisRes.FIDOvs[thisRes.FIDO_FRidx[0]] - thisRes.FIDOvs[thisRes.FIDO_FRidx[-1]]) 
+                # derived paramters
+                thisRes.FIDO_FRdur = (thisRes.FIDOtimes[thisRes.FIDO_FRidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]) * 24
+                thisRes.FIDO_shdur = (thisRes.FIDOtimes[thisRes.FIDO_shidx[-1]] - thisRes.FIDOtimes[thisRes.FIDO_shidx[0]]) * 24
+                thisRes.FIDO_FRexp = 0.5*(thisRes.FIDOvs[thisRes.FIDO_FRidx[0]] - thisRes.FIDOvs[thisRes.FIDO_FRidx[-1]]) 
             
-            # get corresponding idxs for ANT data
-            if OSP.doANT:
-                if OSP.doPUP:
-                    tSH =thisRes.FIDOtimes[thisRes.FIDO_shidx[0]], 
-                    thisRes.ANTshidx = np.min(np.where(thisRes.ANTtimes >= tSH))
-                tFR = thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]
-                thisRes.ANTFRidx = np.min(np.where(thisRes.ANTtimes >= tFR))
+                # get corresponding idxs for ANT data
+                if OSP.doANT:
+                    if OSP.doPUP:
+                        tSH =thisRes.FIDOtimes[thisRes.FIDO_shidx[0]], 
+                        thisRes.ANTshidx = np.min(np.where(thisRes.ANTtimes >= tSH))
+                    tFR = thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]
+                    thisRes.ANTFRidx = np.min(np.where(thisRes.ANTtimes >= tFR))
                 
-                # redo calc Kp with actual front
-                dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx], 4/3.) * np.power(thisRes.ANTBpols[thisRes.ANTFRidx], 2./3.) 
-                # Mays/Savani expression, best behaved for high Kp
-                thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
+                    # redo calc Kp with actual front
+                    dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx], 4/3.) * np.power(thisRes.ANTBpols[thisRes.ANTFRidx], 2./3.) 
+                    # Mays/Savani expression, best behaved for high Kp
+                    thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
                 
-                # reset ANT dur with more accurate version
-                thisRes.ANTdur = thisRes.FIDO_FRdur
+                    # reset ANT dur with more accurate version
+                    thisRes.ANTdur = thisRes.FIDO_FRdur
 
-            Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
-            Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
-            thisRes.FIDOKps   = Kp
-            if (OSP.includeSIT) and (i in SITids):  
-                thisRes.hasSheath = True
-                myID = np.where(SITids == i)[0][0]
-                thisRes.SITidx = np.where(thisRes.regions==0)[0]
-                thisRes.SITdur = SITdata[myID, 1] #thisRes.FIDOtimes[thisRes.SITidx[-1]]-thisRes.FIDOtimes[0] 
-                thisRes.SITcomp = SITdata[myID, 2]
-                thisRes.SITMach = SITdata[myID, 3]
-                thisRes.SITn    = SITdata[myID, 4]
-                thisRes.SITvSheath = SITdata[myID, 5]
-                thisRes.SITB    = SITdata[myID, 6]     
-                thisRes.SITvShock = SITdata[myID,7]    
-                thisRes.SITtemp = SITdata[myID,8]
-                thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
-                thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
-                thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
+                Bvec = [thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs]
+                Kp, BoutGSM   = calcKp(Bvec, DoY, thisRes.FIDOvs) 
+                thisRes.FIDOKps   = Kp
+                if (OSP.includeSIT) and (i in SITids):  
+                    thisRes.hasSheath = True
+                    myID = np.where(SITids == i)[0][0]
+                    thisRes.SITidx = np.where(thisRes.regions==0)[0]
+                    thisRes.SITdur = SITdata[myID, 1] #thisRes.FIDOtimes[thisRes.SITidx[-1]]-thisRes.FIDOtimes[0] 
+                    thisRes.SITcomp = SITdata[myID, 2]
+                    thisRes.SITMach = SITdata[myID, 3]
+                    thisRes.SITn    = SITdata[myID, 4]
+                    thisRes.SITvSheath = SITdata[myID, 5]
+                    thisRes.SITB    = SITdata[myID, 6]     
+                    thisRes.SITvShock = SITdata[myID,7]    
+                    thisRes.SITtemp = SITdata[myID,8]
+                    thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
+                    thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
+                    thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
                        
             ResArr[i] = thisRes
+            
     # if haven't run FC may have fewer CMEs in ResArr than total runs if have misses
     for j in range(OSP.nRuns):
         if j not in ResArr.keys():
             thisRes = EnsRes(OSP.thisName)
             thisRes.miss = True
             ResArr[j] = thisRes
-            
-            
-            
+                        
     # if we ran an ensemble load up the initial parameters for each member        
     if len(ResArr.keys()) > 1:
         ENSfile = OSP.Dir+'/EnsembleParams'+OSP.thisName+'.dat' 
@@ -368,7 +373,7 @@ def readInData():
     dataIn[np.where(dataIn == -9999)] = math.nan
     
     # Need to check if goes over into new year...
-    base = datetime.datetime(int(dataIn[0,0]), 1, 1, 1, 0)
+    base = datetime.datetime(int(dataIn[0,0]), 1, 1, 0, 0)
     obsDTs = np.array([base + datetime.timedelta(days=int(dataIn[i,1])-1, seconds=int(dataIn[i,2]*3600)) for i in range(len(dataIn[:,0]))])
     
     nGiven = len(dataIn[0,:])
@@ -1101,9 +1106,9 @@ def makeAThisto(ResArr):
     all_vFs, all_vExps, all_TTs, all_durs, all_Bfs, all_Bms, all_ns, all_Kps, all_Ts, FC_times  = [], [], [], [], [], [], [], [], [], []
     # Collect the ensemble results
     for key in ResArr.keys(): 
-        # figure out when hits FR, may not be last pt if doing internal FIDO
-        thisidx = ResArr[key].ANTFRidx
         if (not ResArr[key].miss) and (not ResArr[key].fail):
+            # figure out when hits FR, may not be last pt if doing internal FIDO
+            thisidx = ResArr[key].ANTFRidx
             all_vFs.append(ResArr[key].ANTvFs[thisidx])
             all_vExps.append(ResArr[key].ANTvCSrs[thisidx])
             all_TTs.append(ResArr[key].ANTtimes[thisidx])    
@@ -1592,8 +1597,8 @@ def makeEnsplot(ResArr, critCorr=0.5):
                     OSPres[item].append(ResArr[key].ANTvCSrs[-1])
                 else:
                     OSPres[item].append(ResArr[key].FCvCSrs[-1])
-                    
-            if key in goodIDs:
+            
+            if (key in goodIDs) and (key not in failIDs):
                 if item == 'TT':
                     if OSP.doFIDO:
                         OSPres[item].append(ResArr[key].FIDOtimes[0])    
@@ -1740,7 +1745,6 @@ def makeAllprob(ResArr):
     
     nBins = 10
     allArr = np.zeros([7, nBins, nx])
-    
     # want first cell to start at first multiple of 3 hrs before first arrival
     hrs3 = int((mindate+DoY - int(mindate+DoY))*8)
     startPlot = int(mindate+DoY) + hrs3/8.
@@ -1833,7 +1837,7 @@ def makeAllprob(ResArr):
     # add in observations
     if ObsData is not None:
         # need to convert obsdate in datetime fmt to frac dates
-        obsDates =  ObsData[0,:]
+        obsDates =  np.copy(ObsData[0,:])
         for i in range(len(obsDates)):
              obsDates[i] = (obsDates[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
         cs = ['k', 'r']
@@ -1849,8 +1853,7 @@ def makeAllprob(ResArr):
                 axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=lw[i], color=cs[i], zorder=5)
             else:
                 axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=lw[i], color=cs[i], zorder=5)
-        
-        
+                
     # add in ensemble seed
     if OSP.noDate:
         dates2 = ResArr[0].FIDOtimes
@@ -1918,7 +1921,7 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
     # get impacts, may be less than nEns
     hits = []
     for i in range(nEns):
-        if (not ResArr[i].miss) and (not ResArr[i].fail):
+        if (not ResArr[i].miss) & (not ResArr[i].fail):
             hits.append(i)
     allGrid = np.zeros([len(hits), ngrid, ngrid, nThings])
     
@@ -1928,12 +1931,13 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         # pull in things from ResArr
         if OSP.doFC:
             thisLat = ResArr[key].FClats[-1]
-            thisLon = ResArr[key].FClons[-1] % 360.
+            thisLon = ResArr[key].FClons[-1] 
             thisTilt  = ResArr[key].FCtilts[-1]
         else:
             thisLat = float(OSP.input_values['CMElat'])
             thisLon = float(OSP.input_values['CMElon'])
             thisTilt = float(OSP.input_values['CMEtilt'])
+        
         # use time of first impact
         thisidx   = ResArr[key].ANTFRidx    
         thisAW    = ResArr[key].ANTAWs[thisidx]
@@ -1960,7 +1964,7 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         CMElens[5] = thisDelAx * CMElens[6]
         CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
         CMElens[1] = CMElens[2] * np.tan(thisAW*dtor)
-              
+        
         # Find the location of the axis
         nFR = 31 # axis resolution
         thetas = np.linspace(-math.pi/2, math.pi/2, nFR)    
@@ -1993,9 +1997,7 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         if minlat+shifty < 0: minlat = -shifty
         if maxlat+1+shifty > maxn: maxlat = maxn-1-shifty
         minlat2, maxlat2 = int(round(maxlat)), int(round(topSPH[1]))  
-        
         if maxlat2+1+shifty > maxn: maxlat2 = maxn-1-shifty
-        
         # Loop through in latitude and fill in points that are in the CME
         for i in range(minlat, maxlat+1):
             # Find the range to fill in lon
@@ -2338,6 +2340,162 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
     plt.subplots_adjust(wspace=0.2, hspace=0.46,left=0.1,right=0.95,top=0.85,bottom=0.12)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours.png')    
 
+def hourify(tARR, vecin):
+    # Assume input is in days, will spit out results in hourly averages
+    # can conveniently change resolution by multiplying input tARR
+    # ex. 10*tARR -> 1/10 hr resolution
+    sthr = int(tARR[0]*24) 
+    endhr = int(tARR[-1]*24)
+    nhrs = endhr - sthr
+    thrs = np.arange(sthr,endhr,1)
+    if np.array_equal(tARR, vecin):
+        return thrs/24.
+    vecout = np.zeros(len(thrs))
+    for i in range(len(thrs)):
+        t = thrs[i]
+        idx = np.where((tARR*24 >= (t - 0.5)) & (tARR*24 < (t+0.5)))
+        if len(idx) != 0:
+            vecout[i] = np.mean(vecin[idx])
+    # keep the first point, important for precise timing
+    vecout[0] = vecin[0]
+    return vecout
+
+def getISmetrics(ResArr):
+    hasSheath = False
+    if isinstance(OSP.obsShstart, float): 
+        hasSheath = True
+        obstSh = OSP.obsShstart
+    obstFR1, obstFR2 = OSP.obsFRstart, OSP.obsFRend
+    
+    # Reformat observed time into float day of year
+    day1 = datetime.datetime(year=ObsData[0,0].year,month=1,day=1,hour=0)
+    deltat = ObsData[0,:]-day1
+    # need the days since jan 1 = 0 days
+    obst = np.array([1+deltat[i].days + deltat[i].seconds/(3600*24)for i in range(len(deltat))])
+    
+    # Find earliest simulated front/back
+    # is this really necessary?
+    mindate, maxdate = None, None
+    for key in ResArr.keys():
+        if ResArr[key].FIDOtimes is not None:
+            transientidx = ResArr[key].FIDO_FRidx
+            if hasSheath:
+                transientidx = np.append(ResArr[key].FIDO_shidx, ResArr[key].FIDO_FRidx)
+            dates = ResArr[key].FIDOtimes[transientidx]
+            # save the extreme times to know plot range
+            if mindate is None: 
+                mindate = dates[0]
+                maxdate = dates[-1]
+            if dates[0] < mindate: mindate = dates[0]
+            if dates[-1] > maxdate: maxdate = dates[-1]
+            
+    # Pick range of obs data that extends past transient time
+    mintsim, maxtsim = mindate+DoY+1, maxdate+DoY+1
+    pad = 12/24.
+    mintobs = np.max([mintsim - pad, obst[0]])
+    maxtobs = np.min([maxtsim + pad, obst[-1]])
+    
+    obshrt = hourify(obst, obst)
+    goodidx = np.where((obshrt >= mintobs) & (obshrt <= maxtobs))[0]
+    obshr = np.zeros([len(goodidx), 8])
+    obshr[:,0] = obshrt[goodidx]
+    
+    for i in range(7):
+        hrvalsObs = hourify(obst, ObsData[i+1,:])
+        obshr[:,i+1] = hrvalsObs[goodidx]
+        
+    if hasSheath:
+        allScores = np.zeros([nHits,21]) 
+        meanVals  = np.zeros(21)
+    else:
+        allScores = np.zeros([nHits,7])   
+        meanVals = np.zeros(7)
+        
+    hitCounter = 0
+    goodkeys = []
+    for key in ResArr.keys():
+        if ResArr[key].FIDOtimes is not None:
+            goodkeys.append(key)
+            # assuming enough SW padding on either side so don't have to worry obs end points too far
+            thisRes = ResArr[key]
+            thistime = thisRes.FIDOtimes+DoY+1
+            shidx = thisRes.FIDO_shidx
+            FRidx = thisRes.FIDO_FRidx
+            transientidx = np.append(thisRes.FIDO_shidx, thisRes.FIDO_FRidx)
+            compVals = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOns, thisRes.FIDOvs, thisRes.FIDOtems]
+            
+            simhrts = hourify(thistime, thistime)
+            obshrts = obshr[:,0]            
+            
+            # will calc vals for 3 ranges
+            # 1 full transient, 2 sheath, 3 FR
+            if hasSheath:
+                rngs = [[obstSh, obstFR2], [obstSh, obstFR1], [obstFR1, obstFR2]]
+            else:
+                rngs =[[obstFR1, obstFR2]]
+            
+            outprint = ''
+            rngcounter = 0
+            for rng in rngs:    
+                for i in range(7):
+                    hrvals = hourify(thistime, compVals[i])
+                    
+                    # take section within range
+                    subSidx = np.where((simhrts >= rng[0]) & (simhrts <= rng[1]))[0]
+                    subOidx = np.where((obshrts >= rng[0]) & (obshrts <= rng[1]))[0]
+                    # t should be the same for both now
+                    subt = simhrts[subSidx]
+                    simvals = hrvals[subSidx]
+                    obsvals = obshr[subOidx,i+1]
+                    
+                    # clean out any bad values
+                    cleanidx = np.where((np.isfinite(simvals) ) & (np.isfinite(obsvals)))[0]
+                    simvalsC = simvals[cleanidx]
+                    obsvalsC = obsvals[cleanidx]
+                    
+                    thisErr = np.mean(np.abs(obsvalsC - simvalsC))
+                    allScores[hitCounter, 7*rngcounter + i] = thisErr
+                    outprint += '{:.3f}'.format(thisErr)+' '
+                    
+                    # add the mean obs value
+                    if hitCounter == 0:
+                        meanVals[7*rngcounter + i] = np.mean(np.abs(obsvalsC))
+                    
+                outprint += '  '
+                rngcounter += 1
+            hitCounter += 1
+            print (key, outprint)
+    
+    goodkeys = np.array(goodkeys)
+    
+    print ('')            
+    print ('')  
+    if hasSheath:
+        print ('Average Errors (Full/Sheath/Flux Rope, B/Bx/By/Bz/n/v/T):')
+    else:
+        print ('Average Errors:')
+    avgErr = np.mean(allScores, axis=0)
+    outprint = ''
+    for val in avgErr:
+        outprint += '{:.3f}'.format(val)+' '
+    print (outprint)
+    print (' ')
+    
+    weightedScores = allScores/meanVals
+    print ('Average Weighted Errors:')
+    avgwErr = np.mean(weightedScores, axis=0)
+    outprint = ''
+    for val in avgwErr:
+        outprint += '{:.3f}'.format(val)+' '
+    print (outprint)         
+    
+    oneScores = np.mean(weightedScores[:,:7], axis=1)
+    print ('Seed has total score of ', oneScores[0])
+    bestScore = np.min(oneScores)
+    bestidx = np.where(oneScores == bestScore)[0]
+    print ('Best total score of ', bestScore, 'for ensemble member ', goodkeys[bestidx][0])
+    print ('')
+    
     
 if __name__ == '__main__':
     # set whether to save the figures as png or pdf
@@ -2355,6 +2513,7 @@ if __name__ == '__main__':
     GCStime = 0
     if len(sys.argv) > 2:
         GCStime = float(sys.argv[2])
+        print (np.isscalar(sys.argv[2]))
           
     ResArr = txt2obj(GCStime)
      
@@ -2419,5 +2578,8 @@ if __name__ == '__main__':
         
         # Contour plot
         makeContours(ResArr)
+    
+    if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float):
+        getISmetrics(ResArr)
 
         

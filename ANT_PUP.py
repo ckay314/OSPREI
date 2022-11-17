@@ -122,6 +122,8 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     gammaN = bp / RcNose        
     dg = deltap * gammaN
     dg2 = deltap**2 * gammaN**2 
+    if dg2 > 1:
+        return 9999, 9999
     coeff1N = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6) 
     toAccN = deltap * pi * bp**2 * RcNose * rho
     coeff2N = - deltap**3 *(tau*(tau-1)+0.333)/ 4. * gammaN
@@ -137,7 +139,6 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
         coeff2E = - deltap**3 *(tau*(tau-1)+0.333) *  gammaE / 4.
         toAccE = deltap * pi * bp**2 * RcEdge * rho
         aTotEdge =  (coeff1E+coeff2E) * B0**2 * RcEdge * bp / toAccE       
-        #print (coeff1N, coeff2N, coeff1E, coeff2E)
         return aTotNose, aTotEdge
     else:
         return 9999, 9999
@@ -835,7 +836,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             if (aTotNose != 9999) & (aTotEdge != 9999):
                 magAccels += [aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), 0, 0, aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz]
             else:
-                makeFailArr(8888)   
+                return makeFailArr(8888)   
         if not csOff:
             aBr = getCSF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho, Btot2, csTens)
             magAccels += [aBr, aBr * ndotz, 0, aBr, aBr/deltap, 0., 0.] 

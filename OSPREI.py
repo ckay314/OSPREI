@@ -28,7 +28,7 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 # pick a number to seed the random number generator used by ensembles
-np.random.seed(20210421)
+np.random.seed(202201262)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -50,6 +50,7 @@ def setupOSPREI():
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
     global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat
+    global obsFRstart, obsFRend, obsShstart
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -64,6 +65,7 @@ def setupOSPREI():
     doPUP   = False
     doMH    = False
     isSat   = False
+    obsFRstart, obsFRend, obsShstart = None, None, None
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
@@ -110,6 +112,14 @@ def setupOSPREI():
         elif temp[0][:-1] == 'isSat':
             if temp[1] == 'True':
                 isSat = True
+        # Needed for processOSP metrics
+        elif temp[0][:-1] == 'obsFRstart':
+            obsFRstart = float(temp[1])
+        elif temp[0][:-1] == 'obsFRend':
+            obsFRend = float(temp[1])
+        elif temp[0][:-1] == 'obsShstart':
+            obsShstart = float(temp[1])
+        
         
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
@@ -409,9 +419,9 @@ def makeSatPaths(fname, tzero, Clon0=0):
         thisdatestr = str(data[i][0])+' '+str(data[i][1])
         thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M:%S')
         delts.append((thisdate - tzero).total_seconds())
-    satrs   = np.array(data[:,2]).astype(np.float) * 1.49e13 / rsun # convert to cm then rsun
-    satlats = np.array(data[:,3]).astype(np.float)
-    satlons = np.array(data[:,4]).astype(np.float) % 360.
+    satrs   = np.array(data[:,2]).astype(float) * 1.49e13 / rsun # convert to cm then rsun
+    satlats = np.array(data[:,3]).astype(float)
+    satlons = np.array(data[:,4]).astype(float) % 360.
     idx = np.where(np.abs(delts) == np.min(np.abs(delts)))[0]
     lon0 = satlons[idx]
     satlons -= lon0 # sat lons now shifted to movement in lon from t0
@@ -683,8 +693,8 @@ def goANTEATR(makeRestart=False, satPath=False):
         # SW polarity in or out
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
+        isSilent = True
         if satPath:
-            isSilent = True
             if doMH:
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout, name='testt')
             else:
@@ -803,51 +813,68 @@ def goANTEATR(makeRestart=False, satPath=False):
                     for iii in outstuff:
                         outprint = outprint + '{:6.3f}'.format(iii) + ' '
                     PUPfile.write(outprint+'\n')
+                    
+            if doFIDO:
+                # Save FIDO profiles
+                for j in range(len(FIDOresults[0])):
+                    outprint = str(i)
+                    outprint = outprint.zfill(4) + '   '
+                    Btot = np.sqrt(FIDOresults[1][j]**2 + FIDOresults[2][j]**2 + FIDOresults[3][j]**2)
+                    if isSat:
+                        outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, FIDOresults[1][j], FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]
+                    else:
+                        # GSE coords, flip R,T to xy
+                        outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, -FIDOresults[1][j], -FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]    
+                    for iii in outstuff:
+                        outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                    FIDOfile.write(outprint+'\n')
+                
+                # Save sheath/shock properties at first contact
+                #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
+                # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
+                shIdx = np.min(np.where(PUPresults[11,:] == 1))
+                outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                for iii in outstuff:
+                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                SITfile.write(outprint+'\n')
                 
                 
         elif ATresults[0][0] == 8888:
             print ('ANTEATR-PARADE forces unstable')
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = np.zeros(19)+8888
+            outstuff = np.zeros(20)+8888
             for iii in outstuff:
                 outprint = outprint +'{:6.3f}'.format(iii) + ' '
             ANTEATRfile.write(outprint+'\n')
             if doPUP:
+                # PUPfile
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
                 outstuff = np.zeros(12)+8888
                 for iii in outstuff:
                     outprint = outprint + '{:6.3f}'.format(iii) + ' '
                 PUPfile.write(outprint+'\n')
+                # SITfile
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                outstuff = np.zeros(8)+8888
+                for iii in outstuff:
+                    outprint = outprint + '{:6.3f}'.format(iii) + ' '
+                SITfile.write(outprint+'\n')
+            if doFIDO:
+                outprint = str(i)
+                outprint = outprint.zfill(4) + '   '
+                outstuff = np.zeros(9)+8888
+                for iii in outstuff:
+                    outprint = outprint + '{:6.3f}'.format(iii) + ' '
+                FIDOfile.write(outprint+'\n')
+                
         else:
             print('Miss')
         
-        if doFIDO:
-            # Save FIDO profiles
-            for j in range(len(FIDOresults[0])):
-                outprint = str(i)
-                outprint = outprint.zfill(4) + '   '
-                Btot = np.sqrt(FIDOresults[1][j]**2 + FIDOresults[2][j]**2 + FIDOresults[3][j]**2)
-                if isSat:
-                    outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, FIDOresults[1][j], FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]
-                else:
-                    # GSE coords, flip R,T to xy
-                    outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, -FIDOresults[1][j], -FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]    
-                for iii in outstuff:
-                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                FIDOfile.write(outprint+'\n')
-                
-            # Save sheath/shock properties at first contact
-            #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
-            # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
-            shIdx = np.min(np.where(PUPresults[11,:] == 1))
-            outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
-            outprint = str(i)
-            outprint = outprint.zfill(4) + '   '
-            for iii in outstuff:
-                outprint = outprint +'{:6.3f}'.format(iii) + ' '
-            SITfile.write(outprint+'\n')
             
             
             
