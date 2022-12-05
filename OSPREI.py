@@ -50,7 +50,7 @@ def setupOSPREI():
     global suffix, nRuns, models
     # these are values its convenient to read early for processOSPREI
     global time, satPos, Sat_rot, ObsDataFile, includeSIT, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat
-    global obsFRstart, obsFRend, obsShstart
+    global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath
     suffix = ''
     nRuns  = 1
     models = 'ALL'
@@ -119,8 +119,15 @@ def setupOSPREI():
             obsFRend = float(temp[1])
         elif temp[0][:-1] == 'obsShstart':
             obsShstart = float(temp[1])
-        
-        
+        # Needed for enlilesque plot
+        elif temp[0][:-1] == 'SWv':
+            vSW = float(temp[1])
+        elif temp[0][:-1] == 'MHarea':
+            MHarea = float(temp[1])
+        elif temp[0][:-1] == 'MHdist':
+            MHdist = float(temp[1])
+        elif temp[0][:-1] == 'satPath':  
+            satPath = temp[1]
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
