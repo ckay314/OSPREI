@@ -1728,19 +1728,29 @@ def makeEnsplot(ResArr, critCorr=0.5):
     cb.set_label('Correlation') 
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
                     
-def makeAllprob(ResArr):
+def makeAllprob(ResArr, pad=6):
     # get the time range for full set
     mindate = None
     maxdate = None    
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None:
             dates = ResArr[key].FIDOtimes
+            # take subset corresponding to sheath/FR
+            if ResArr[key].hasSheath:
+                minidx = ResArr[key].FIDO_shidx[0]
+            else:
+                minidx = ResArr[key].FIDO_FRidx[0]
+            maxidx = ResArr[key].FIDO_FRidx[-1]
+            dates = dates[minidx:maxidx+1]
             # save the extreme times to know plot range
             if mindate is None: 
                 mindate = np.min(dates)
                 maxdate = np.max(dates)
             if np.min(dates) < mindate: mindate = np.min(dates)
             if np.max(dates) > maxdate: maxdate = np.max(dates)
+    # pad a certain number of hrs
+    mindate = mindate - pad/24.
+    maxdate = maxdate + pad/24
     plotlen = (maxdate - mindate)*24
     nx = int(plotlen/3.)#+1
     
@@ -1896,7 +1906,7 @@ def makeAllprob(ResArr):
     if not OSP.noDate: 
         plt.xticks(labelDays, dateLabels)
         fig.autofmt_xdate()
-    plt.subplots_adjust(left=0.2,right=0.95,top=0.95,bottom=0.15, hspace=0.15)
+    plt.subplots_adjust(left=0.2,right=0.95,top=0.95,bottom=0.15, hspace=0.1)
     
     ax0pos = axes[0].get_position()
     fig.subplots_adjust(top=0.9)
@@ -3052,7 +3062,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
                
     
         if doColorbar:        
-            fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(12,5))
+            fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(11,5))
         else:
             fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
         
@@ -3083,10 +3093,10 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         ax[1].set_rlabel_position(180)
         ax[1].set_rlim(0,1.2)
         ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        plt.subplots_adjust(left=0.05,right=0.95,top=0.93,bottom=0.05)
+        plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
         if doColorbar:
-            plt.subplots_adjust(left=0.05,right=0.8,top=0.93,bottom=0.05)
+            plt.subplots_adjust(left=0.01,right=0.8,top=0.93,bottom=0.05, wspace=0.05)
             cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
             cbar = fig.colorbar(CS, cax=cbar_ax)
             cbar.set_label('v (km/s)')
@@ -3183,7 +3193,7 @@ if __name__ == '__main__':
     if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float):
         getISmetrics(ResArr)
         
-    if False:
+    if True:
         enlilesqueBoth(ResArr, bonusTime=24)
 
         
