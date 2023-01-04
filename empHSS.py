@@ -276,7 +276,7 @@ def getHSSprops(x_in, t_in, t0, x0, v_x, a1, funcs_in, returnReg=False):
         reg = np.max(np.where(bounds < x_in)) + 1
     else:
         reg = 0
-
+    
     # ----------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------
     # Region Down - Ambient behind HISS
@@ -299,12 +299,13 @@ def getHSSprops(x_in, t_in, t0, x0, v_x, a1, funcs_in, returnReg=False):
                 n =nmid + (1-nmid) * np.sin(np.pi * (xmid -x_in)/(x5 - xstart))
             else:
                 n = 1.
+        elif nmin > 1:
+            n = 1.
         elif (x5 >= 1.2) or (n6 > nmin):
             n = nmin + (n6 - nmin) * (x_in - x5) / (x6 - x5)
             if n > 1: n =1.
         else:
             n=1.
-          
             
         # ------ RADIAL VELOCITY ------ 
         v6 = v_funcsNEW[4](x3)
@@ -1015,6 +1016,7 @@ def getHSSprops(x_in, t_in, t0, x0, v_x, a1, funcs_in, returnReg=False):
             vlon = 1 + c0 * np.exp(-(x_in-x2)/c1)
         else:
             vlon = 1.
+    
     if returnReg:    
         return [n, v, Br, Blon, tem, vlon*1e5], reg
     else:
