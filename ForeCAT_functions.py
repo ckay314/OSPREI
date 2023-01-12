@@ -39,11 +39,11 @@ def get_inputs(inputs):
     input_values['SWCdp'] = 1.   
     input_values['CMEr'] = 1.1
     input_values['FCraccel1'] = 1.3
-    input_values['FCraccel2'] = 5.0
+    input_values['FCraccel2'] = 10.0
     input_values['FCvrmin'] = 50#*1.e5
     input_values['FCAWmin'] = 5.
     input_values['FCAWr'] = 1.
-    input_values['FCrmaxM'] = 10.
+    input_values['FCrmaxM'] = 21.5
     input_values['CMEdelAx'] = 0.75
     input_values['CMEdelCS'] = 1.
     input_values['FRtau'] = 1.
@@ -51,7 +51,7 @@ def get_inputs(inputs):
     input_values['FRpol'] = 1
     input_values['IVDf1'] = 0.5
     input_values['IVDf2'] = 0.5
-    input_values['Gamma'] = 1.25
+    input_values['Gamma'] = 1.33
     
              
     for i in range(len(inputs)):

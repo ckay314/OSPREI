@@ -53,7 +53,25 @@ def setupOSPREI():
     global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath
     suffix = ''
     nRuns  = 1
-    models = 'ALL'
+    
+    if 'models' in input_values:
+        models = input_values['models']
+        if models not in ['ALL', 'All', 'noB', 'IP', 'FC', 'ANT', 'FIDO']:
+            sys.exit('Models keyword not understood, select from ALL/noB/IP/FC/ANT/FIDO')
+    else:
+        models = 'ALL'    
+    # Check to see if we are running all components or just part
+    # flags are ALL = all three, IP = ANTEATR+FIDO, ANT = ANTEATR, FIDO = FIDO    
+    # FC = ForeCAT only, noB = ForeCAT+ANTEATR
+    # Default is ALL
+    global doFC, doANT, doFIDO
+    doFC, doANT, doFIDO = True, True, True
+    if models in ['IP', 'FIDO', 'ANT']: doFC = False
+    if models in ['ANT', 'noB']: doFIDO = False
+    if models == 'FIDO': doANT = False
+    if models == 'FC': doANT, doFIDO, = False, False
+        
+
     satPos = [0,0,213]
     shape  = [1,0.15] 
     Sat_rot = 360./365.25/24/60/60.
@@ -174,17 +192,15 @@ def setupOSPREI():
     if not os.path.exists(Dir):
         os.mkdir(Dir)
     
-    # Check to see if we are running all components or just part
-    # flags are ALL = all three, IP = ANTEATR+FIDO, ANT = ANTEATR, FIDO = FIDO    
-    # FC = ForeCAT only, noB = ForeCAT+ANTEATR
-    # Default is ALL
-    global doFC, doANT, doFIDO
-    doFC, doANT, doFIDO = True, True, True
-    if models in ['IP', 'FIDO', 'ANT']: doFC = False
-    if models in ['ANT', 'noB']: doFIDO = False
-    if models == 'FIDO': doANT = False
-    if models == 'FC': doANT, doFIDO, = False, False
-
+    
+    # check if running not running FC and not provided rCME
+    # need to switch default to ANT value of 21.5 Rs
+    if not doFC and (float(input_values['CMEr']) < 10):
+        if doANT:
+            input_values['CMEr'] = 21.5
+        else:
+            input_values['CMEr'] = satPos[2]
+            
     print( 'Running: ')
     print( 'ForeCAT: ', doFC)
     print( 'ANTEATR: ', doANT)
@@ -700,7 +716,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         # SW polarity in or out
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
-        isSilent = True
+        isSilent = False
         if satPath:
             if doMH:
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout, name='testt')
@@ -836,6 +852,7 @@ def goANTEATR(makeRestart=False, satPath=False):
                         outprint = outprint +'{:6.3f}'.format(iii) + ' '
                     FIDOfile.write(outprint+'\n')
                 
+            if doPUP:
                 # Save sheath/shock properties at first contact
                 #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
                 # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
@@ -1129,7 +1146,7 @@ def genNXTtxt(CME, num='', tag=''):
 
 def runOSPREI():
     setupOSPREI()
-
+    
     if nRuns > 1: setupEns()
 
     global CMEarray
