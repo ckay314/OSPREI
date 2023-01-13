@@ -129,16 +129,14 @@ class CME:
 
         # add extra variables for OSPREI, set to reasonable defaults
         self.Cd = 1.0
-        self.B0 = 20.
         self.v1AU  = 400. * 1e5
         self.vSW = 400
         self.nSW = 5.
         self.BSW = 6.9
-        self.BSWvec = [6.9, 0, 0]
+        self.BSWvec = [np.sqrt(self.BSW), -np.sqrt(self.BSW), 0]
         self.TSW = 68000
-        self.cs  = 49.5
-        self.vA  = 55.4 
-        self.Bscale = 2.
+        self.FRBtor = 0
+        self.FRT = 0
         self.tau  = 1.
         self.cnm  = 1.927
         self.vs   = np.array([vrmag, 0, 0, 0, 0, 0, 0]) 
@@ -147,8 +145,8 @@ class CME:
         self.IVDfs = [0.5, 0.5]
         self.impV = 0.
         self.impVE = 0.
-        self.Tscale = 2.
         self.gamma = 1.3333
+        
         # CME sheath properties
         self.hasSheath = False
         self.vShock = 0

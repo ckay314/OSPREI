@@ -29,7 +29,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW','FRB', 'CMEvExp', 'IVDf1', 'IVDf2', 'IVDf','time','includeSIT', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA','FRBscale', 'FRtau', 'FRCnm', 'FRpol', 'FRTscale', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol', 'CMEstart', 'CMEstop', 'models', 'ObsDataFile', 'CMEvTrans', 'SWBx', 'SWBy', 'SWBz', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW', 'IVDf1', 'IVDf2', 'IVDf','time', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRpol', 'FRT', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol',  'models', 'ObsDataFile', 'CMEvTrans', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
@@ -234,7 +234,7 @@ def printstep(CME):
     vCME = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
     vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
     # outdata is [t, lat, lon, tilt, vCME, vDef, AW, A, B]
-    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS, CME.deltaCSAx, CME.B0, CME.vs[4]/1e5]
+    outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS, CME.deltaCSAx, CME.FRBtor, CME.vs[4]/1e5]
     outprint = ''
     for i in outdata:
         outprint = outprint +'{:7.3f}'.format(i) + ' '  

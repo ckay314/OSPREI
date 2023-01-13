@@ -700,7 +700,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     rratio = 1
            
     
-    if flagScales:
+    if not flagScales:
         CMEB = invec[10] / 1e5
         CMET = invec[14]
     
@@ -773,8 +773,9 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
-    B0 = Bscale * np.sqrt(Btot2) / deltap / tau
-    if flagScales: B0 = CMEB/ deltap / tau
+    B0 = CMEB/ deltap / tau
+    if flagScales:
+        B0 = Bscale * np.sqrt(Btot2) / deltap / tau
     B0scaler = B0 * deltap**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
@@ -782,8 +783,9 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
 
     # get CME temperature based on expected SW temp at center of nose CS
     temSW = getSWvals(CMElens[0]-CMElens[3], SWfs, doMH=doMH)[4]
-    temCME = temScale * temSW
-    if flagScales: temCME = CMET
+    temCME = CMET
+    if flagScales:
+        temCME = temScale * temSW
     temscaler = np.power(CMElens[3] * CMElens[4] * initlen , fT) * temCME
     
     # use to pull out inputs for uniform B/T across multiple cases instead
@@ -984,7 +986,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
         
         # Forces
-        forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]
+        if saveForces:
+            forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]
         
         FIDOstuff = [] # will replace if needed
         
