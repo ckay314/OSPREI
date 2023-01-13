@@ -939,199 +939,112 @@ def goFIDO(satPath=False):
     # Open a file to save the FIDO output
     FIDOfile = open(Dir+'/FIDOresults'+thisName+'.dat', 'w')
 
-    # Check if adding a sheath or not
-    if includeSIT:
-        input_values['Add_Sheath'] = 'True'
-        FIDO.hasSheath = True
-        SITfile = open(Dir+'/SITresults'+thisName+'.dat', 'w')
-    # Flux rope properties
-    CMEB0 = 15. # completely arbitrary number in case not given one
-    CMEH  = 1.
-    if 'FRB' in input_values: CMEB0 = float(input_values['FRB'])
-    if 'FRpol' in input_values: CMEH  = float(input_values['FRpol'])
-
-    # Check if ANT ran, if not take input from file
+    # Pull in ANTEATR values from the input file
     global SatVars0
-    CMEstart = 0.   
-    if not doANT:
-        SatVars0, Cd, swnv = processANTinputs(input_values)
-        # For FIDO only, if CMEstart = DOY at arrival then need to not add to date when
-        # plotting but in most ensemble cases want to keep wrt time since ForeCAT start
-        try:
-            CMEstart = float(input_values['CME_start'])
-        except:
-            CMEstart = 0.           
-        
-    # Figure out which cases to run - either all or non-misses from ANTEATR
-    toRun = range(nRuns)
-    if doANT: toRun = impactIDs
+    SatVars0, Cd, mySW = processANTinputs(input_values, hasPath=satPath)
     
-    # Loop through the CMEs
-    for i in toRun:   
-        CME = CMEarray[i]
-        
-        # order is Sat_lon [1], CMElat [2], CMElon [3], CMEtilt [4], CMEAW [5]
-        # CMEAWp[6], CMEdeltaAx [7], CMEdeltaCS [8], CMEdeltaCSAx [9], CMEB0 [10], CMEH [11],  
-        # tshift [12], tstart [13], Sat_rad [14], Sat_rot [15], CMEr[16], cnm [17], tau [18]
-        inps = np.zeros(19)
-        
+    # No FC so don't need to adjust satlons but still need to make array 
+    SatRotRate = SatVars0[3]
+    SatLons = [SatVars0[1] for i in range(nRuns)]
+    
+    global ANTsatLons, impactIDs, SWv, SWn, ANTCMErs
+    ANTsatLons = {}
+    ANTCMErs = {}
+    impactIDs = []
+    
+    for i in range(nRuns):
         # CME parameters from CME object
-        inps[2], inps[3] =  CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
-        inps[4] = CME.tilt
-        inps[5], inps[6] = CME.AW*radeg, CME.AWp*radeg
-        inps[7], inps[8], inps[9] = CME.deltaAx, CME.deltaCS, CME.deltaCSAx
-        vs = CME.vs /1e5
-        inps[10], inps[11] = CME.B0, CMEH
-        # inps[11] is tshift which we keep at zero (only used in GUI)
-        if doANT: CMEstart = CME.t
-        inps[13] = CMEstart
-        inps[16] = CME.points[CC.idcent][1,0]
-        inps[17] = CME.cnm
-        inps[18] = CME.tau
+        CME = CMEarray[i]
+        # CME position
+        CMEr0, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
+        # reset path functions for t0 at start of ANTEATR
+        if satPath:
+            satLatf2 = lambda x: satLatf(x + CME.t*60)
+            satLonf2 = lambda x: satLonf(x + CME.t*60)
+            satRf2   = lambda x: satRf(x + CME.t*60)
+    
+        # Tilt 
+        tilt = CME.tilt
+        # Calculate vr
+        vr = np.sqrt(np.sum(CME.vels[0,:]**2))/1e5
+        # Mass
+        mass = CME.M/1e15
+        # CME shape
+        cmeAW = CME.AW*radeg
+        cmeAWp = CME.AWp*radeg
+        deltax = CME.deltaAx
+        deltap = CME.deltaCS
+        deltaCA = CME.deltaCSAx
+        IVDfs = CME.IVDfs
         
-        FRmass = CME.M
-        FRtemp = np.power(10,CME.Tscale)
-        FRgamma = CME.gamma
-
-        # Sat parameters
-        if not satPath:
-            inps[0], inps[1], = SatVars0[0], SatVars0[1] # lat/lon
-            inps[14], inps[15] =  SatVars0[2],  SatVars0[3]  # R/rot      
-        else:
-            inps[0]  = satLatf(CME.t*3600*24)
-            inps[1]  = satLonf(CME.t*3600*24)
-            inps[14] = satRf(CME.t*3600*24)
-            inps[15] = 0
-            # redefine functions to f(0) at start of impact so do not
-            # have to pass time to FIDO
-            satLatf3 = lambda x: satLatf(x + CME.t*3600*24)
-            satLonf3 = lambda x: satLonf(x + CME.t*3600*24)
-            satRf3   = lambda x: satRf(x + CME.t*3600*24)
-         
-        if doANT: 
-            if not satPath: inps[1] = ANTsatLons[i] 
-            vtrans = CME.vTrans
-        else:
-            # check if is trying to load FIDO CME at 10 Rs because rmax not change in input
-            if (inps[14] > 200) & (inps[16] < 25.): inps[14] = 0.95*inps[14]
-            if includeSIT:
-                vtrans = float(input_values['CMEvTrans'])
-        
-        # Sheath stuff
-        if includeSIT:
-            # check if front velocity greater than SW
-            if CME.impV > CME.vSW:
-                if doPUP and CME.hasSheath:
-                    # sheath params [start time (days from sim start), sheath dur, comp, sheathv, Bx, By, Bz,  vShock] 
-                    # need to convert [Br, Blon, Blat] from PUP to Bx/By/Bz
-                    BrllSW = CME.BSWvec
-                    Br = CME.shB * np.cos(CME.shTheta*3.14159/180.)
-                    Btrans = np.abs(CME.shB * np.sin(CME.shTheta*3.14159/180.))
-                    clockAng = np.arctan2(CME.BSWvec[2], -CME.BSWvec[1])
-                    Bx = - Br
-                    By = Btrans * np.cos(clockAng)
-                    Bz = Btrans * np.sin(clockAng)
-                    sheathParams = [CMEstart-CME.shDur/24., CME.shDur, CME.comp, CME.shv, Bx, By, Bz, CME.vShock]
-                else:
-                    vels = [CME.impV-CME.impVE, CME.impVE, vtrans, CME.vSW]
-                    sheathParams = FIDO.calcSheathInps(CMEstart, vels, CME.nSW, CME.BSW, SatVars0[2], cs=CME.cs, vA=CME.vA)
-                    # need to calc T for perpendicular/FIDO case
-                    beta = 2*CME.cs**2/ FRgamma / CME.vA**2
-                    comp = sheathParams[2]
-                    vshock = sheathParams[7]
-                    MA = (vshock-sheathParams[3]) / CME.vA
-                    bigR = 1 + FRgamma * MA**2 * (1-1/comp) + (1/beta) * (1 - 1/comp**2)
-                    Tratio = bigR / comp                   
-                    CME.shT = np.log10(Tratio * CME.TSW)
-                actuallySIT = True
-            # If not tell FIDO not to do sheath this time
-            else:
-                actuallySIT = False
-                sheathParams = []
-                FIDO.hasSheath = False
-        else:
-            sheathParams = []
-            actuallySIT = False
-        
+        # get sat pos using simple orbit
+        myParams = SatVars0
+        myParams[1] = SatLons[i]
+        # replace with the correct sat position for this time if using path
+        if satPath:
+            myParams = [satLatf(CMEarray[0].t*60), satLonf(CMEarray[0].t*60), satRf(CMEarray[0].t*60),0]
             
-        flagit = False
-        try:
-            #print (inps)
-            #print (sheathParams)
-            #print (vs)
-            if satPath:
-                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf, nCME, tempCME = FIDO.run_case(inps, sheathParams, vs, satfs=[satLatf3, satLonf3, satRf3], FRmass=FRmass, FRtemp=FRtemp, FRgamma=FRgamma)
-            else:
-                Bout, tARR, Bsheath, tsheath, radfrac, isHit, vProf, nCME, tempCME = FIDO.run_case(inps, sheathParams, vs, FRmass=FRmass, FRtemp=FRtemp, FRgamma=FRgamma)
-            # Old version of getting velocity profile just using radfrec (less accurate than new)
-            # vProf = FIDO.radfrac2vprofile(radfrac, vs[0]-vs[3], vs[3])
-            # turn the sheath back on if we turned it off for a low case
-            if includeSIT: FIDO.hasSheath = True
-            
-        except:
-            # sometimes get a miss even though ANTEATR says hit?
-            # for now just flag and skip
-            flagit = True
+        # Add in ensemble variation if desired
+        if (i > 0) and useFCSW:
+            if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
+            if 'SWv' in EnsInputs: CME.vSW = np.random.normal(loc=CME.vSW, scale=EnsInputs['SWv'])
+            if 'SWB' in EnsInputs: CME.BSW = np.random.normal(loc=CME.BSW, scale=EnsInputs['SWB'])              
+            if 'SWT' in EnsInputs: CME.TSW = np.random.normal(loc=CME.TSW, scale=EnsInputs['SWT'])              
+        Bscale, tau, cnm, Tscale = CME.Bscale, CME.tau, CME.cnm, CME.Tscale
         
-        if not flagit:  
-            # Down sample B resolution
-            t_res = 3 # resolution = 60 mins/ t_res
-            tARRDS = FIDO.hourify(t_res*tARR, tARR)
-            BvecDS = [FIDO.hourify(t_res*tARR,Bout[0][:]), FIDO.hourify(t_res*tARR,Bout[1][:]), FIDO.hourify(t_res*tARR,Bout[2][:]), FIDO.hourify(t_res*tARR,Bout[3][:])]
-            vProfDS = FIDO.hourify(t_res*tARR, vProf)
-            nProfDS = FIDO.hourify(t_res*tARR, nCME)
-            tempProfDS = FIDO.hourify(t_res*tARR, tempCME)
-            # Write sheath stuff first if needed
-            if actuallySIT:
-                tsheathDS = FIDO.hourify(t_res*tsheath, tsheath)
-                BsheathDS = [FIDO.hourify(t_res*tsheath,Bsheath[0][:]), FIDO.hourify(t_res*tsheath,Bsheath[1][:]), FIDO.hourify(t_res*tsheath,Bsheath[2][:]), FIDO.hourify(t_res*tsheath,Bsheath[3][:])]
-                # make a linear velocity profile from sheath front to CME front
-                delV = (vProfDS[0] - sheathParams[3])/len(tsheathDS)
-                for j in range(len(BsheathDS[0])):
+        # Package up invec, run ANTEATR        
+        gamma = CME.gamma
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(Bscale), Cd, tau, cnm, Tscale, gamma]
+        SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
+        # SW polarity in or out
+        inorout = np.sign(CME.BSW) 
+        
+        isSilent = True
+        ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=False, aFIDOinside=doFIDO, inorout=inorout, thermOff=True, csOff=True, axisOff=True, dragOff=True)
+        
+        # Check if miss or hit  
+        if ATresults[0][0] not in [9999, 8888]:
+            impactIDs.append(i)
+            if doFIDO:
+                regs = FIDOresults[7]
+                hitTime = FIDOresults[0][np.min(np.where(regs == 1))]/24
+                hitIdx = np.min(np.where(ATresults[0] >= hitTime))
+            TotTime  = ATresults[0][hitIdx]
+            rCME     = ATresults[1][hitIdx]
+            CMEvs    = ATresults[2][hitIdx]
+            CMEAW    = ATresults[3][hitIdx]
+            CMEAWp   = ATresults[4][hitIdx]
+            deltax   = ATresults[5][hitIdx]
+            deltap   = ATresults[6][hitIdx]
+            deltaCA  = ATresults[7][hitIdx]
+            B0       = ATresults[8][hitIdx]/1e5
+            cnm      = ATresults[9][hitIdx]
+            CMEn     = ATresults[10][hitIdx]
+            logT     = ATresults[11][hitIdx]
+            if not noDate:
+                dImp = dObj + datetime.timedelta(days=TotTime)
+                print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+            
+            if doFIDO:
+                # Save FIDO profiles
+                for j in range(len(FIDOresults[0])):
                     outprint = str(i)
                     outprint = outprint.zfill(4) + '   '
-                    outstuff = [tsheathDS[j], BsheathDS[3][j], BsheathDS[0][j], BsheathDS[1][j], BsheathDS[2][j], sheathParams[3]+j*delV, sheathParams[2] * CME.nSW, np.power(10,CME.shT), 0]
+                    Btot = np.sqrt(FIDOresults[1][j]**2 + FIDOresults[2][j]**2 + FIDOresults[3][j]**2)
+                    if isSat:
+                        outstuff = [FIDOresults[0][j]/24, Btot, FIDOresults[1][j], FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]
+                    else:
+                        # GSE coords, flip R,T to xy
+                        outstuff = [FIDOresults[0][j]/24, Btot, -FIDOresults[1][j], -FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]    
                     for iii in outstuff:
                         outprint = outprint +'{:6.3f}'.format(iii) + ' '
                     FIDOfile.write(outprint+'\n')
-                # write the single value sheath properties to a file
-                outprint = str(i)
-                outprint = outprint.zfill(4) + '   '
-                Mach = (sheathParams[7]-CME.vSW) / np.sqrt(CME.cs**2 + CME.vA**2)
-                n = sheathParams[2] * CME.nSW
-                B = sheathParams[2] * np.abs(CME.BSW)
-                #outstuff = [dur, comp, Mach, n, vsheath, B, vshock]
-                tempSheath = sheathParams[3]
-                outstuff = [sheathParams[1], sheathParams[2], Mach, n, sheathParams[3], B, sheathParams[7]]
-                for iii in outstuff:
-                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                SITfile.write(outprint+'\n')            
-            # Print the flux rope field        
-            for j in range(len(BvecDS[0])):
-                outprint = str(i)
-                outprint = outprint.zfill(4) + '   '
-                if isSat:
-                    # save B in sat coords
-                    outstuff = [tARRDS[j], BvecDS[3][j], -BvecDS[0][j], -BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
-                else:
-                    # save B in GSE coords
-                    outstuff = [tARRDS[j], BvecDS[3][j], BvecDS[0][j], BvecDS[1][j], BvecDS[2][j], vProfDS[j], nProfDS[j], tempProfDS[j], 1]
-                for iii in outstuff:
-                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                FIDOfile.write(outprint+'\n')  
-        # quick plotting script to check things for ~single case
-        # will plot each run individually
-        if False:
-            cols = ['k', 'b','r', 'k']  # ISWA colors
-            fig = plt.figure()
-            for i2 in range(len(Bout)):
-                if actuallySIT: plt.plot(tsheath, Bsheath[i2], linewidth=3, color=cols[i2])
-                plt.plot(tARRDS, BvecDS[i2], linewidth=3, color=cols[i2])
-            plt.show() 
-        print (i, 'min Bz ', np.min(BvecDS[2]), ' (nT), vFront ', vProfDS[0], ' km/s')
-    if includeSIT: SITfile.close()
-    FIDOfile.close()
+            
+        else:
+            print ('Miss')
+            
     
+        
 def genNXTtxt(CME, num='', tag=''):
     # Create a file that could be used to restart a run from a midpoint location
     print ('Saving restart in nxt'+tag+thisName+num+'.txt')
@@ -1175,8 +1088,10 @@ def runOSPREI():
 
     if doANT: goANTEATR(makeRestart=False, satPath=doSatPath)
     
-    # Outdated option for FIDO separate from ANTEATR
-    #if doFIDO: goFIDO(satPath=doSatPath)
+    # Option for FIDO only when not running ANTEATR
+    # (actually just run ANTEATR w/no forces near arrival)
+    if doFIDO and not doANT: 
+        goFIDO(satPath=doSatPath)
 
     if nRuns > 1: ensembleFile.close()
 
