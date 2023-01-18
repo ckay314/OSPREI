@@ -36,6 +36,8 @@ def setupOSPREI():
     # ------------------------------------------------------------------|
     global input_values, allinputs, date, noDate
     input_values, allinputs = FC.readinputfile()
+    checkInputs()
+    
     noDate = False
     try:
         date = input_values['date']
@@ -47,31 +49,12 @@ def setupOSPREI():
     # Pull in other values from allinputs
     # possible_vars = ['suffix', 'nRuns']   
     # Set defaults for these values
-    global suffix, nRuns, models
+    global suffix, nRuns
     # these are values its convenient to read early for processOSPREI
     global time, satPos, Sat_rot, ObsDataFile, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat
     global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath
     suffix = ''
     nRuns  = 1
-    
-    if 'models' in input_values:
-        models = input_values['models']
-        if models not in ['ALL', 'All', 'noB', 'IP', 'FC', 'ANT', 'FIDO']:
-            sys.exit('Models keyword not understood, select from ALL/noB/IP/FC/ANT/FIDO')
-    else:
-        models = 'ALL'    
-    # Check to see if we are running all components or just part
-    # flags are ALL = all three, IP = ANTEATR+FIDO, ANT = ANTEATR, FIDO = FIDO    
-    # FC = ForeCAT only, noB = ForeCAT+ANTEATR
-    # Default is ALL
-    global doFC, doANT, doFIDO
-    doFC, doANT, doFIDO = True, True, True
-    if models in ['IP', 'FIDO', 'ANT']: doFC = False
-    if models in ['ANT', 'noB']: doFIDO = False
-    if models == 'FIDO': doANT = False
-    if models == 'FC': doANT, doFIDO, = False, False
-        
-
     satPos = [0,0,213]
     shape  = [1,0.15] 
     Sat_rot = 360./365.25/24/60/60.
@@ -201,10 +184,569 @@ def setupOSPREI():
     print( 'ForeCAT: ', doFC)
     print( 'ANTEATR: ', doANT)
     print( 'FIDO:    ', doFIDO)
+    print('')
+
+def checkInputs(printNonCrit=False):    
+    # Run through all the input parameters and check that everything is in appropriate range
+    # Set to defaults if not provided or exit if must be explicitly provided
+    
+    global models
+    if 'models' in input_values:
+        models = input_values['models']
+        if models not in ['ALL', 'All', 'noB', 'IP', 'FC', 'ANT', 'FIDO']:
+            sys.exit('Models keyword not understood, select from ALL/noB/IP/FC/ANT/FIDO')
+    else:
+        print('models keyword not provided, assuming ALL')
+        models = 'ALL'    
+    # Check to see if we are running all components or just part
+    # flags are ALL = all three, IP = ANTEATR+FIDO, ANT = ANTEATR, FIDO = FIDO    
+    # FC = ForeCAT only, noB = ForeCAT+ANTEATR
+    global doFC, doANT, doFIDO
+    doFC, doANT, doFIDO = True, True, True
+    if models in ['IP', 'FIDO', 'ANT']: doFC = False
+    if models in ['ANT', 'noB']: doFIDO = False
+    if models == 'FIDO': doANT = False
+    if models == 'FC': doANT, doFIDO, = False, False
+    global startpoint
+    if doFIDO:
+        startpoint = 'FIDO'
+    if doANT:
+        startpoint = 'ANT'
+    if doFC:
+        startpoint = 'FC'
+    
+    # Required parameters --------------------------------------------------------------------------------
+    if 'CMElat' in input_values:
+        CMElat = float(input_values['CMElat'])
+        if np.abs(CMElat) > 90.:
+            sys.exit('CME latitude (CMElat) must be within +/- 90 deg') 
+    else:
+        sys.exit('CME latitude (CMElat) required to run')
+        
+    if 'CMElon' in input_values:
+        CMElon = float(input_values['CMElon'])
+        if (CMElon < -180) or (CMElon > 360) :
+            sys.exit('CME longitude (CMElon) must be within [-180, 180] or [0,360] deg') 
+    else:
+        sys.exit('CME longitude (CMElon) required to run')
+        
+    if 'CMEtilt' in input_values:
+        CMEtilt = float(input_values['CMEtilt'])
+        if np.abs(CMEtilt) > 90.:
+            sys.exit('CME tilt (CMEtilt) must be within +/- 90') 
+    else:
+        sys.exit('CME tilt (CMEtilt) required to run')
+
+    if 'CMEvr' in input_values:
+        CMEvr = float(input_values['CMEvr'])
+        if np.abs(CMEvr) < 0.:
+            sys.exit('CME coronal velocity (CMEvr) must > 0 km/s') 
+    else:
+        sys.exit('CME coronal velocity (CMEvr) required to run')
+
+    if 'CMEAW' in input_values:
+        CMEAW = float(input_values['CMEAW'])
+        if (CMEAW < 5) or (CMEAW > 180) :
+            sys.exit('CME Angular Width (CMEAW) must be within [5, 180] degrees') 
+    else:
+        sys.exit('CME Angular Width (CMEAW) required to run')
+    
+    
+
+    # Important parameters with defaults ----------------------------------------------------------------
+    if 'CMEr' in input_values:
+        CMEr = float(input_values['CMEr'])
+        if startpoint == 'FC':
+            if (CMEr < 1.05) or (CMEr > 2.5):
+                sys.exit('Initial CME front distance (CMEr) must be within [1.05, 2.5] Rs for ForeCAT start') 
+        elif startpoint == 'ANT':
+            if (CMEr < 10) or (CMEr > 50):
+                sys.exit('Initial CME front distance (CMEr) must be within [10, 50] Rs for ANTEATR start') 
+        # FIDO can start wherever but at least check that units are semi reasonable
+        # and within Jupiter distance?
+        if (CMEr < 1.05) or (CMEr > 1100):
+            sys.exit('Initial CME front distance (CMEr) must be within [1.05, 1100] Rs for FIDO start') 
+    else:
+        if startpoint == 'FC':
+            input_values['CMEr'] = str(1.1)    
+        elif startpoint == 'ANT':
+            input_values['CMEr'] = str(21.5)
+        elif startpoint == 'FIDO':
+            if 'SatR' in input_values:
+                input_values['CMEr'] = input_values['SatR']
+            elif 'satPath' in input_values:
+                # set it to temp value we know we will replace later?
+                input_values['CMEr'] = input_values['9999']       
+    
+    if 'CMEAWp' in input_values:
+        CMEAWp = float(input_values['CMEAWp'])
+        if (CMEAW < 5) or (CMEAW > 90) :
+            sys.exit('CME perpendicular Angular Width (CMEAWp) must be within [5, 90] degrees') 
+    else:
+        if printNonCrit:
+            print('No perpendicular CME Angular Width (CMEAWp) given. Setting at 1/3 AW')
+        input_values['CMEAWp'] = str(1/3*float(input_values['CMEAW']))
+        
+    if 'CMEdelAx' in input_values:
+        CMEdelAx = float(input_values['CMEdelAx'])
+        if (CMEdelAx < 0.1) or (CMEdelAx > 1.5) :
+            sys.exit('CME Axial Aspect Ratio (CMEdelAx) must be within [0.1, 1.5]') 
+    else:
+        input_values['CMEdelAx'] = str(0.75)
+    
+    if 'CMEdelCS' in input_values:
+        CMEdelCS = float(input_values['CMEdelCS'])
+        if (CMEdelCS < 0.1) or (CMEdelCS > 1.5) :
+            sys.exit('CME CS Aspect Ratio (CMEdelCS) must be within [0.1, 1.5]') 
+    else:
+        input_values['CMEdelCS'] = str(1)
+    
+    if 'CMEM' in input_values:
+        CMEM = float(input_values['CMEM'])
+        if (CMEM < 0.1):
+            sys.exit('CME mass (CMEM) must be > 0.1 (input units 1e15 g)') 
+    else:
+        if printNonCrit:
+            print ('Calculating CME mass from velocity since not explicitly given')
+        CMEM = 0.005756 * float(input_values['CMEvr']) -0.84
+        if CMEM > 0:
+            input_values['CMEM'] = str(CMEM)
+        else:
+            sys.exit('Cannot calc CME mass from vr, vr too small (<146 km/s) and produces negative mass with given regression')
+    
+
+    # Typically unused ForeCAT parameters ----------------------------------------------------------------
+    if 'FCrmax' in input_values:
+        FCrmax = float(input_values['FCrmax'])
+        if (FCrmax < 10) or (FCrmax > 21.5) :
+            sys.exit('ForeCAT rmax (FCrmax) must be within [10, 21.5] Rs') 
+    else:
+        input_values['FCrmax'] = str(21.5)        
+        
+    if 'FCraccel1' in input_values:
+        FCraccel1 = float(input_values['FCraccel1'])
+        if (FCraccel1 < 1) or (FCraccel1 > 2) :
+            sys.exit('ForeCAT raccel1 (FCraccel1) must be within [1, 2] Rs') 
+    else:
+        input_values['FCraccel1'] = str(1.3)        
+    
+    if 'FCraccel2' in input_values:
+        FCraccel2 = float(input_values['FCraccel2'])
+        if (FCraccel2 < 1.5) or (FCraccel2 > 21.5) :
+            sys.exit('ForeCAT raccel2 (FCraccel2) must be within [1.5, 21.5] Rs') 
+        if (FCraccel2 > float(input_values['FCrmax'])):
+            sys.exit('ForeCAT raccel2 greater than ForeCAT rmax, needs to reach full speed before/at end of ForeCAT')
+    else:
+        input_values['FCraccel2'] = str(10)        
+        
+    if 'FCvrmin' in input_values:
+        FCvrmin = float(input_values['FCvrmin'])
+        if (FCvrmin < 10) or (FCvrmin > 200) :
+            sys.exit('ForeCAT initial velocity (FCvrmin) must be within [10, 200] km/s') 
+    else:
+        input_values['FCvrmin'] = str(50)        
+        
+    if 'FCAWmin' in input_values:
+        FCAWmin = float(input_values['FCAWmin'])
+        if (FCAWmin < 1) or (FCAWmin > 20) :
+            sys.exit('ForeCAT initial AW (FCAWmin) must be within [1, 20] deg') 
+    else:
+        input_values['FCAWmin'] = str(5)        
+        
+    if 'FCAWr' in input_values:
+        FCAWr = float(input_values['FCAWr'])
+        rlim = (float(input_values['FCrmax']) - 1)/4.61 # limit so reaches ~full size before end of ForeCAT
+        if (FCAWr < 0.1) or (FCAWr > rlim) :
+            sys.exit('ForeCAT expansion length scale (FCAWr) must be within [0.1, (FCrmax - 1)/4.61] Rs') 
+    else:
+        input_values['FCAWr'] = str(1)     
+        
+    if 'FCrmaxM' in input_values:
+        FCrmaxM = float(input_values['FCrmaxM'])
+        if  (FCrmaxM > float(input_values['FCrmax'])) :
+            sys.exit('ForeCAT initial AW (FCrmaxM) must be < FCrmax Rs') 
+    else:
+        input_values['FCrmaxM'] = input_values['FCrmax']    
+           
+    if 'SWCdp' in input_values:
+        SWCdp = float(input_values['SWCdp'])
+        if (SWCdp < 0) or  (SWCdp > 10):
+            sys.exit('ForeCAT initial AW (SWCdp) must be in [0, 10]') 
+    else:
+        input_values['SWCdp'] = str(1) 
+        
+    if 'FCNtor' in input_values:
+        FCNtor = float(input_values['FCNtor'])
+        if (FCNtor < 5) or  (FCNtor > 25):
+            sys.exit('Number of grid points along ForeCAT toroidal axis (FCNtor) must be in [5, 25]') 
+    else:
+        input_values['FCNtor'] = str(15) 
+
+    if 'FCNpol' in input_values:
+        FCNpol = float(input_values['FCNpol'])
+        if (FCNpol < 5) or  (FCNpol > 25):
+            sys.exit('Number of grid points along ForeCAT poloidal axis (FCNpol) must be in [5, 25]') 
+    else:
+        input_values['FCNpol'] = str(13) 
+
+    if 'PFSSscale' in input_values:
+        PFSSscale = float(input_values['PFSSscale'])
+        if (PFSSscale < 0.1) or  (PFSSscale > 1000):
+            sys.exit('Uniform scaling of PFSS model (PFSSscale) must be in [0.1, 1000]') 
+    else:
+        input_values['PFSSscale'] = str(1) 
+
+
+    # Flux rope parameters --------------------------------------------------------------------------------
+    if 'FRpol' in input_values:
+        if input_values['FRpol'] not in ['1', '+1', '-1']:
+            sys.exit('FRpol input not understood. Set to 1 (right-handed) or -1 (left-handed)')
+    else:
+        if float(input_values['CMElat']) > 0:
+            input_values['FRpol'] = '-1'
+        else:
+            input_values['FRpol'] = '1'
+        if printNonCrit:
+            print('Flux rope handedness not given. Setting based on hemisphere (Bothmer-Schwenn, north = negative) but this is only statistically valid')
+    
+    if 'FRtau' in input_values:
+        FRtau = float(input_values['FRtau'])
+        if (FRtau < 0.1) or  (FRtau > 3):
+            sys.exit('Flux rope tau (FRtau) must be in [0.1, 3]') 
+    else:
+        input_values['FRtau'] = str(1) 
+
+    if 'FRCnm' in input_values:
+        FRCnm = float(input_values['FRCnm'])
+        if (FRCnm < 0.5) or (FRCnm > 3):
+            sys.exit('Flux rope Cnm (FRCnm) must be in [0.5, 3]') 
+    else:
+        input_values['FRCnm'] = str(1.927) 
+    
+        
+    # ANTEATR parameters --------------------------------------------------------------------------------
+    if 'IVDf1' in input_values:
+        IVDf1 = float(input_values['IVDf1'])
+        if (IVDf1 < 0) or  (IVDf1 > 1):
+            sys.exit('Initial velocity decomposition 1 (IVDf1) must be in [0, 1]') 
+    else:
+        input_values['IVDf1'] = str(0.5) 
+
+    if 'IVDf2' in input_values:
+        IVDf2 = float(input_values['IVDf2'])
+        if (IVDf2 < 0) or  (IVDf2 > 1):
+            sys.exit('Initial velocity decomposition 2 (IVDf2) must be in [0, 1]') 
+    else:
+        input_values['IVDf2'] = str(0.5) 
+
+    if 'IVDf' in input_values:
+        IVDf = float(input_values['IVDf'])
+        if (IVDf < 0) or  (IVDf > 1):
+            sys.exit('Initial velocity decomposition (IVDf) must be in [0, 1]') 
+    else:
+        input_values['IVDf'] = str(0.5) 
+                
+    if 'Gamma' in input_values:
+        Gamma = float(input_values['Gamma'])
+        if (Gamma < 0) or  (Gamma > 1):
+            sys.exit('Adiabatic index (Gamma) must be in [1, 1.67]') 
+    else:
+        input_values['Gamma'] = str(1.33) 
+    
+    if 'doPUP' in input_values:
+        doPUP = input_values['doPUP']
+        if doPUP not in ['True', 'False']:
+            sys.exit('Inclusion of PUP in ANTEATR (doPUP) can only be True or False') 
+    
+    flagScales = False
+    if 'flagScales' in input_values:
+        fS = input_values['flagScales']
+        if fS not in ['True', 'False']:
+            sys.exit('Option to flag inputs as scaled B and T (flagScales) can only be True or False')
+        if fS == 'True':
+            flagScales = True 
+    
+    # Include ability to calculate B/T from empirical relations if not given (or told to scale)
+    if not flagScales:
+        dtor = 3.14159 / 360.
+        rFront = float(input_values['FCrmax']) * 7e10
+        AW = float(input_values['CMEAW']) * dtor
+        AWp = float(input_values['CMEAWp']) * dtor
+        delAx = float(input_values['CMEdelAx'])
+        delCS = float(input_values['CMEdelCS'])
+        v = float(input_values['CMEvr'])
+        Cnm = float(input_values['FRCnm'])
+        tau = float(input_values['FRtau'])
+        mass = float(input_values['CMEM'])
+        
+        # Function to estimate length of torus for on weird ellipse/parabola hybrid
+        lenCoeffs = [0.61618, 0.47539022, 1.95157615]
+        lenFun = np.poly1d(lenCoeffs)
+        
+        # need CME R and len to convert phiflux to B0
+        rCSp = np.tan(AWp) / (1 + delCS * np.tan(AWp)) * rFront
+        rCSr = delCS * rCSp
+        Lp = (np.tan(AW) * (rFront - rCSr) - rCSr) / (1 + delAx * np.tan(AW))  
+        Ltorus = lenFun(delAx) * Lp
+        # Ltorus needs to include legs
+        rCent = rFront - delAx*Lp - rCSp
+        Lleg = np.sqrt(Lp**2 + rCent**2) - 7e10 # dist from surface
+        Ltot = Ltorus + 2 * Lleg 
+        avgR = (0.5*rCSp * Lleg * 2 + rCSp * Ltorus) / (Lleg*2 + Ltorus)
+        
+        if 'FRB' in input_values:
+            FRB = float(input_values['FRB'])
+            if (FRB < 500) or  (FRB > 10000):
+                sys.exit('Flux rope B (FRB) must be in [500, 10000] nT') 
+        else:
+            KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
+            phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
+            B0 = phiflux * Cnm * (delCS**2 + 1) / avgR / Ltot / delCS**2 *1e5
+            Bcent = delCS * tau * B0
+            if (Bcent < 500) or  (Bcent > 10000):
+                sys.exit('Cannot calculate a reasonable default flux rope B using empirical scaling. Please provide FRB')
+            else:
+                print('Using ', FRB, ' nT for FRB')
+                input_values['FRB'] = str(Bcent)
+    
+        if 'FRT' in input_values:
+            FRT = float(input_values['FRT'])
+            if (FRT < 5e4) or  (FRT > 1e6):
+                sys.exit('Flux rope T (FRT) must be in [5e4, 1e6] nT') 
+        else:
+            vSheath = 0.129 * v + 376
+            vIS = (vSheath + 51.73) / 1.175
+            vExp = 0.175 * vIS -51.73
+            logTIS = 3.07e-3 * vIS +3.65
+            FRT = np.power(10, logTIS) * np.power(215*7e10/rFront, 0.7)
+            if (FRT < 5e4) or  (FRT > 1e6):
+                sys.exit('Cannot calculate a reasonable default flux rope T using empirical scaling. Please provide FR T')
+            else:
+                print('Using ', FRT, ' K for FRT')
+                
+                input_values['FRT'] = str(FRT)
+        
+        
+    # Satellite Parameters ----------------------------------------------------------------
+    hasSatPath = False
+    if 'satPath' in input_values:
+        hasSatPath = True
+        
+    if 'SatLon' in input_values:
+        SatLon = float(input_values['SatLon'])
+        if (SatLon < -180) or  (SatLon > 360):
+            sys.exit('Satellite longitude (SatLon) must be in [-180, 180] or [0, 360] deg') 
+    else:
+        sys.exit('Initial satellite longitude (SatLon) is required. Must be in Carrington coordinates if ForeCAT is used.') 
+    
+    if not hasSatPath:
+        if 'SatLat' in input_values:
+            SatLat = float(input_values['SatLat'])
+            if (SatLat < -90) or (SatLat > 90) :
+                sys.exit('Initial satellite latitude (SatLat) must be within [-90, 90] deg') 
+        else:
+            sys.exit('Initial satellite latitude (SatLat) required to run')
+        
+        if 'SatR' in input_values:
+            SatR = float(input_values['SatR'])
+            if (SatR < 0) or (SatR > 1100) :
+                sys.exit('Satellite distance (SatR) must be within [0, 1100] Rs') 
+        else:
+            sys.exit('Initial satellite distance (SatR) required to run')
+        
+        if 'SatRot' in input_values:
+            SatRot = float(input_values['SatRot'])
+            if (SatRot < -0.00417) or (SatRot > 0.00417) :
+                sys.exit('Satellite distance (SatRot) must be within +/-0.00417 deg/s (1 full orbit per day)') 
+        else:
+            input_values['SatRot'] = str(0.0000114)
+            if printNonCrit:
+                print('Satellite orbital speed (SatRot) assumed same as Earth')
+
+
+    # Solar Wind Parameters ----------------------------------------------------------------
+    if 'SWCd' in input_values:
+        SWCd = float(input_values['SWCd'])
+        if (SWCd < 0) or  (SWCd > 10):
+            sys.exit('Solar wind drag coefficient (SWCd) must be in [0, 10]') 
+    else:
+        input_values['SWCd'] = str(1) 
+    
+    # Get satellite radius, if near 1 AU force SW params to be reasonable values
+    if 'SatR' in input_values:
+        satR = float(input_values['SatR'])
+    else:
+        satR = 99999  
+    
+    # if has satPath good chance not 1 AU so don't check SW params    
+    if not hasSatPath and (np.abs(satR-215) < 15.):
+        if 'SWn' in input_values:
+            SWn = float(input_values['SWn'])
+            if (SWn < 0) or  (SWn > 10):
+                sys.exit('Solar wind number density (SWn) must be in [0.1, 50] cm^-3 if satR is near 1 AU') 
+        else:
+            input_values['SWn'] = str(7.5)
+             
+        if 'SWv' in input_values:
+            SWv = float(input_values['SWv'])
+            if (SWv < 50) or  (SWv > 800):
+                sys.exit('Solar wind radial velocty (SWv) must be in [50, 800] km/s if satR is near 1 AU') 
+        else:
+            input_values['SWv'] = str(350)
+            
+        if 'SWB' in input_values:
+            SWB = float(input_values['SWB'])
+            if (SWB < 0.1) or  (SWB > 50):
+                sys.exit('Solar wind magnetic field strength (SWB) must be in [0.1, 50] nT if satR is near 1 AU') 
+        else:
+            input_values['SWB'] = str(6)
+        
+        if 'SWT' in input_values:
+            SWT = float(input_values['SWT'])
+            if (SWT < 0.1) or  (SWT > 50):
+                sys.exit('Solar wind temperature (SWT) must be in [1e4, 5e5] K if satR is near 1 AU') 
+        else:
+            input_values['SWT'] = str(75000)
+        
+    
+    # General simulation parameters ------------------------------------------------
+    if 'date' in input_values:
+        strlen = len(input_values['date'])
+        if strlen != 8:
+            sys.exit('date must be given as YYYYMMDD')
+    else:
+        if printNonCrit:
+            print ('No date given, running in arbitrary time')
+
+    if 'time' in input_values:
+        strlen = len(input_values['time'])
+        if (strlen != 5) & (input_values['time'][2] != ':'):
+            sys.exit('date must be given as HH:MM (24 hr time)')
+    else:
+        input_values['time'] = '00:00'
+        if printNonCrit:
+            print ('No time given, starting at 00:00')
+        
+    if 'nRuns' in input_values:
+        nRuns = float(input_values['nRuns'])
+        if (nRuns < 0) or  (nRuns > 10):
+            sys.exit('Number of simulation runs (nRuns) must be in [0, 200]') 
+    else:
+        input_values['nRuns'] = str(1) 
+        
+    # TorF only... 'FCRotCME' 'saveData', 'printData','flagScales'   'isSat',
+    if 'FCRotCME' in input_values:
+        FCRotCME = input_values['FCRotCME']
+        if FCRotCME not in ['True', 'False']:
+            sys.exit('Inclusion of rotation in ANTEATR (FCRotCME) can only be True or False') 
+    
+    if 'saveData' in input_values:
+        saveData = input_values['saveData']
+        if saveData not in ['True', 'False']:
+            sys.exit('Option to save data for individual runs (saveData) can only be True or False') 
+
+    if 'printData' in input_values:
+        printData = input_values['printData']
+        if printData not in ['True', 'False']:
+            sys.exit('Option to print data for individual runs (printData) can only be True or False') 
+                
+    if 'isSat' in input_values:
+        isSat = input_values['isSat']
+        if isSat not in ['True', 'False']:
+            sys.exit('Option to save data in satellite coords vs GSE (isSat) can only be True or False') 
+
+    if 'L0' in input_values:
+        SatLon = float(input_values['SatLon'])
+        if (SatLon < -180) or  (SatLon > 360):
+            sys.exit('Satellite longitude shift (L0) must be in [-180, 180] or [0, 360] deg') 
+        
+    if 'SunR' in input_values:
+        SunR = float(input_values['SunR'])
+        if (SunR < 7e8) or  (SunR > 7e12):
+            sys.exit('Stellar/solar radius (SunR) must be in [7e8, 7e12] cm (0.01 Rs, 100 Rs)') 
+    else:
+        input_values['SunR'] = str(7e10) 
+
+    if 'SunRotRate' in input_values:
+        SunRotRate = float(input_values['SunRotRate'])
+        if (np.abs(SunRotRate) < 0.00175):
+            sys.exit('Stellar/solar rotation rate (SunRotRate) must in +/- 0.00175 rad/s (one hour or longer period)') 
+    else:
+        input_values['SunRotRate'] = str(2.8e-6) 
+        
+    if 'SunRss' in input_values:
+        SunRss = float(input_values['SunRss'])
+        if (SunRss < 1.5) or  (SunRss > 5):
+            sys.exit('Source surface height (SunRss) must in [1.5, 5] Rs') 
+    else:
+        input_values['SunRss'] = str(2.5) 
+    
+    hasFRstart, hasFRend = False, False    
+    if 'obsFRstart' in input_values:
+        obsFRstart = float(input_values['obsFRstart'])
+        if (obsFRstart < 0) or  (obsFRstart >= 360):
+            sys.exit('Observed flux rope start (obsFRstart) must in [0, 360) fraction DoY') 
+        else:
+            hasFRstart = True
+
+    if 'obsFRend' in input_values:
+        obsFRend = float(input_values['obsFRend'])
+        if (obsFRend < 0) or  (obsFRend >= 360):
+            sys.exit('Observed flux rope end (obsFRend) must in [0, 360) fraction DoY') 
+        else:
+            hasFRend = True
+
+    if hasFRstart and not hasFRend:
+        sys.exit('Provided FRstart but not FRend. Need both or neither.')
+
+    if hasFRend and not hasFRstart:
+        sys.exit('Provided FRend but not FRstart. Need both or neither.')
+
+    if 'obsShstart' in input_values:
+        obsShstart = float(input_values['obsShstart'])
+        if (obsShstart < 0) or  (obsShstart >= 360):
+            sys.exit('Observed shock/sheath start (obsShstart) must in [0, 360) fraction DoY') 
+    
+        
+    # MEOW-HiSS parameters ----------------------------------------------------------
+    doMH = False
+    if 'doMH' in input_values:
+        doMH = input_values['doMH']
+        if doMH in ['True', 'False']:
+            if doMH == 'True':
+                doMH = True
+        else:
+            sys.exit('Flag for MEOW-HiSS (doMH) must be either True or False')
+    
+    if doMH:
+        if 'MHarea' in input_values:
+            MHarea = float(input_values['MHarea'])
+            if (MHarea < 50) or  (MHarea > 2500):
+                sys.exit('Coronal hole area (MHarea) must be in [50, 2500] 10^8 km^2') 
+        else:
+            sys.exit('Coronal hole area (MHarea) must be provided if MEOW-HiSS is included. If you only know the front distance, 800 (10^8 km^2) is a good average size to start with.')
+
+        if 'MHdist' in input_values:
+            MHdist = float(input_values['MHdist'])
+            if (MHdist < -0.3) or  (MHdist > 1.5):
+                sys.exit('Initial HSS front distance (MHdist) must be in [-0.3, 1.5] AU') 
+        else:
+            sys.exit('Initial HSS front distance (MHdist) must be provided if MEOW-HiSS is included')
+        
+    # bonus check - are lons near one another    
+    if not hasSatPath:
+        CMElon = float(input_values['CMElon'])
+        satLon = float(input_values['SatLon'])
+    if (CMElon > 300) and (satLon < 0):
+        satLon += 360.
+        input_values['SatLon'] = str(satLon)
+    if (CMElon < 0) and (satLon > 360):
+        CMElon += 360.
+        input_values['CMElon'] = str(CMElon)
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'CMEvTrans', 'MHarea', 'MHdist']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'MHarea', 'MHdist']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -606,6 +1148,7 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
+
 def goANTEATR(makeRestart=False, satPath=False):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -754,7 +1297,6 @@ def goANTEATR(makeRestart=False, satPath=False):
             # this B0 is actually Btor, which is what FIDO wants (Btor at center at time of impact)
             CME.B0 = B0 * 1e5 * np.sign(FRB) * deltap * CME.tau # in nT now
             CME.cnm   = cnm
-            CME.vTrans = (rCME-CMEr0)*7e5/(TotTime*24*3600.)
             CME.impV = vF
             CME.impVE = vEx
             #CME.t = TotTime
@@ -873,9 +1415,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         else:
             print('Miss')
         
-            
-            
-            
+                        
         # write a file to restart ANTEATR/FIDO from current CME values
         # this is probably outdated...
         if makeRestart:      
@@ -903,9 +1443,9 @@ def goANTEATR(makeRestart=False, satPath=False):
         FIDOfile.close()
     
     
-             
-# This is old since FIDO is now integrated into ANT_PUP but keeping
-# in case random need to run ensembles of (less-evolving) FIDO only
+# This have been updated since FIDO has now been integrated with ANTEATR
+# We now run ANTEATR with all the forces turned off if want only FIDO
+# This allows all SW values to be left at defaults since they are not used
 def goFIDO(satPath=False):
     # FIDO portion -----------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -1018,7 +1558,6 @@ def goFIDO(satPath=False):
             print ('Miss')
             
     
-        
 def genNXTtxt(CME, num='', tag=''):
     # Create a file that could be used to restart a run from a midpoint location
     print ('Saving restart in nxt'+tag+thisName+num+'.txt')
@@ -1051,7 +1590,10 @@ def runOSPREI():
         satPath = input_values['satPath']
         # functions give correct R/lat/lon if give t in sec from start time
         satRf, satLatf, satLonf = makeSatPaths(satPath, dObj, Clon0=satPos[1])
-       
+        # reset the initial CME distance using satRf if doing FIDO only 
+        # and wasn't originally given a distance
+        if input_values['SatR'] == '9999':
+           satPos[2] = satRf[0]
     if doFC:
         goForeCAT(makeRestart=False)        
     else:

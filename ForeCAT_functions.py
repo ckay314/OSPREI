@@ -29,14 +29,16 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW', 'IVDf1', 'IVDf2', 'IVDf','time', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRpol', 'FRT', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol',  'models', 'ObsDataFile', 'CMEvTrans', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart']
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW', 'IVDf1', 'IVDf2', 'IVDf','time', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRpol', 'FRT', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'FRpol',  'models', 'ObsDataFile', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart']
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
     # Will overwrite values if given, this just lets us ensemble about defaults for subtle
     # things that might be wanted.  Anything big like mass or position we want to force there
     # to be an input value if we want to ensemble it
-    input_values['SWCdp'] = 1.   
+    
+    # This is all replaced by new checker in OSPREI?
+    '''input_values['SWCdp'] = 1.   
     input_values['CMEr'] = 1.1
     input_values['FCraccel1'] = 1.3
     input_values['FCraccel2'] = 10.0
@@ -51,7 +53,7 @@ def get_inputs(inputs):
     input_values['FRpol'] = 1
     input_values['IVDf1'] = 0.5
     input_values['IVDf2'] = 0.5
-    input_values['Gamma'] = 1.33
+    input_values['Gamma'] = 1.33'''
     
              
     for i in range(len(inputs)):
