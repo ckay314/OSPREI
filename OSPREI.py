@@ -280,7 +280,7 @@ def checkInputs(printNonCrit=False):
     
     if 'CMEAWp' in input_values:
         CMEAWp = float(input_values['CMEAWp'])
-        if (CMEAW < 5) or (CMEAW > 90) :
+        if (CMEAWp < 5) or (CMEAWp > 90) :
             sys.exit('CME perpendicular Angular Width (CMEAWp) must be within [5, 90] degrees') 
     else:
         if printNonCrit:
@@ -506,7 +506,7 @@ def checkInputs(printNonCrit=False):
             if (Bcent < 500) or  (Bcent > 10000):
                 sys.exit('Cannot calculate a reasonable default flux rope B using empirical scaling. Please provide FRB')
             else:
-                print('Using ', FRB, ' nT for FRB')
+                print('Using ', Bcent, ' nT for FRB')
                 input_values['FRB'] = str(Bcent)
     
         if 'FRT' in input_values:
@@ -523,7 +523,6 @@ def checkInputs(printNonCrit=False):
                 sys.exit('Cannot calculate a reasonable default flux rope T using empirical scaling. Please provide FR T')
             else:
                 print('Using ', FRT, ' K for FRT')
-                
                 input_values['FRT'] = str(FRT)
         
         
@@ -681,31 +680,41 @@ def checkInputs(printNonCrit=False):
     else:
         input_values['SunRss'] = str(2.5) 
     
-    hasFRstart, hasFRend = False, False    
+    hasFRstart, hasFRend, hasShstart = False, False, False    
     if 'obsFRstart' in input_values:
-        obsFRstart = float(input_values['obsFRstart'])
-        if (obsFRstart < 0) or  (obsFRstart >= 360):
+        oFRs = float(input_values['obsFRstart'])
+        if (oFRs < 0) or  (oFRs >= 360):
             sys.exit('Observed flux rope start (obsFRstart) must in [0, 360) fraction DoY') 
         else:
             hasFRstart = True
 
     if 'obsFRend' in input_values:
-        obsFRend = float(input_values['obsFRend'])
-        if (obsFRend < 0) or  (obsFRend >= 360):
+        oFRe = float(input_values['obsFRend'])
+        if (oFRe < 0) or  (oFRe >= 360):
             sys.exit('Observed flux rope end (obsFRend) must in [0, 360) fraction DoY') 
         else:
             hasFRend = True
+    
+    if 'obsShstart' in input_values:
+        oShs = float(input_values['obsShstart'])
+        if (oShs < 0) or  (oShs >= 360):
+            sys.exit('Observed shock/sheath start (obsShstart) must in [0, 360) fraction DoY') 
+        else:
+            hasShstart = True
 
     if hasFRstart and not hasFRend:
         sys.exit('Provided FRstart but not FRend. Need both or neither.')
 
     if hasFRend and not hasFRstart:
         sys.exit('Provided FRend but not FRstart. Need both or neither.')
+            
+    if hasFRstart and hasFRend:
+        if float(input_values['obsFRend']) < float(input_values['obsFRstart']):
+            sys.exit('Flux rope end (obsFRend) is before flux rope start (obsFRstart). Please fix')
 
-    if 'obsShstart' in input_values:
-        obsShstart = float(input_values['obsShstart'])
-        if (obsShstart < 0) or  (obsShstart >= 360):
-            sys.exit('Observed shock/sheath start (obsShstart) must in [0, 360) fraction DoY') 
+    if hasFRstart and hasShstart:
+        if float(input_values['obsFRstart']) < float(input_values['obsShstart']):
+            sys.exit('Flux rope start (obsFRstart) is before sheath start (obsShstart). Please fix')
     
         
     # MEOW-HiSS parameters ----------------------------------------------------------
