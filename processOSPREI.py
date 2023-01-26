@@ -299,8 +299,12 @@ def txt2obj(GCStime):
                 thisRes.FIDOtems  = np.power(10,FIDOdata[myidxs,8])
                 thisRes.regions = FIDOdata[myidxs,9]
                 regions = FIDOdata[myidxs,9]
-                thisRes.FIDO_shidx = np.where(thisRes.regions==0)[0]
-                thisRes.FIDO_FRidx = np.where(thisRes.regions==1)[0]
+                thisRes.FIDO_shidx = []
+                if 0 in thisRes.regions:
+                    thisRes.FIDO_shidx = np.where(thisRes.regions==0)[0]
+                thisRes.FIDO_FRidx = []
+                if 1 in thisRes.regions:
+                    thisRes.FIDO_FRidx = np.where(thisRes.regions==1)[0]
                 thisRes.FIDO_SWidx = np.where(np.abs(thisRes.regions-100)<10)[0]
             
                 # derived paramters
@@ -313,7 +317,7 @@ def txt2obj(GCStime):
             
                 # get corresponding idxs for ANT data
                 if OSP.doANT:
-                    if OSP.doPUP:
+                    if OSP.doPUP and (len(thisRes.FIDO_shidx) !=0):
                         tSH =thisRes.FIDOtimes[thisRes.FIDO_shidx[0]], 
                         thisRes.ANTshidx = np.min(np.where(thisRes.ANTtimes >= tSH))
                     tFR = thisRes.FIDOtimes[thisRes.FIDO_FRidx[0]]
@@ -342,9 +346,10 @@ def txt2obj(GCStime):
                     thisRes.SITB    = SITdata[myID, 6]     
                     thisRes.SITvShock = SITdata[myID,7]    
                     thisRes.SITtemp = SITdata[myID,8]
-                    thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
-                    thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
-                    thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
+                    if len(thisRes.FIDO_shidx) !=0:
+                        thisRes.SITminBz = np.min(thisRes.FIDOBzs[thisRes.SITidx])
+                        thisRes.SITmaxB = np.max(thisRes.FIDOBs[thisRes.SITidx])
+                        thisRes.SITmaxKp = np.max(thisRes.FIDOKps[thisRes.SITidx])
                        
             ResArr[i] = thisRes
             

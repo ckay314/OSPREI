@@ -434,7 +434,6 @@ def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
         if ((vCME-vSW)/vA) > 10 and (rmin==1):
            r = getr(3.7, 0.01, 29, beta, theta, gam, vCME, vSW, vA)
         elif ((vCME-vSW)/vA) > 10 and (rmin==1):
-            print ('here')
             return 9999
         else:
             return 9999
@@ -618,10 +617,8 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
     vCSVec = vCS * nCSatAx
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
-   
+    
     return vCMEframe, vCSVec
-
-
 
 def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=1.):
     # Get Btor/Bpol at s/c location
@@ -646,8 +643,8 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     # rotate to s/c frame
     temp = rotx(vCMEframe, -(90.-CMEtilt))
     temp2 = roty(temp, CMElat - Elat) 
-    vInSitu = rotz(temp2, CMElon - Elon)
-    
+    vInSitu = rotz(temp2, CMElon - Elon )
+
     # rotate vexp
     #temp = rotx(vExpCME, -(90.-CMEtilt))
     #temp2 = roty(temp, CMElat - Elat) 
@@ -1039,7 +1036,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # cant' just swap Er in inputs if scaling SW params off of it...
         
         # Start checking when close to sat distances, don't waste code time before close
-        check_dist = 0.95*Er
+        check_dist = 0.75*Er
         # front for checking purposes -> could be sheath or CME
         theFront = CMElens[0]
         if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
@@ -1049,7 +1046,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             axDist, maxDistFR, thisPsi, thisParat = whereAmI([Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap)
 
             if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
-
             # check if in sheath
             if doPUP:
                 if (axDist < maxrSH) and (maxDistFR != maxrSH):

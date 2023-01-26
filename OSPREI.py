@@ -511,15 +511,15 @@ def checkInputs(printNonCrit=False):
     
         if 'FRT' in input_values:
             FRT = float(input_values['FRT'])
-            if (FRT < 5e4) or  (FRT > 1e6):
-                sys.exit('Flux rope T (FRT) must be in [5e4, 1e6] nT') 
+            if (FRT < 5e4) or  (FRT > 2e6):
+                sys.exit('Flux rope T (FRT) must be in [5e4, 2e6] nT') 
         else:
             vSheath = 0.129 * v + 376
             vIS = (vSheath + 51.73) / 1.175
             vExp = 0.175 * vIS -51.73
             logTIS = 3.07e-3 * vIS +3.65
             FRT = np.power(10, logTIS) * np.power(215*7e10/rFront, 0.7)
-            if (FRT < 5e4) or  (FRT > 1e6):
+            if (FRT < 5e4) or  (FRT > 2e6):
                 sys.exit('Cannot calculate a reasonable default flux rope T using empirical scaling. Please provide FR T')
             else:
                 print('Using ', FRT, ' K for FRT')
@@ -1235,6 +1235,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         gamma = CME.gamma
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(FRB), Cd, tau, cnm, FRT, gamma]
         SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
+        
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile
@@ -1245,7 +1246,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         isSilent = False
         if satPath:
             if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout, name='testt')
+                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout)
             else:
                 ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, aFIDOinside=doFIDO, inorout=inorout)
         else:
@@ -1262,7 +1263,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
             # get improved v estimates using FIDO code
-            vFvec, vExvec = FIDO.getvCMEframe(1., thetaT, thetaP, ATresults[5][-1], ATresults[6][-1], CME.vs)
+            vFvec, vExvec = getvCMEframe(1., thetaT, thetaP, ATresults[5][-1], ATresults[6][-1], CME.vs)
             temp = rotx(vFvec, -(90.-tilt))
             temp2 = roty(temp, CMElat - myParams[0]) 
             vInSitu = rotz(temp2, CMElon - myParams[1])
