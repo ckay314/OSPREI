@@ -468,7 +468,7 @@ def checkInputs(printNonCrit=False):
     
     # Include ability to calculate B/T from empirical relations if not given (or told to scale)
     if not flagScales:
-        dtor = 3.14159 / 360.
+        dtor = 3.14159 / 180
         rFront = float(input_values['FCrmax']) * 7e10
         AW = float(input_values['CMEAW']) * dtor
         AWp = float(input_values['CMEAWp']) * dtor
@@ -627,8 +627,8 @@ def checkInputs(printNonCrit=False):
             print ('No time given, starting at 00:00')
         
     if 'nRuns' in input_values:
-        nRuns = float(input_values['nRuns'])
-        if (nRuns < 0) or  (nRuns > 10):
+        nRuns = int(input_values['nRuns'])
+        if (nRuns < 0) or  (nRuns > 200):
             sys.exit('Number of simulation runs (nRuns) must be in [0, 200]') 
     else:
         input_values['nRuns'] = str(1) 
@@ -1231,6 +1231,27 @@ def goANTEATR(makeRestart=False, satPath=False):
             if 'SWB' in EnsInputs: CME.BSW = np.random.normal(loc=CME.BSW, scale=EnsInputs['SWB'])              
             if 'SWT' in EnsInputs: CME.TSW = np.random.normal(loc=CME.TSW, scale=EnsInputs['SWT'])              
         FRB, tau, cnm, FRT = CME.FRBtor, CME.tau, CME.cnm, CME.FRT
+        
+        # Option to recalc B if running ensembles that vary AW and we are using that to calc them
+        if False:
+            rFront = CMEr0 * 7e10
+            rCSp = np.tan(cmeAWp*dtor) / (1 + deltap * np.tan(cmeAWp*dtor)) * rFront
+            rCSr = deltap * rCSp
+            Lp = (np.tan(cmeAW*dtor) * (rFront - rCSr) - rCSr) / (1 + deltax * np.tan(cmeAW*dtor))  
+            Ltorus = lenFun(deltax) * Lp
+    
+            # Ltorus needs to include legs
+            rCent = rFront - deltax*Lp - rCSp
+            Lleg = np.sqrt(Lp**2 + rCent**2) - 7e10 # dist from surface
+            Ltot = Ltorus + 2 * Lleg 
+            avgR = (0.5*rCSp * Lleg * 2 + rCSp * Ltorus) / (Lleg*2 + Ltorus)
+    
+            # B from KE
+            KE = 0.5 * mass*1e15 * (vr*1e5)**2 /1e31
+            phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
+            B0 = phiflux * cnm * (deltap**2 + 1) / avgR / Ltot / deltap**2 *1e5
+            FRB = deltap * tau * B0
+        
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(FRB), Cd, tau, cnm, FRT, gamma]
