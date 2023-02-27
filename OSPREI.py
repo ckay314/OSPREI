@@ -28,7 +28,7 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 # pick a number to seed the random number generator used by ensembles
-np.random.seed(202201262)
+np.random.seed(20210422)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -448,7 +448,7 @@ def checkInputs(printNonCrit=False):
                 
     if 'Gamma' in input_values:
         Gamma = float(input_values['Gamma'])
-        if (Gamma < 0) or  (Gamma > 1):
+        if (Gamma < 1) or  (Gamma > 1.67):
             sys.exit('Adiabatic index (Gamma) must be in [1, 1.67]') 
     else:
         input_values['Gamma'] = str(1.33) 
@@ -496,8 +496,8 @@ def checkInputs(printNonCrit=False):
         
         if 'FRB' in input_values:
             FRB = float(input_values['FRB'])
-            if (FRB < 500) or  (FRB > 10000):
-                sys.exit('Flux rope B (FRB) must be in [500, 10000] nT') 
+            if (np.abs(FRB) < 500) or  (np.abs(FRB) > 10000):
+                sys.exit('Flux rope |B| (FRB) must be in [500, 10000] nT') 
         else:
             KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
             phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
@@ -925,7 +925,7 @@ def genEnsMem(runnum=0):
             outstr += '{:8.0f}'.format(CME.TSW) + ' '
         if item == 'FRB':
             CME.FRBtor = np.random.normal(loc=float(input_values['FRB']), scale=EnsInputs['FRB'])
-            outstr += '{:5.2f}'.format(CME.B0) + ' '
+            outstr += '{:5.2f}'.format(CME.FRBtor) + ' '
         if item == 'FRtau':
             CME.tau = np.random.normal(loc=float(input_values['FRtau']), scale=EnsInputs['FRtau'])
             outstr += '{:5.2f}'.format(CME.tau) + ' '
@@ -1254,7 +1254,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, np.abs(FRB), Cd, tau, cnm, FRT, gamma]
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma]
         SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
         
         # check if given SW 1D profiles
@@ -1262,7 +1262,7 @@ def goANTEATR(makeRestart=False, satPath=False):
             SWvec = SWfile
         
         # SW polarity in or out
-        inorout = np.sign(CME.BSW) 
+        inorout = -np.sign(CME.BSW) 
         # high fscales = more convective like
         isSilent = False
         if satPath:

@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-from matplotlib import cm
+from matplotlib import cm, colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sys
 import os
@@ -231,7 +231,7 @@ def txt2obj(GCStime):
                 thisRes.ANTCMEwids = thisRes.ANTdelCSs * np.tan(thisRes.ANTAWps*dtor) / (1 + thisRes.ANTdelCSs* np.tan(thisRes.ANTAWps*dtor)) * thisRes.ANTrs[-1]
                 
                 # calc Kp
-                dphidt = np.power(thisRes.ANTvFs[-1], 4/3.) * np.power(thisRes.ANTBpols[-1], 2./3.) 
+                dphidt = np.power(thisRes.ANTvFs[-1], 4/3.) * np.power(np.abs(thisRes.ANTBpols[-1]), 2./3.) 
                 # Mays/Savani expression, best behaved for high Kp
                 thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
                 # calc density 
@@ -278,10 +278,12 @@ def txt2obj(GCStime):
             
         for i in unFIDOids:
             skipit = False
-            if OSP.doFC or OSP.doANT:
+            if (OSP.doFC) or (OSP.doANT) and (i in ResArr.keys()):
                 thisRes = ResArr[i]
                 if thisRes.fail or thisRes.miss:
-                    skipit = True        
+                    skipit = True   
+            elif (i not in ResArr.keys()):
+                skipit = True     
             else:
                 thisRes = EnsRes(OSP.thisName)
             if not skipit:
@@ -324,7 +326,7 @@ def txt2obj(GCStime):
                     thisRes.ANTFRidx = np.min(np.where(thisRes.ANTtimes >= tFR))
                 
                     # redo calc Kp with actual front
-                    dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx], 4/3.) * np.power(thisRes.ANTBpols[thisRes.ANTFRidx], 2./3.) 
+                    dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx], 4/3.) * np.power(np.abs(thisRes.ANTBpols[thisRes.ANTFRidx]), 2./3.) 
                     # Mays/Savani expression, best behaved for high Kp
                     thisRes.ANTKp0 = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
                 
@@ -374,7 +376,8 @@ def txt2obj(GCStime):
                     ResArr[int(row[0])].EnsVal[varied[j]] = row[j+1]  
         # sort varied according to a nice order
         myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB',  'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'Gamma', 'IVDf', 'IVDf1', 'IVDf2', 'MHarea', 'MHdist']  
-        varied = sorted(varied, key=lambda x: myOrder.index(x))      
+        varied = sorted(varied, key=lambda x: myOrder.index(x))    
+        
     return ResArr
 
 def readInData():
@@ -390,7 +393,8 @@ def readInData():
     hasv, hasKp, hasT = True, True, True
     if nGiven == 11:
         # have all the things (yr doy hr, B, Bx, By, Bz, n, v, T, Kp)
-        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9], dataIn[:,10]/10.])
+        #dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9], dataIn[:,10]/10.])
+        dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,8], dataIn[:,9], dataIn[:,7], dataIn[:,10]/10.])
     elif nGiven == 10:
         # no Kp
         dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7], dataIn[:,8], dataIn[:,9]])
@@ -1162,15 +1166,18 @@ def makeAThisto(ResArr):
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT.'+figtag)
      
-def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
+def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDates=False, setTrange=False):
     fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
     mindate = None
     maxdate = None
     for key in ResArr.keys():
+        lw, co, zord = 2, 'DarkGray', 2
         if key == 0:
             lw, co, zord = 4, 'b', 11
-        else:
-            lw, co, zord = 2, 'DarkGray', 2
+        elif bfCase is not None:
+            if key == bfCase:
+                lw, co, zord = 4, 'lightblue', 11
+            
             
         if ResArr[key].FIDOtimes is not None: #not ResArr[key].miss:
             if OSP.noDate:
@@ -1189,7 +1196,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
             axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], linewidth=lw, color=co, zorder=zord)
             axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], linewidth=lw, color=co, zorder=zord)
             axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], linewidth=lw, color=co, zorder=zord)
-            if OSP.isSat:
+            if OSP.isSat or plotn:
                 axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], linewidth=lw, color=co, zorder=zord)
             else:
                 axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], linewidth=lw, color=co, zorder=zord)
@@ -1207,7 +1214,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                if OSP.isSat:
+                if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
@@ -1229,12 +1236,10 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
                     axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    if OSP.isSat:
+                    if OSP.isSat or plotn:
                         axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     else:
                         axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    
-                
                 
             if len(ResArr[key].FIDO_SWidx) > 0:    
                 if dates[frontIdx[0]] < mindate: mindate = dates[frontIdx[0]]
@@ -1244,6 +1249,15 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
                 if dates[nowIdx[0]] < mindate: mindate = dates[nowIdx[0]]
                 if dates[nowIdx[-1]] > maxdate: maxdate = dates[nowIdx[-1]]
                     
+    if tightDates:
+        lesstight = 12 
+        hasSheath = False
+        if isinstance(OSP.obsShstart, float): 
+            mindate = base + datetime.timedelta(days=(OSP.obsShstart-1))
+        else:
+            mindate = base + datetime.timedelta(days=(OSP.obsFRstart-1))
+        mindate = mindate - datetime.timedelta(hours=lesstight+16) 
+        maxdate = base + datetime.timedelta(days=(OSP.obsFRend-1)) + datetime.timedelta(hours=lesstight)      
     
     axes[0].set_ylabel('B (nT)')
     axes[1].set_ylabel('B$_x$ (nT)')
@@ -1251,7 +1265,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
     axes[3].set_ylabel('B$_z$ (nT)')
     axes[4].set_ylabel('v (km/s)')
     axes[5].set_ylabel('T (K)')
-    if OSP.isSat:
+    if OSP.isSat or plotn:
         axes[6].set_ylabel('n (cm$^{-3}$)')
     else:
         axes[6].set_ylabel('Kp')
@@ -1269,6 +1283,9 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
         myFmt = mdates.DateFormatter('%Y %b %d %H:%M ')
         axes[4].xaxis.set_major_formatter(myFmt)
         axes[4].set_xlim([startplot, endplot])
+        
+        if setTrange:
+            axes[5].set_ylim([0,1e6])
     
         # take out ticks if too many
         for i in range(5):
@@ -1285,7 +1302,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=4, color='r')
         axes[4].plot(ObsData[0,:], ObsData[6,:], linewidth=4, color='r')
         axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=4, color='r')    
-        if OSP.isSat:
+        if OSP.isSat or plotn:
             axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=4, color='r')
         elif hasKp:
             axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=4, color='r')
@@ -1293,7 +1310,10 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15):
     
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.'+figtag)    
+    if bfCase is not None:
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS_BF'+str(bfCase)+'.'+figtag)
+    else:
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS.'+figtag)    
     
 def makeFIDOhistos(ResArr):
     fig, axes = plt.subplots(2, 3, figsize=(9,7), sharey=True)
@@ -1714,10 +1734,15 @@ def makeEnsplot(ResArr, critCorr=0.5):
         for i in range(newnHoriz): axes[-1,i].set_xlabel(myLabs[newIns[i]])  
         for j in range(newnVert):  axes[j,0].set_ylabel(out2outLab[newOuts[j]])  
         plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.15, bottom=0.2, top=0.97, right=0.99)
+        cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02])    
+        cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
+        cb.set_label('Correlation') 
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
+        
         
     
-    else:
-        # need to reformat plot if only single significant input parameter    
+    elif newnVert*newnHoriz >0:
+        # need to reformat plot if only single significant input parameter   
         fig, axes = plt.subplots(newnVert, newnHoriz, figsize=(6,1.5*(newnVert+0.5)))
         for j in range(newnVert-1):
             axes[j].set_xticklabels([])
@@ -1733,10 +1758,13 @@ def makeEnsplot(ResArr, critCorr=0.5):
         plt.subplots_adjust(hspace=0.01, wspace=0.01, left=0.25, bottom=0.2, top=0.97, right=0.98)
         
        
-    cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02])    
-    cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
-    cb.set_label('Correlation') 
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
+        cbar_ax = fig.add_axes([0.15, 0.09, 0.79, 0.02])    
+        cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
+        cb.set_label('Correlation') 
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
+    
+    else:
+        print('No significant correlations, not making ENS plot')
                     
 def makeAllprob(ResArr, pad=6):
     # get the time range for full set
@@ -2425,13 +2453,15 @@ def getISmetrics(ResArr):
     for i in range(7):
         hrvalsObs = hourify(obst, ObsData[i+1,:])
         obshr[:,i+1] = hrvalsObs[goodidx]
-        
+    
+    nHits = len(ResArr.keys()) # why need to redefine?    
     if hasSheath:
         allScores = np.zeros([nHits,21]) 
         meanVals  = np.zeros(21)
     else:
         allScores = np.zeros([nHits,7])   
         meanVals = np.zeros(7)
+    timingErr = np.zeros([nHits,3])
         
     hitCounter = 0
     goodkeys = []
@@ -2445,7 +2475,8 @@ def getISmetrics(ResArr):
             FRidx = thisRes.FIDO_FRidx
             transientidx = np.append(thisRes.FIDO_shidx, thisRes.FIDO_FRidx)
             compVals = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOns, thisRes.FIDOvs, thisRes.FIDOtems]
-            
+            if hasSheath:
+                timingErr[hitCounter,:] = [np.abs(obstFR1 -thistime[FRidx[0]]), np.abs(obstFR2 - thistime[FRidx[-1]]), np.abs(obstSh - thistime[shidx[0]])]
             simhrts = hourify(thistime, thistime)
             obshrts = obshr[:,0]            
             
@@ -2521,12 +2552,86 @@ def getISmetrics(ResArr):
         outprint += '{:.3f}'.format(val)+' '
     print (outprint)         
     
-    oneScores = np.mean(weightedScores[:,:7], axis=1)
+    totTimeErr = np.sum(timingErr, axis=1)
+    oneScores = np.sum(weightedScores[:,[0,4,5,6]], axis=1) + totTimeErr
     print ('Seed has total score of ', oneScores[0])
     bestScore = np.min(oneScores)
     bestidx = np.where(oneScores == bestScore)[0]
     print ('Best total score of ', bestScore, 'for ensemble member ', goodkeys[bestidx][0])
     print ('')
+
+    # make plot showing scores vs ensemble inputs
+    nVaried = len(ResArr[0].EnsVal.keys())
+    fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
+    axes = axes.reshape([-1])
+    counter = 0
+    ensKeys = ResArr[0].EnsVal.keys()
+    
+    '''for key in goodkeys:
+        axCounter=0
+        for keyV in ensKeys:
+           axes[axCounter].scatter(ResArr[key].EnsVal[keyV], oneScores[counter])
+           axCounter +=1
+        counter += 1
+    axes[0].set_ylim([0,2])
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores.png')'''
+    
+    
+    # make scatter triangle plot of inputs colored by error
+    fig, axes = plt.subplots(nVaried-1, nVaried-1, figsize=(nVaried+1,nVaried+1))
+    i = 0
+    key2idx = {}
+    idx2key = {}
+    for key in ensKeys:
+        key2idx[key] = i
+        idx2key[i] = key
+        i += 1
+    
+    counter = 0
+    medScore = np.median(oneScores)
+    stdScores = np.std(oneScores)
+    rng = 2*stdScores
+    minScore = medScore - 0.5 * rng
+    oneScoresNorm = (oneScores - minScore) / rng
+    
+    for key in goodkeys:
+        thisRes = ResArr[key].EnsVal
+        for i in range(nVaried):
+            for j in range(i):
+                axes[i-1,j].scatter(thisRes[idx2key[j]], thisRes[idx2key[i]], color= cm.RdBu_r(oneScoresNorm[counter])*np.ones(1), s=10)
+        counter += 1
+    
+    for i in range(nVaried-2):
+        for j in range(nVaried-1):
+            axes[i,j].set_xticklabels([])
+    for j in range(nVaried-2):
+        for i in range(nVaried-1):
+            axes[i,j+1].set_yticklabels([])
+            plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
+            
+    plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)  
+      
+    for i in range(nVaried-1):
+        axes[-1,i].set_xlabel(idx2key[i])
+        axes[i,0].set_ylabel(idx2key[i+1])
+    for i in range(nVaried-1):
+        for j in range(i+1,nVaried-1):
+            axes[i,j].set_axis_off()
+    
+    # add color bar
+    cbar_ax = fig.add_axes([0.5, 0.7, 0.4, 0.05])  
+    norm = colors.Normalize(vmin=minScore, vmax=minScore+rng)  
+    cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cm.RdBu_r),cax=cbar_ax, orientation='horizontal')   
+    cb.set_label('Quality Metric') 
+    
+            
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')
+    
+    
+    # make new IS plot with best fit highlighted
+    makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True)
+    
+    
     
 def enlilesqueEq(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
     # assume we are plotting the seed case but will change if specified in call
@@ -3148,7 +3253,7 @@ if __name__ == '__main__':
     nEns = len(ResArr.keys())
 
     # Plots we can make for single CME simulations
-    if OSP.doFC:
+    '''if OSP.doFC:
         # Make CPA plot
         makeCPAplot(ResArr)
         # Make the AW, delta, v plot
@@ -3199,8 +3304,9 @@ if __name__ == '__main__':
         makeEnsplot(ResArr,critCorr=0.5)
         
         # Contour plot
-        makeContours(ResArr)
+        makeContours(ResArr)'''
     
+    # Also slow now
     if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float) and OSP.doFIDO:
         getISmetrics(ResArr)
         
