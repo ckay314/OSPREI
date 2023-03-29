@@ -3330,7 +3330,7 @@ if __name__ == '__main__':
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        #makeEnsplot(ResArr,critCorr=0.5)
+        makeEnsplot(ResArr,critCorr=0.5)
         
         # Contour plot
         #makeContours(ResArr)
@@ -3339,7 +3339,6 @@ if __name__ == '__main__':
     if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float) and OSP.doFIDO:
         getISmetrics(ResArr)
     
-    enlilesqueEq(ResArr)    
     if False:
         enlilesqueBoth(ResArr, bonusTime=24)
 

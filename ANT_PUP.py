@@ -224,12 +224,12 @@ def getDrag(CMElens, vs, Mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, 
     dragAccels[6] = dragAccels[1] - CSsquish / ndotz   
     
     # old version of drag
-    dragAccels[0] = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
-    dragAccels[1] = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
-    dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
+    #dragAccels[0] = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
+    #dragAccels[1] = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
+    '''dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
     dragAccels[3] = dragAccels[0] * (vs[3]/vs[0])
     dragAccels[5] = dragAccels[0] * (vs[5]/vs[0])
-    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz
+    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz'''
     
     return dragAccels
     
