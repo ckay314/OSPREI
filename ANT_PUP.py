@@ -121,6 +121,9 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     RcNose = 1./kNose   
     gammaN = bp / RcNose        
     dg = deltap * gammaN
+    if dg > 0.9:
+        dg = 0.9
+        gammaN = dg / deltap
     dg2 = deltap**2 * gammaN**2 
     if dg2 > 1:
         return 9999, 9999
@@ -133,6 +136,9 @@ def getAxisF(deltax, deltap, bp, c, B0, cnm, tau, rho):
     RcEdge = 1./kEdge    
     gammaE = bp / RcEdge
     dg = deltap*gammaE
+    if dg > 0.9:
+        dg = 0.9
+        gammaE = 0.9 / deltap
     dg2 = deltap**2 * gammaE**2 
     if dg2 < 1:
         coeff1E = deltap**2 / dg**3 / np.sqrt(1-dg2)/(1+deltap**2)**2 / cnm**2 * (np.sqrt(1-dg2)*(dg2-6)-4*dg2+6) 
@@ -218,12 +224,12 @@ def getDrag(CMElens, vs, Mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, 
     dragAccels[6] = dragAccels[1] - CSsquish / ndotz   
     
     # old version of drag
-    #dragAccels[0] = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
-    #dragAccels[1] = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
-    '''dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
+    dragAccels[0] = -Cd*CMEarea*rhoSWn1 * (vs[0]-vSWn1) * np.abs(vs[0]-vSWn1) / Mass
+    dragAccels[1] = -Cd*CMEarea2*rhoSWe1 * (vs[1]-np.sin(AW)*vSWe1) * np.abs(vs[1]-np.sin(AW)*vSWe1)  / Mass
+    dragAccels[2] = dragAccels[0] * (vs[2]/vs[0]) 
     dragAccels[3] = dragAccels[0] * (vs[3]/vs[0])
     dragAccels[5] = dragAccels[0] * (vs[5]/vs[0])
-    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz'''
+    dragAccels[6] = dragAccels[1] - dragAccels[0] * (vs[3]/vs[0]) / ndotz
     
     return dragAccels
     
@@ -670,7 +676,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     deltax     = invec[7]
     deltap     = invec[8]
     rFront     = invec[9] * rsun
-    Bscale     = invec[10]
+    Bscale     = np.abs(invec[10])
+    B0sign     = np.sign(Bscale)
     Cd         = invec[11]
     tau        = invec[12] # 1 to mimic Lundquist
     cnm        = invec[13] # 1.927 for Lundquist
@@ -770,9 +777,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
-    B0 = CMEB/ deltap / tau
     if flagScales:
         B0 = Bscale * np.sqrt(Btot2) / deltap / tau
+    else:
+        B0 = CMEB/ deltap / tau
     B0scaler = B0 * deltap**2 * CMElens[4]**2 
     initlen = lenFun(CMElens[5]/CMElens[6]) * CMElens[6]
     cnmscaler = cnm / initlen * CMElens[4] * (deltap**2+1)
@@ -829,6 +837,12 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         thermAccels = np.zeros(7) 
          
         #--------------------------- Calculate forces ---------------------------------
+        # Drag Force
+        if not dragOff:
+            dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz)
+            # Update accels to include drag forces
+            totAccels += dragAccels
+
         # Internal flux rope forces
         if not axisOff:
             aTotNose, aTotEdge = getAxisF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho)
@@ -848,13 +862,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             aPTr, aPTp = getThermF(CMElens, temCME, rho/1.67e-24, SWfront, SWfrontB, SWside)/rho
             thermAccels += [aPTr, aPTr * ndotz, 0, aPTr, aPTp, 0., 0.] 
         totAccels += thermAccels
-               
-        # Drag Force
-        if not dragOff:
-            dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz)
-            # Update accels to include drag forces
-            totAccels += dragAccels
-        
+                       
         
             
         # ------------------ Run Sheath model ---------------------------------
@@ -910,6 +918,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     
         # Update velocities
         vs += totAccels * dt
+        # Check if moving backwards, can happen with bad inputs (large CME->large Bax force)
+        if vs[0] < 0:
+            return makeFailArr(8888)
+        
         
         if doPUP:
             sheath_dur = sheath_wid*7e10/vs[0]/3600
@@ -968,7 +980,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
         SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
         SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
-        
         
         # ------Set up state vectors at the end of a time step--------------
         # CME array
@@ -1036,7 +1047,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # cant' just swap Er in inputs if scaling SW params off of it...
         
         # Start checking when close to sat distances, don't waste code time before close
-        check_dist = 0.75*Er
+        check_dist = 0.5*Er
         # front for checking purposes -> could be sheath or CME
         theFront = CMElens[0]
         if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
@@ -1098,16 +1109,16 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                      FRstart = t
                 
                 if aFIDOinside and printNow:
-                    BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs)         
+                    BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs)         
                     #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
                     CMEgam = fT+1
                     cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
                     mch = -vs[3]*(axDist/maxDistFR)/1e5 / cs
                     comp = 1
                     if mch >1:
-                        comp = (CMEgam+1)*mch**2 / (2 + (gam-1)*mch**2)
+                        comp = (CMEgam+1)*mch**2 / (2 + (CMEgam-1)*mch**2)
                         if comp < 1: comp = 1
-                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=comp) 
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=comp) 
                         
                     if not silent:
                         print ('      ', '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))

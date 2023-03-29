@@ -511,8 +511,8 @@ def checkInputs(printNonCrit=False):
     
         if 'FRT' in input_values:
             FRT = float(input_values['FRT'])
-            if (FRT < 5e4) or  (FRT > 2e6):
-                sys.exit('Flux rope T (FRT) must be in [5e4, 2e6] nT') 
+            if (FRT < 5e4) or  (FRT > 3e6):
+                sys.exit('Flux rope T (FRT) must be in [5e4, 3e6] nT') 
         else:
             vSheath = 0.129 * v + 376
             vIS = (vSheath + 51.73) / 1.175
@@ -737,8 +737,8 @@ def checkInputs(printNonCrit=False):
 
         if 'MHdist' in input_values:
             MHdist = float(input_values['MHdist'])
-            if (MHdist < -0.3) or  (MHdist > 1.5):
-                sys.exit('Initial HSS front distance (MHdist) must be in [-0.3, 1.5] AU') 
+            if (MHdist < -0.4) or  (MHdist > 1.5):
+                sys.exit('Initial HSS front distance (MHdist) must be in [-0.4, 1.5] AU') 
         else:
             sys.exit('Initial HSS front distance (MHdist) must be provided if MEOW-HiSS is included')
         
@@ -1069,7 +1069,7 @@ def goForeCAT(makeRestart=False):
         for j in range(len(path[0,:])):
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j][0],  path[7,j][1],  path[7,j][2],  path[7,j][3],  path[7,j][4],  path[7,j][5],  path[7,j][6], path[8,j], path[9,j], path[10,j], path[11,j]]
+            outstuff = [path[0,j], path[1,j], path[2,j], path[3,j], path[4,j], path[5,j], path[6,j], path[7,j],  path[8,j],  path[9,j],  path[10,j],  path[11,j],  path[12,j],  path[13,j], path[14,j], path[15,j], path[16,j], path[17,j]]
             for iii in outstuff:
                 outprint = outprint +'{:4.3f}'.format(iii) + ' '
             ForeCATfile.write(outprint+'\n')   
@@ -1261,8 +1261,8 @@ def goANTEATR(makeRestart=False, satPath=False):
         if flag1DSW:
             SWvec = SWfile
         
-        # SW polarity in or out
-        inorout = -np.sign(CME.BSW) 
+        # SW polarity in or out - THINK THIS WAS FLIPPED FOR ISSI/PROPOSAL CASE?
+        inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
         isSilent = False
         if satPath:

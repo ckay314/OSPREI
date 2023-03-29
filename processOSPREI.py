@@ -10,6 +10,7 @@ from scipy.stats import norm, pearsonr
 from scipy import ndimage
 import datetime
 import matplotlib.dates as mdates
+from matplotlib.ticker import FuncFormatter
 
 global dtor
 dtor = math.pi / 180.
@@ -1256,8 +1257,8 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
             mindate = base + datetime.timedelta(days=(OSP.obsShstart-1))
         else:
             mindate = base + datetime.timedelta(days=(OSP.obsFRstart-1))
-        mindate = mindate - datetime.timedelta(hours=lesstight+16) 
-        maxdate = base + datetime.timedelta(days=(OSP.obsFRend-1)) + datetime.timedelta(hours=lesstight)      
+        mindate = mindate - datetime.timedelta(hours=lesstight) 
+        maxdate = base + datetime.timedelta(days=(OSP.obsFRend-1)) + datetime.timedelta(hours=lesstight+4)      
     
     axes[0].set_ylabel('B (nT)')
     axes[1].set_ylabel('B$_x$ (nT)')
@@ -1286,15 +1287,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         
         if setTrange:
             axes[5].set_ylim([0,1e6])
-    
-        # take out ticks if too many
-        for i in range(5):
-            yticks = axes[i].yaxis.get_major_ticks()
-            if len(yticks) > 6:
-                ticks2hide = np.array(range(len(yticks)-1))[::2]
-                for j in ticks2hide:
-                    yticks[j].label1.set_visible(False)
-    
+        
     if ObsData is not None:
         axes[0].plot(ObsData[0,:], ObsData[1,:], linewidth=4, color='r')
         axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=4, color='r')
@@ -1306,6 +1299,33 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
             axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=4, color='r')
         elif hasKp:
             axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=4, color='r')
+
+        # check if have obs starts/stop
+        givenDates = [0, 0, 0]
+        if isinstance(OSP.obsShstart, float): 
+            if OSP.obsShstart < 366:
+                givenDates[0] = base + datetime.timedelta(days=(OSP.obsShstart-1))
+        if isinstance(OSP.obsFRstart, float): 
+            if OSP.obsFRstart < 366:
+                givenDates[1] = base + datetime.timedelta(days=(OSP.obsFRstart-1))
+        if isinstance(OSP.obsFRend, float): 
+            if OSP.obsFRend < 366:
+                givenDates[2] = base + datetime.timedelta(days=(OSP.obsFRend-1))
+        for ax in axes:
+            yl = ax.get_ylim()
+            for aDate in givenDates:
+                ax.plot([aDate, aDate], yl, 'k--', zorder=0)
+            ax.set_ylim(yl)
+            
+                
+        # take out ticks if too many
+        for i in range(5):
+            yticks = axes[i].yaxis.get_major_ticks()
+            if len(yticks) > 6:
+                ticks2hide = np.array(range(len(yticks)-1))[::2]
+                for j in ticks2hide:
+                    yticks[j].label1.set_visible(False)
+    
 
     
     if not OSP.noDate: fig.autofmt_xdate()
@@ -1766,7 +1786,7 @@ def makeEnsplot(ResArr, critCorr=0.5):
     else:
         print('No significant correlations, not making ENS plot')
                     
-def makeAllprob(ResArr, pad=6):
+def makeAllprob(ResArr, pad=6, plotn=False):
     # get the time range for full set
     mindate = None
     maxdate = None    
@@ -1788,7 +1808,7 @@ def makeAllprob(ResArr, pad=6):
             if np.max(dates) > maxdate: maxdate = np.max(dates)
     # pad a certain number of hrs
     mindate = mindate - pad/24.
-    maxdate = maxdate + pad/24
+    maxdate = maxdate + (pad+6)/24
     plotlen = (maxdate - mindate)*24
     nx = int(plotlen/3.)#+1
     
@@ -1807,7 +1827,7 @@ def makeAllprob(ResArr, pad=6):
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes is not None:
             thisRes = ResArr[key]
-            if OSP.isSat:
+            if OSP.isSat or plotn:
                 allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOns]
             else:
                 allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOKps]
@@ -1819,7 +1839,7 @@ def makeAllprob(ResArr, pad=6):
     # need to compare to min/max of obs data (if given)
     if (not OSP.noDate) and (ObsData is not None): 
         obsIdx = [1, 2, 3, 4, 6, 7, 5]
-        if not OSP.isSat:
+        if not (OSP.isSat or plotn):
             obsIdx[-1] = 8
         for i in range(7):
             thisParam = ObsData[obsIdx[i],:].astype(np.float)
@@ -1835,7 +1855,7 @@ def makeAllprob(ResArr, pad=6):
             counter += 1
             thisTime = ResArr[key].FIDOtimes + DoY
             thisRes = ResArr[key]
-            if OSP.isSat:
+            if OSP.isSat or plotn:
                 allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOns]
             else:
                 allParams = [thisRes.FIDOBs, thisRes.FIDOBxs, thisRes.FIDOBys, thisRes.FIDOBzs, thisRes.FIDOvs, thisRes.FIDOtems, thisRes.FIDOKps]
@@ -1898,10 +1918,10 @@ def makeAllprob(ResArr, pad=6):
             axes[3].plot(obsDates, ObsData[4,:], linewidth=lw[i], color=cs[i], zorder=5)
             axes[4].plot(obsDates, ObsData[6,:], linewidth=lw[i], color=cs[i], zorder=5)    
             axes[5].plot(obsDates, ObsData[7,:], linewidth=lw[i], color=cs[i], zorder=5)
-            if OSP.isSat:
-                axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=lw[i], color=cs[i], zorder=5)
+            if OSP.isSat or plotn:
+                axes[6].plot(obsDates, ObsData[5], linewidth=lw[i], color=cs[i], zorder=5)
             else:
-                axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=lw[i], color=cs[i], zorder=5)
+                axes[6].plot(obsDates, ObsData[8,:], linewidth=lw[i], color=cs[i], zorder=5)
                 
     # add in ensemble seed
     if OSP.noDate:
@@ -1919,7 +1939,7 @@ def makeAllprob(ResArr, pad=6):
         axes[3].plot(dates2, ResArr[0].FIDOBzs, linewidth=lw[i], color=thiscol[i], zorder=6)
         axes[4].plot(dates2, ResArr[0].FIDOvs, linewidth=lw[i], color=thiscol[i], zorder=6)
         axes[5].plot(dates2, ResArr[0].FIDOtems, linewidth=lw[i], color=thiscol[i], zorder=6)
-        if OSP.isSat:
+        if OSP.isSat or plotn:
             axes[6].plot(dates2, ResArr[0].FIDOns, linewidth=lw[i], color=thiscol[i], zorder=6)
         else:
             axes[6].plot(dates2, ResArr[0].FIDOKps, linewidth=lw[i], color=thiscol[i], zorder=6)
@@ -1932,7 +1952,7 @@ def makeAllprob(ResArr, pad=6):
     axes[3].set_ylabel('B$_z$ (nT)')
     axes[4].set_ylabel('v (km/s)')
     axes[5].set_ylabel('T (K)')
-    if OSP.isSat:
+    if OSP.isSat or plotn:
         axes[6].set_ylabel('n (cm$^{-3}$)')
     else:
         axes[6].set_ylabel('Kp')
@@ -1954,7 +1974,7 @@ def makeAllprob(ResArr, pad=6):
     cbar.ax.set_title('Percentage Chance')        
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc.'+figtag)    
                                
-def makeContours(ResArr, calcwid=90, plotwid=40):
+def makeContours(ResArr, calcwid=95, plotwid=40):
     # Start by filling in the area that corresponds to the CME in a convenient frame
     # then rotate it the frame where Earth is at [0,0] at the time of impact for all CMEs
     # using its exact position in "real" space (which will vary slightly between CMEs).
@@ -2310,8 +2330,12 @@ def makeContours(ResArr, calcwid=90, plotwid=40):
         delx, dely = int(XX[0,0]) - XX[0,0], int(YY[0,0]) - YY[0,0]
         # Perform shift in x
         startidx = shiftx - plotwid + delxi
-        leftX = newGrid[:,startidx:startidx+2*plotwid+1,:]
-        rightX = newGrid[:,startidx+1:startidx+2*plotwid+2,:]
+        if startidx > 0:
+            leftX = newGrid[:,startidx:startidx+2*plotwid+1,:]
+            rightX = newGrid[:,startidx+1:startidx+2*plotwid+2,:]
+        else:
+            sys.exit('startidx in makeContours went <0, try adjusting calcwid')
+            
         subGrid = (1-delx) * leftX + delx * rightX
         # Perform shift in y
         startidy = shifty - plotwid + delyi
@@ -2454,7 +2478,11 @@ def getISmetrics(ResArr):
         hrvalsObs = hourify(obst, ObsData[i+1,:])
         obshr[:,i+1] = hrvalsObs[goodidx]
     
-    nHits = len(ResArr.keys()) # why need to redefine?    
+    nHits = 0
+    for key in ResArr.keys():
+        if ResArr[key].FIDOtimes is not None:
+            nHits += 1
+    #nHits = len(ResArr.keys()) # why need to redefine?    
     if hasSheath:
         allScores = np.zeros([nHits,21]) 
         meanVals  = np.zeros(21)
@@ -2560,14 +2588,17 @@ def getISmetrics(ResArr):
     print ('Best total score of ', bestScore, 'for ensemble member ', goodkeys[bestidx][0])
     print ('')
 
-    # make plot showing scores vs ensemble inputs
+
+    
+    
+    # make scatter triangle plot of inputs colored by error
     nVaried = len(ResArr[0].EnsVal.keys())
-    fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
+    ensKeys = ResArr[0].EnsVal.keys()
+    # make plot showing scores vs ensemble inputs
+    '''fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
     axes = axes.reshape([-1])
     counter = 0
-    ensKeys = ResArr[0].EnsVal.keys()
-    
-    '''for key in goodkeys:
+    for key in goodkeys:
         axCounter=0
         for keyV in ensKeys:
            axes[axCounter].scatter(ResArr[key].EnsVal[keyV], oneScores[counter])
@@ -2576,63 +2607,60 @@ def getISmetrics(ResArr):
     axes[0].set_ylim([0,2])
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores.png')'''
     
+    if nEns > 1:
+        '''fig, axes = plt.subplots(nVaried-1, nVaried-1, figsize=(nVaried+1,nVaried+1))
+        i = 0
+        key2idx = {}
+        idx2key = {}
+        for key in ensKeys:
+            key2idx[key] = i
+            idx2key[i] = key
+            i += 1
     
-    # make scatter triangle plot of inputs colored by error
-    fig, axes = plt.subplots(nVaried-1, nVaried-1, figsize=(nVaried+1,nVaried+1))
-    i = 0
-    key2idx = {}
-    idx2key = {}
-    for key in ensKeys:
-        key2idx[key] = i
-        idx2key[i] = key
-        i += 1
+        counter = 0
+        medScore = np.median(oneScores)
+        stdScores = np.std(oneScores)
+        rng = 2*stdScores
+        minScore = medScore - 0.5 * rng
+        oneScoresNorm = (oneScores - minScore) / rng
     
-    counter = 0
-    medScore = np.median(oneScores)
-    stdScores = np.std(oneScores)
-    rng = 2*stdScores
-    minScore = medScore - 0.5 * rng
-    oneScoresNorm = (oneScores - minScore) / rng
+        for key in goodkeys:
+            thisRes = ResArr[key].EnsVal
+            for i in range(nVaried):
+                for j in range(i):
+                    axes[i-1,j].scatter(thisRes[idx2key[j]], thisRes[idx2key[i]], color= cm.RdBu_r(oneScoresNorm[counter])*np.ones(1), s=10)
+            counter += 1
     
-    for key in goodkeys:
-        thisRes = ResArr[key].EnsVal
-        for i in range(nVaried):
-            for j in range(i):
-                axes[i-1,j].scatter(thisRes[idx2key[j]], thisRes[idx2key[i]], color= cm.RdBu_r(oneScoresNorm[counter])*np.ones(1), s=10)
-        counter += 1
-    
-    for i in range(nVaried-2):
-        for j in range(nVaried-1):
-            axes[i,j].set_xticklabels([])
-    for j in range(nVaried-2):
-        for i in range(nVaried-1):
-            axes[i,j+1].set_yticklabels([])
-            plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
+        for i in range(nVaried-2):
+            for j in range(nVaried-1):
+                axes[i,j].set_xticklabels([])
+        for j in range(nVaried-2):
+            for i in range(nVaried-1):
+                axes[i,j+1].set_yticklabels([])
+                plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
             
-    plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)  
+        plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)  
       
-    for i in range(nVaried-1):
-        axes[-1,i].set_xlabel(idx2key[i])
-        axes[i,0].set_ylabel(idx2key[i+1])
-    for i in range(nVaried-1):
-        for j in range(i+1,nVaried-1):
-            axes[i,j].set_axis_off()
+        for i in range(nVaried-1):
+            axes[-1,i].set_xlabel(idx2key[i])
+            axes[i,0].set_ylabel(idx2key[i+1])
+        for i in range(nVaried-1):
+            for j in range(i+1,nVaried-1):
+                axes[i,j].set_axis_off()
     
-    # add color bar
-    cbar_ax = fig.add_axes([0.5, 0.7, 0.4, 0.05])  
-    norm = colors.Normalize(vmin=minScore, vmax=minScore+rng)  
-    cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cm.RdBu_r),cax=cbar_ax, orientation='horizontal')   
-    cb.set_label('Quality Metric') 
+        # add color bar
+        cbar_ax = fig.add_axes([0.5, 0.7, 0.4, 0.05])  
+        norm = colors.Normalize(vmin=minScore, vmax=minScore+rng)  
+        cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cm.RdBu_r),cax=cbar_ax, orientation='horizontal')   
+        cb.set_label('Quality Metric') 
     
             
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')'''
     
     
-    # make new IS plot with best fit highlighted
-    makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True)
-    
-    
-    
+        # make new IS plot with best fit highlighted
+        makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True)
+            
 def enlilesqueEq(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
     # assume we are plotting the seed case but will change if specified in call
     thisCME = ResArr[key]
@@ -2797,7 +2825,8 @@ def enlilesqueEq(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         if doSat:
             plt.plot(satLon*dtor, satR, 'o', color='cyan')        
         if doColorbar:
-            cbar = fig.colorbar(CS)
+            cbar = plt.colorbar(CS)
+            cbar.ax.set_yticklabels([str(int(i)) for i in cbar.get_ticks()])
             cbar.set_label('v (km/s)')
         ax.set_xticklabels([])
         ax.set_rlabel_position(180)
@@ -3301,15 +3330,16 @@ if __name__ == '__main__':
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        makeEnsplot(ResArr,critCorr=0.5)
+        #makeEnsplot(ResArr,critCorr=0.5)
         
         # Contour plot
-        makeContours(ResArr)'''
+        #makeContours(ResArr)
     
     # Also slow now
     if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float) and OSP.doFIDO:
-        getISmetrics(ResArr)
-        
+        getISmetrics(ResArr)'''
+    
+    enlilesqueEq(ResArr)    
     if False:
         enlilesqueBoth(ResArr, bonusTime=24)
 
