@@ -3282,7 +3282,7 @@ if __name__ == '__main__':
     nEns = len(ResArr.keys())
 
     # Plots we can make for single CME simulations
-    '''if OSP.doFC:
+    if OSP.doFC:
         # Make CPA plot
         makeCPAplot(ResArr)
         # Make the AW, delta, v plot
@@ -3337,7 +3337,7 @@ if __name__ == '__main__':
     
     # Also slow now
     if isinstance(OSP.obsFRstart, float) and isinstance(OSP.obsFRend, float) and OSP.doFIDO:
-        getISmetrics(ResArr)'''
+        getISmetrics(ResArr)
     
     enlilesqueEq(ResArr)    
     if False:
