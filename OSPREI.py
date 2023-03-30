@@ -20,7 +20,7 @@ import ForceFields
 #from funcANTEATR import *
 #from PARADE import *
 from ANT_PUP import *
-import FIDO as FIDO
+#import FIDO as FIDO
 
 # Useful constant
 global dtor, radeg

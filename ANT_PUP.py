@@ -1180,7 +1180,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     
                     
                 # if aFIDOinside add SW padding behind the CME
-                for i in range(18):
+                for i in range(18+24):
                     t += 3600.
                     # Update HSS position
                     if hasattr(MEOWHiSS, '__len__'):
