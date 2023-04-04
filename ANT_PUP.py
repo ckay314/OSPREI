@@ -72,11 +72,14 @@ def processANTinputs(input_values, hasPath=False):
     try: 
         Epos[0] = float(input_values['SatLat'])
     except:
-        print('Assuming satellite at 0 lat')
+        if 'satPath' not in input_values:
+            print('Assuming satellite at 0 lat')
     try: 
         Epos[1] = float(input_values['SatLon'])
     except:
-        print('Assuming satellite at 0 lon')
+        if not hasPath:
+            if input_values['satPath'][-4:] != 'sats':
+                print('Assuming satellite at 0 lon')
     try: 
         Epos[2] = float(input_values['SatR'])
     except:
@@ -482,9 +485,9 @@ def print2screen(vec, prefix=''):
     print (outstuff)
     
 def makeFailArr(val):
-    return np.array([[val], [val], [val],  [val], [val], [val], [val], [val], [val], [val], [val]]), val, [val, val, val, val, val, val], val, val, val, [val, val, val, val], [[val]*12], [[val]*8]
+    return np.array([[val]*11]), [[val]*6], [val, val, val, val, val, val], [[val]*2], [val, val, val, val], [[val]*12], [[val]*8]
 
-def add2outs(outsCME, outsSheath, outsFIDO, CMEarr, sheatharr, FIDOarr):
+def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
     # CME: 0 t, 1 r, 2 vs, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 reg
     # Sheath: 0 vS, 1 comp, 2 MA, 3 Wid, 4 Dur, 5 Mass, 6 Dens, 7 B, 8 Theta, 9 Temp, 10 Vt, 11 InSheath
 
@@ -519,7 +522,10 @@ def add2outs(outsCME, outsSheath, outsFIDO, CMEarr, sheatharr, FIDOarr):
         outsSheath[9].append(sheatharr[9])
         outsSheath[10].append(sheatharr[11])
         outsSheath[11].append(sheatharr[12])
+        
+    return outsCME, outsSheath
     
+def add2outsFIDO(outsFIDO, FIDOarr):
     if len(FIDOarr) != 0:
         outsFIDO[0].append(FIDOarr[0])
         outsFIDO[1].append(FIDOarr[1])
@@ -530,7 +536,7 @@ def add2outs(outsCME, outsSheath, outsFIDO, CMEarr, sheatharr, FIDOarr):
         outsFIDO[6].append(FIDOarr[6])
         outsFIDO[7].append(FIDOarr[7])
 
-    return outsCME, outsSheath, outsFIDO  
+    return outsFIDO  
 
 def whereAmI(Epos, CMEpos, CMElens, deltax, deltap):
     # [Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens
@@ -660,12 +666,13 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
 
 # -------------- main function ------------------
 def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1):
-    
-    Elat      = Epos[0]
-    Elon      = Epos[1]
-    Er        = Epos[2] *7e10
-    Erotrate  = Epos[3]  # should be in deg/sec
-    
+    # testing things
+    #satfsIn = [satfs[0], satfs[0], ['sat1', 'sat2']]
+    #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]], [Epos[0], Epos[1]-10, (Epos[2]) *7e10, Epos[3]]]
+    #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]]]
+    satfsIn = satfs
+    satPosIn = Epos
+        
     CMElat     = invec[0]
     CMElon     = invec[1]
     CMEtilt    = invec[2]    
@@ -708,11 +715,44 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         CMEB = invec[10] / 1e5
         CMET = invec[14]
     
+    
+    # Set up satellite(s)
+    if satfsIn == None:
+        doPath = False
+        nSats = len(satPosIn)-1
+        satNames = satPosIn[-1]
+        satPos = {}
+        for i in range(nSats):
+            satPos[satNames[i]] = satPosIn[i]            
+    else:
+        nSats = len(satfsIn)
+        print (nSats)
+        satPos = {}
+        satfs = {}
+        if nSats == 1:
+            satNames = ['sat1']
+            satPos['sat1'] = satPosIn[0]
+            satfs['sat1'] = satfsIn[0]            
+        elif nSats == 2:
+            sys.exit('Need to provide list of sat names if using multiple sateliites')
+        elif nSats == 0:
+            sys.exit('satfs is empty, please fix')
+        else:
+            satNames = satfsIn[-1]
+            nSats -= 1  
+            for i in range(nSats):
+                satPos[satNames[i]] = satPosIn[i]
+                satfs[satNames[i]] = satfsIn[i] 
+        doPath = True
+    sats2check = list(satNames)
+
+    
     # Get ambient background SW - still need ambient event if doing
     # HSS bc scaled off of it
     # Check if passed 1 AU values -> scaling of empirical model
+    # this will used the first sat in satnames so put 1 AU first (or fix this in some clever way later)
     if not isinstance(SWparams, str):    
-        SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], Er/1.5e13]
+        SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], satPos[satNames[0]][2]/1.5e13]
     # If given string, func will convert text file to profile
     # Otherwise uses the array
     SWfs = makeSWfuncs(SWparams, time=SWidx)
@@ -749,8 +789,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             fname3 = 'MH_forces_'+name+'.dat'
             f3 = open(fname3, 'w')
         if aFIDOinside:
-            fname4 = 'MH_FIDO_'+name+'.dat'
-            f4 = open(fname4, 'w')
+            # Might have multiple satellites so need multiple save files
+            fname4s = {}
+            if nSats > 1:
+                for aSatID in satNames:
+                    fname4 = 'MH_FIDO_'+name+'_'+aSatID+'.dat'
+                    f4s[aSatID] = open(fname4, 'w')     
+            else:
+                fname4 = 'MH_FIDO_'+name+'.dat'
+                f4s['sat1'] = open(fname4, 'w')                
 
     t = 0.
     dt = 60. # in seconds
@@ -807,23 +854,32 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             fscales = [0.5, 0.5]
     vs = IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales)    
             
-    # set up whether using path functions or simple orbit
-    if satfs == None:
-        doPath = False
-    else:
-        doPath = True
-        fLat = satfs[0]
-        fLon = satfs[1]
-        fR   = satfs[2]
         
     printR = rFront
     runSim = True
-    prevmin = 9999.
-    reachedCME = False
-    
+    prevmin = {}
+    reachedCME = {}
+    hitSheath = {}
+    inint     = {}
+    outSum   = {}
+    vsArr    = {}
+    angArr   = {}
+    for aSatID in satNames:
+        prevmin[aSatID] = 9999.
+        reachedCME[aSatID] = False
+        hitSheath[aSatID] = False
+        inint[aSatID] =  0
+        outSum[aSatID] = [-9999]
+        vsArr[aSatID] = []
+        angArr[aSatID] = []
+
     outsCME = [[] for i in range(13)]
     outsSheath = [[] for i in range(12)]
-    outsFIDO = [[] for i in range(8)]
+    outsFIDO = {}
+    FIDOstuff = {}
+    for aSatID in satNames:
+        outsFIDO[aSatID] = [[] for i in range(8)]
+        FIDOstuff[aSatID] = []
 
     while runSim:
     #while CMElens[0] <= 0.9*Er:
@@ -921,8 +977,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Check if moving backwards, can happen with bad inputs (large CME->large Bax force)
         if vs[0] < 0:
             return makeFailArr(8888)
-        
-        
+               
         if doPUP:
             sheath_dur = sheath_wid*7e10/vs[0]/3600
         
@@ -939,13 +994,14 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             doMH[0] = MHt0+t/3600
 
         # Update Earth/satellite position
-        if not doPath:    
-            Elon += Erotrate * dt
-        else:
-            Elat = fLat(t)
-            Elon = fLon(t)
-            Er   = fR(t)*7e10
-                        
+        for satID in sats2check:
+            if not doPath:    
+                satPos[satID][1] += satPos[satID][3] * dt
+            else:
+                satPos[satID][0] = satfs[satID][0](t)
+                satPos[satID][1] = satfs[satID][1](t)
+                satPos[satID][2]   = satfs[satID][2](t)*7e10
+
         # Update flux rope field parameters
         lenNow = lenFun(CMElens[5]/CMElens[6])*CMElens[6]
         B0 = B0scaler / deltap**2 / CMElens[4]**2 
@@ -981,28 +1037,32 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
         SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
         
+
+        # ------------------------------------------------------------------
         # ------Set up state vectors at the end of a time step--------------
+        # ------------------------------------------------------------------
         # CME array
         CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
         fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg]
         
         # PUP/sheath array
-        inint = 0
-        if hitSheath: inint = 1
+        inint1 = 0
+        if True in hitSheath: inint = 1
         PUPstuff = []
         if doPUP:
-            PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint]
+            PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint1]
         
         # Forces
         if saveForces:
             forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]
         
-        FIDOstuff = [] # will replace if needed
+        #FIDOstuff = [] # will replace if needed
         
+                        
         
-        
-        
+        # ------------------------------------------------------------------
         # ----------------- Save and print everything ----------------------
+        # ------------------------------------------------------------------
         # Printing/saving at lower time resolution so check if it is go time
         printNow = False
         if (CMElens[0]>printR):
@@ -1025,215 +1085,240 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     print2file(forcestuff, f3, '{:11.3f}')
             
             # save SW values to FIDO file (if doing)
-            if aFIDOinside and (CMElens[0] > Er*0.5) and not hitSheath and not reachedCME:
-                # get SW values
-                if doMH:
-                    SWatsat, HSSreg   = getSWvals(Er, SWfs, doMH=doMH, returnReg=doMH)
-                    FIDOstuff = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
-                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
-                else:
-                    SWatsat   = getSWvals(Er, SWfs)
-                    FIDOstuff = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100]
-                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
-                    
-                    
-                    
-                    
-        # -----------------------------------------------------------------------------
-        # Stuff that's only done once inside the CME/sheath
-        # -----------------------------------------------------------------------------
-         
-        #Er = 50 * 7e10 # quick switch for debugging and not runnning full thing
-        # cant' just swap Er in inputs if scaling SW params off of it...
-        
-        # Start checking when close to sat distances, don't waste code time before close
-        check_dist = 0.5*Er
-        # front for checking purposes -> could be sheath or CME
-        theFront = CMElens[0]
-        if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
-        
-        if theFront >= check_dist:
-            # Get Earth/sat pos in CME coordinate frame            
-            axDist, maxDistFR, thisPsi, thisParat = whereAmI([Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap)
-
-            if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
-            # check if in sheath
-            if doPUP:
-                if (axDist < maxrSH) and (maxDistFR != maxrSH):
-                    if not hitSheath:
-                        hitSheath = True
-                        inint = 1
-                        # Add this specific time step if not already included
-                        if not printNow:
-                            if not silent:
-                                print2screen(CMEstuff)     
-                                if doPUP:
-                                    # need to update init
-                                    PUPstuff[12] = inint
-                                    print2screen(PUPstuff, prefix='      ')                                            
-                            if writeFile:
-                                print2file(fullCMEstuff, f1, '{:8.5f}')
-                                print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
-                    # print sheath info to FIDO output file
-                    if (axDist > maxDistFR) and (Er > CMElens[0]) and printNow and aFIDOinside:
-                        tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
-                        ndir = np.cross(tdir, pdir)
-                        # attempt to get signs correct in sheath based on inorout, flip unit vecs to most aligned choice
-                        temp = rotx(ndir, -(90.-CMEtilt))
-                        temp2 = roty(temp, CMElat - Elat) 
-                        ndirSAT = np.array(rotz(temp2, CMElon - Elon))
-                        
-                        temp = rotx(pdir, -(90.-CMEtilt))
-                        temp2 = roty(temp, CMElat - Elat) 
-                        pdirSAT = np.array(rotz(temp2, CMElon - Elon))
-                        
-                        # figure out what is most aligned
-                        if np.dot(ndirSAT, np.array([inorout,0,0])) < 0:
-                            ndirSAT = -ndirSAT
-                        if np.dot(pdirSAT, np.array([0, -inorout,0])) < 0:
-                            pdirSAT = -pdirSAT
-                        
-                        BinSitu = Bsh * np.cos(thetaBsh*math.pi/180.) * ndirSAT + Bsh * np.sin(thetaBsh*math.pi/180.) * pdirSAT 
-                        
-                        FIDOstuff = [t/3600., BinSitu[0], BinSitu[1], BinSitu[2], vs[0]/1e5, sheath_dens, np.log10(Tratio*SWfront[4]),0]
-                        if writeFile: print2file(FIDOstuff,  f4, '{:8.5f}')
-                        
-                        if not silent:
-                            print ('      ', '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
-            # check if in FR
-            thismin = axDist/maxDistFR
-            if axDist < maxDistFR:
-                # start saving at higher res once in CME
-                if not reachedCME:
-                     deltaPrintR = deltaPrintR/2.
-                     FRstart = t
-                
-                if aFIDOinside and printNow:
-                    BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs)         
-                    #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
-                    CMEgam = fT+1
-                    cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
-                    mch = -vs[3]*(axDist/maxDistFR)/1e5 / cs
-                    comp = 1
-                    if mch >1:
-                        comp = (CMEgam+1)*mch**2 / (2 + (CMEgam-1)*mch**2)
-                        if comp < 1: comp = 1
-                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=comp) 
-                        
-                    if not silent:
-                        print ('      ', '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
-                    
-                    
-                    # save to file
-                    FIDOstuff = [t/3600., BSC[0]*1e5, BSC[1]*1e5, BSC[2]*1e5, vInSitu[0]/1e5, rho/1.67e-24 * comp, np.log10(temCME), 1]
-                    if writeFile: print2file(FIDOstuff, f4, '{:8.5f}')
-                
-                # Add this specific timestep if it isn't already included
-                if not printNow and not reachedCME:
-                    outsCME, outsSheath, outsFIDO = add2outs(outsCME, outsSheath, outsFIDO, fullCMEstuff, PUPstuff, FIDOstuff)                 
-                        
-                    if writeFile:
-                        print2file(fullCMEstuff, f1, '{:8.5f}')
-                        if doPUP:
-                            print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')   
-                        if saveForces:
-                            print2file(forcestuff, f3, '{:11.3f}')
-                        if aFIDOinside:
-                            print2file(FIDOstuff,  f4, '{:8.5f}')
-                            
-                    if not silent:
-                        print2screen(CMEstuff)
-                        if doPUP:
-                            print2screen(PUPstuff, prefix='      ')                 
-
-                reachedCME = True
-                TT = t/3600./24.
-                
-                # If not doing full contact mode return everything at the time of first FR impact    
-                if not fullContact:
-                    estDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
-                    if not silent:
-                        print ('Transit Time:     ', TT)
-                        print ('Final Velocity:   ', vs[0]/1e5, vs[3]/1e5)
-                        print ('CME nose dist:    ', CMElens[0]/7e10)
-                        print ('Earth longitude:  ', Elon)
-                        print ('Est. Duration:    ', estDur)
-                        
-                    # Stop simulation and return results 
-                    runSim = False  
-                    outsCME = np.array(outsCME)
-                    outsSheath = np.array(outsSheath)
-                    outsFIDO = np.array(outsFIDO)
-                    for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
-                    for i in range(len(outsSheath)): outsSheath[i] = np.array(outsSheath[i])
-                    for i in range(len(outsFIDO)): outsFIDO[i] = np.array(outsFIDO[i])
-                    return outsCME, Elon, vs, estDur, thisPsi, thisParat, SWfront, outsSheath, outsFIDO 
-            elif reachedCME:
-                runSim = False
-                actDur = (t-FRstart)/3600
-                if not silent:
-                    print ('Transit Time:     ', FRstart/3600)
-                    print ('Final Velocity:   ', vs[0]/1e5, vs[3]/1e5)
-                    print ('CME nose dist:    ', CMElens[0]/7e10)
-                    print ('Earth longitude:  ', Elon)
-                    print ('Est. Duration:    ', actDur)
-                    
-                    
-                # if aFIDOinside add SW padding behind the CME
-                for i in range(18+24):
-                    t += 3600.
-                    # Update HSS position
-                    if hasattr(MEOWHiSS, '__len__'):
-                        doMH[0] = MHt0+t/3600
-
-                    # Update Earth/satellite position
-                    if not doPath:    
-                        Elon += Erotrate * dt
-                    else:
-                        Elat = fLat(t)
-                        Elon = fLon(t)
-                        Er   = fR(t)*7e10
+            for satID in sats2check:
+                if aFIDOinside and (CMElens[0] > satPos[satID][2]*0.5) and not hitSheath[satID] and not reachedCME[satID]:
                     # get SW values
                     if doMH:
-                        SWatsat, HSSreg   = getSWvals(Er, SWfs, doMH=doMH, returnReg=doMH)
+                        SWatsat, HSSreg   = getSWvals(satPos[satID][2], SWfs, doMH=doMH, returnReg=doMH)
+                        FIDOstuff[satID] = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
+                        if writeFile: print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
                     else:
-                        SWatsat   = getSWvals(Er, SWfs)
-                        HSSreg = 0
+                        SWatsat   = getSWvals(satPos[satID][2], SWfs)
+                        FIDOstuff[satID] = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100]
+                        if writeFile: print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
                     
-                    FIDOarr = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
-                    outsFIDO[0].append(FIDOarr[0])
-                    outsFIDO[1].append(FIDOarr[1])
-                    outsFIDO[2].append(FIDOarr[2])
-                    outsFIDO[3].append(FIDOarr[3])
-                    outsFIDO[4].append(FIDOarr[4])
-                    outsFIDO[5].append(FIDOarr[5])
-                    outsFIDO[6].append(FIDOarr[6])
-                    outsFIDO[7].append(FIDOarr[7])
-                        
-                    if writeFile:
-                        print2file([t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg], f4, '{:8.5f}')
-                        
-                
-                    
-                outsCME = np.array(outsCME, dtype=object)
-                outsSheath = np.array(outsSheath)
-                outsFIDO = np.array(outsFIDO)
-                for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
-                for i in range(len(outsSheath)): outsSheath[i] = np.array(outsSheath[i])
-                for i in range(len(outsFIDO)): outsFIDO[i] = np.array(outsFIDO[i])
-                return outsCME, Elon, vs, actDur, thisPsi, thisParat, SWfront, outsSheath, outsFIDO
-            elif (thismin < prevmin):
-                prevmin = thismin
-            elif CMElens[0] > Er + 100 * 7e10:
-                return makeFailArr(9999)   
-            else:                
-                return makeFailArr(9999)   
-
-        # save data in arrays with outsFIDO set to whatever is appropriate based on region checking       
+        # save CME/sheath data
         if printNow:
-            outsCME, outsSheath, outsFIDO = add2outs(outsCME, outsSheath, outsFIDO, fullCMEstuff, PUPstuff, FIDOstuff)  
+            outsCME, outsSheath = add2outs(outsCME, outsSheath, fullCMEstuff, PUPstuff)
+                    
+                    
+        # -----------------------------------------------------------------------------
+        # Check if in sheath or CME
+        # -----------------------------------------------------------------------------
+        for satID in sats2check: 
+            #Er = 50 * 7e10 # quick switch for debugging and not runnning full thing
+            # cant' just swap Er in inputs if scaling SW params off of it...
         
+            # Start checking when close to sat distances, don't waste code time before close
+            check_dist = 0.5*satPos[satID][2]
+            # front for checking purposes -> could be sheath or CME
+            theFront = CMElens[0]
+            if doPUP: theFront = CMElens[0] + sheath_wid * 7e10
         
+            if theFront >= check_dist:
+                # Get Earth/sat pos in CME coordinate frame            
+                axDist, maxDistFR, thisPsi, thisParat = whereAmI([satPos[satID][2], satPos[satID][0], satPos[satID][1]], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap)
+
+                if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
+                # check if in sheath and save if so
+                if doPUP:
+                    if (axDist < maxrSH) and (maxDistFR != maxrSH):
+                        if not hitSheath[satID]:
+                            hitSheath[satID] = True
+                            inint[satID] = 1
+                            # Add this specific time step if not already included
+                            if not printNow:
+                                if not silent:
+                                    print2screen(CMEstuff)     
+                                    if doPUP:
+                                        # need to update init
+                                        PUPstuff[12] = inint[satID]
+                                        print2screen(PUPstuff, prefix='      ')                                 
+                                if writeFile:
+                                    print2file(fullCMEstuff, f1, '{:8.5f}')
+                                    print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
+                        # print sheath info to FIDO output file
+                        if (axDist > maxDistFR) and (satPos[satID][2] > CMElens[0]) and printNow and aFIDOinside:
+                            tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
+                            ndir = np.cross(tdir, pdir)
+                            # attempt to get signs correct in sheath based on inorout, flip unit vecs to most aligned choice
+                            temp = rotx(ndir, -(90.-CMEtilt))
+                            temp2 = roty(temp, CMElat - satPos[satID][0]) 
+                            ndirSAT = np.array(rotz(temp2, CMElon - satPos[satID][1]))
+                        
+                            temp = rotx(pdir, -(90.-CMEtilt))
+                            temp2 = roty(temp, CMElat - satPos[satID][0]) 
+                            pdirSAT = np.array(rotz(temp2, CMElon - satPos[satID][1]))
+                        
+                            # figure out what is most aligned
+                            if np.dot(ndirSAT, np.array([inorout,0,0])) < 0:
+                                ndirSAT = -ndirSAT
+                            if np.dot(pdirSAT, np.array([0, -inorout,0])) < 0:
+                                pdirSAT = -pdirSAT
+                        
+                            BinSitu = Bsh * np.cos(thetaBsh*math.pi/180.) * ndirSAT + Bsh * np.sin(thetaBsh*math.pi/180.) * pdirSAT 
+                        
+                            FIDOstuff[satID] = [t/3600., BinSitu[0], BinSitu[1], BinSitu[2], vs[0]/1e5, sheath_dens, np.log10(Tratio*SWfront[4]),0]
+                            if writeFile: print2file(FIDOstuff[satID],  f4s[satID], '{:8.5f}')
+                        
+                            if not silent:
+                                print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
+                
+                # check if in FR
+                thismin = axDist/maxDistFR
+                if axDist < maxDistFR:
+                    # start saving at higher res once in CME
+                    if not reachedCME[satID]:
+                         deltaPrintR = deltaPrintR/2.
+                         # save things for the summary print to screen
+                         # want values at first contact even if doing full profile
+                         # will replace duration if have more accurate version
+                         TT = t/3600.
+                         thisDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
+                         outSum[satID] = [TT, vs[0]/1e5, vs[3]/1e5, CMElens[0]/7e10, satPos[satID][1], thisDur]
+                         vsArr[satID] = vs
+                         angArr[satID] = [thisPsi, thisParat]
+                         reachedCME[satID] = True
+                         
+                    # Get the FR properties and print
+                    if aFIDOinside and printNow:
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs)         
+                        #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
+                        # This adds extra compression if the expansion is compression in the rear
+                        '''CMEgam = fT+1
+                        cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
+                        mch = -vs[3]*(axDist/maxDistFR)/1e5 / cs
+                        comp = 1
+                        if mch >1:
+                            comp = (CMEgam+1)*mch**2 / (2 + (CMEgam-1)*mch**2)
+                            if comp < 1: comp = 1
+                            BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, comp=comp)''' 
+                        # Print to screen so we know where we are in the FR
+                        if not silent:
+                            print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
+                        # save to file
+                        comp = 1 # had used this before but turning off for now but keeping code intact
+                        FIDOstuff[satID] = [t/3600., BSC[0]*1e5, BSC[1]*1e5, BSC[2]*1e5, vInSitu[0]/1e5, rho/1.67e-24 * comp, np.log10(temCME), 1]
+                        if writeFile: print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
+                
+                    # Add this first timestep if it isn't already included
+                    if not printNow and not reachedCME[satID]:
+                        outsCME, outsSheath = add2outs(outsCME, outsSheath, fullCMEstuff, PUPstuff)
+                        outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID])                 
+                        
+                        if writeFile:
+                            print2file(fullCMEstuff, f1, '{:8.5f}')
+                            if doPUP:
+                                print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')   
+                            if saveForces:
+                                print2file(forcestuff, f3, '{:11.3f}')
+                            if aFIDOinside:
+                                print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
+                            
+                        if not silent:
+                            print2screen(CMEstuff)
+                            if doPUP:
+                                print2screen(PUPstuff, prefix='      ')                 
+                    
+                                                        
+                    # Exit point for first contact case, otherwise keeps looping
+                    # If not doing full contact mode return everything at the time of first FR impact    
+                    if not fullContact:
+                        # remove sat from list to check
+                        sats2check.remove(satID)
+                        if len(sats2check)==0:
+                            runSim = False
+                    
+                # Exit for full contact once dist > 1 after first contact    
+                elif reachedCME[satID]:
+                    sats2check.remove(satID)
+                    if len(sats2check)==0:
+                        runSim = False
+                    thisDur =t/3600 - outSum[satID][0]
+                    outSum[satID][5] = thisDur
+                    
+                    # if doing aFIDOinside add SW padding behind the CME
+                    t2 = t
+                    for i in range(18+24):
+                        t2 += 3600.
+                        # Update HSS position
+                        if hasattr(MEOWHiSS, '__len__'):
+                            doMH[0] = MHt0+t2/3600
+
+                        # Update Earth/satellite position
+                        if not doPath:    
+                            satPos[satID][1] += satPos[satID][3] * dt
+                        else:
+                            satPos[satID][0] = satfs[satID][0](t2)
+                            satPos[satID][1] = satfs[satID][1](t2)
+                            satPos[satID][2] = satfs[satID][2](t2)*7e10
+                        # get SW values
+                        if doMH:
+                            SWatsat, HSSreg   = getSWvals(satPos[satID][2], SWfs, doMH=doMH, returnReg=doMH)
+                        else:
+                            SWatsat   = getSWvals(satPos[satID][2], SWfs)
+                            HSSreg = 0
+                    
+                        FIDOarr = [t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
+                        outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID]) 
+                        
+                        if writeFile:
+                            print2file([t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg],  f4s[satID], '{:8.5f}')
+                 
+                # Continue simulation if distance from axis is decreasing        
+                elif (thismin < prevmin[satID]):
+                    prevmin[satID] = thismin
+                    
+                # Exit point if begins moving away from sat
+                else: 
+                    sats2check.remove(satID)
+                    outsFIDO[satID] = 8888
+                    #thisSum[satID] = -
+                    if len(sats2check)==0:
+                        runSim = False
+                                 
+                # Exit point if center is more than 150 Rs beyond sat pos
+                # Don't think this can be hit? hide for now
+                '''elif CMElens[0] > satPos[satID][2] + 150 * 7e10:
+                    sats2check.remove(satID)
+                    if len(sats2check)==0:
+                        runSim = False
+                    return makeFailArr(9999) '''  
+                    
+
+            # Add FIDO stuff to array if still looping. Could be SW, sheath or CME     
+            if printNow:
+                #print (satID, FIDOstuff[satID])
+                if satID in sats2check:
+                    outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID])  
+    
+    # ------------------------------------------------------------------
+    # Return things once done with all sats
+    # ------------------------------------------------------------------
+    if not silent:
+        for satID in satNames:
+            if outSum[satID] == [-9999]:
+                print ('No Contact for '+satID)
+            else:  
+                print ('Satellite:        ', satID)
+                print ('Transit Time:     ', outSum[satID][0])
+                print ('Final Velocity:   ', outSum[satID][1], outSum[satID][2])
+                print ('CME nose dist:    ', outSum[satID][3])
+                print ('Earth longitude:  ', outSum[satID][4])
+                print ('Est. Duration:    ', outSum[satID][5])
+            print ('')
+
+    outsCME = np.array(outsCME)
+    outsSheath = np.array(outsSheath)
+    for i in range(len(outsCME)): outsCME[i] = np.array(outsCME[i])
+    for i in range(len(outsSheath)): outsSheath[i] = np.array(outsSheath[i])
+
+    for thissatID in satNames:
+        if outSum[thissatID] != [-9999]:
+            for i in range(len(outsFIDO[thissatID])): outsFIDO[thissatID][i] = np.array(outsFIDO[thissatID][i])
+            outsFIDO[thissatID] = np.array(outsFIDO[thissatID])
+    
+    return outsCME, outSum, vsArr, angArr, SWfront, outsSheath, outsFIDO  
         
         
 

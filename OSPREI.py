@@ -125,6 +125,7 @@ def setupOSPREI():
             MHdist = float(temp[1])
         elif temp[0][:-1] == 'satPath':  
             satPath = temp[1]
+            isSat = True
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
@@ -530,12 +531,15 @@ def checkInputs(printNonCrit=False):
     hasSatPath = False
     if 'satPath' in input_values:
         hasSatPath = True
+        isMulti = False
+        if input_values['satPath'][-4:] == 'sats':
+            isMulti = True
         
     if 'SatLon' in input_values:
         SatLon = float(input_values['SatLon'])
         if (SatLon < -180) or  (SatLon > 360):
             sys.exit('Satellite longitude (SatLon) must be in [-180, 180] or [0, 360] deg') 
-    else:
+    elif not isMulti:
         sys.exit('Initial satellite longitude (SatLon) is required. Must be in Carrington coordinates if ForeCAT is used.') 
     
     if not hasSatPath:
@@ -1158,20 +1162,40 @@ def move2corona(CME, rmax):
     return CME
     
 
-def goANTEATR(makeRestart=False, satPath=False):
+def goANTEATR(makeRestart=False, satPathIn=False, satNames=['']):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
+    
+    # Sort out if doing one satellite or multi and separate names if needed
+    if satPathIn:
+        satNames = np.array(satPathIn[-1])
+        satPath  = satPathIn[:-1]
+    else:
+        satPath = False
+        satNames = np.array(['sat1'])
+    nSats = len(satNames)
+    
 
     # Open a file to save the ANTEATR output
     ANTEATRfile = open(Dir+'/ANTEATRresults'+thisName+'.dat', 'w')
     if doPUP:
         PUPfile = open(Dir+'/PUPresults'+thisName+'.dat', 'w')
-        SITfile = open(Dir+'/SITresults'+thisName+'.dat', 'w')
-    if doFIDO:
-        FIDOfile = open(Dir+'/FIDOresults'+thisName+'.dat', 'w')
-        
-
+    SITfiles = []    
+    FIDOfiles = []
+    # Will either open one for each given name or a single one if don't have sat names    
+    for satName in satNames:
+        # reset the generic 'sat1' to nothing if only doing 1 case with temp name
+        if (len(satNames) == 1) and (satName == 'sat1'):
+            satName = ''
+        if doPUP:
+            SITfile = open(Dir+'/SITresults'+thisName+satName+'.dat', 'w')
+            SITfiles.append(SITfile)
+        if doFIDO:
+            FIDOfile = open(Dir+'/FIDOresults'+thisName+satName+'.dat', 'w')
+            FIDOfiles.append(FIDOfile)
+    SITfiles = np.array(SITfiles)
+    FIDOfiles = np.array(FIDOfiles)
 
     # ANTEATR takes inputs
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, nSW, vSW, BSW, Cd, tau, cnm]         <-this is outdated
@@ -1187,22 +1211,79 @@ def goANTEATR(makeRestart=False, satPath=False):
     SatRotRate = SatVars0[3]
     SatLons = [SatVars0[1]+SatRotRate*CMEarray[i].t for i in range(nRuns)]
 
-    global ANTsatLons, impactIDs, SWv, SWn, ANTCMErs
-    ANTsatLons = {}
+    global impactIDs, SWv, SWn, ANTCMErs
     ANTCMErs = {}
     impactIDs = []
-        
+    
+    actualPath = False
+    # Check if we're using satPath to pass multi simple satellites
+    if satPath:
+        try:
+            a = float(satPath[0][0])
+        except:
+            actualPath = True
+    
+    # Loop over all the CMEs    
     for i in range(nRuns):
         # CME parameters from CME object
         CME = CMEarray[i]
         # CME position
         CMEr0, CMElat, CMElon = CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], CME.points[CC.idcent][1,2]
-        # reset path functions for t0 at start of ANTEATR
-        if satPath:
-            satLatf2 = lambda x: satLatf(x + CME.t*60)
-            satLonf2 = lambda x: satLonf(x + CME.t*60)
-            satRf2   = lambda x: satRf(x + CME.t*60)
         
+        # reset path functions for t0 at start of ANTEATR
+        # need to do for each satellite if > 1
+        if satPath:
+            
+            if actualPath:
+                satfs = [[] for i in range(len(satPath))]
+                satfs[0] = [lambda x: satPath[0][0](x + CME.t*60), lambda x: satPath[0][1](x + CME.t*60), lambda x: satPath[0][2](x + CME.t*60)]
+                if nSats >= 2:
+                    satfs[1] = [lambda x: satPath[1][0](x + CME.t*60), lambda x: satPath[1][1](x + CME.t*60), lambda x: satPath[1][2](x + CME.t*60)] 
+                if nSats >= 3:
+                    satfs[2] = [lambda x: satPath[2][0](x + CME.t*60), lambda x: satPath[2][1](x + CME.t*60), lambda x: satPath[2][2](x + CME.t*60)]
+                if nSats >= 4:
+                    satfs[3] = [lambda x: satPath[3][0](x + CME.t*60), lambda x: satPath[3][1](x + CME.t*60), lambda x: satPath[3][2](x + CME.t*60)]
+                if nSats >= 5:
+                    satfs[4] = [lambda x: satPath[4][0](x + CME.t*60), lambda x: satPath[4][1](x + CME.t*60), lambda x: satPath[4][2](x + CME.t*60)]
+                if nSats >= 6:
+                    satfs[5] = [lambda x: satPath[5][0](x + CME.t*60), lambda x: satPath[5][1](x + CME.t*60), lambda x: satPath[5][2](x + CME.t*60)]
+                if nSats >= 7:
+                    satfs[6] = [lambda x: satPath[6][0](x + CME.t*60), lambda x: satPath[6][1](x + CME.t*60), lambda x: satPath[6][2](x + CME.t*60)]
+                if nSats >= 8:
+                    satfs[7] = [lambda x: satPath[7][0](x + CME.t*60), lambda x: satPath[7][1](x + CME.t*60), lambda x: satPath[7][2](x + CME.t*60)]
+                if nSats >= 9:
+                    satfs[8] = [lambda x: satPath[8][0](x + CME.t*60), lambda x: satPath[8][1](x + CME.t*60), lambda x: satPath[8][2](x + CME.t*60)]
+                if nSats >= 10:
+                    satfs[9] = [lambda x: satPath[9][0](x + CME.t*60), lambda x: satPath[9][1](x + CME.t*60), lambda x: satPath[9][2](x + CME.t*60)]
+            
+            
+                # Only give it the names if 2 or more satellites  
+                if nSats >= 2:             
+                    satfs.append(satNames)
+     
+        # Set up initial satellite(s) position
+        # Given vals are at OSPREI time 0, possibly need to include ForeCAT time now
+        if satPath:
+            if actualPath:
+                myParams = []
+                for ii in range(len(satPath)):
+                    thisParam = [satfs[ii][0](CMEarray[i].t*60), satfs[ii][1](CMEarray[i].t*60), satfs[ii][2](CMEarray[i].t*60)*7e10,0]
+                    myParams.append(thisParam)
+                myParams.append(satNames)
+            else:
+                myParams = []
+                for ii in range(len(satPath)):
+                     thisParam = np.copy(satPath[ii])
+                     thisParam[1] = thisParam[1]+thisParam[3]*CMEarray[i].t 
+                     thisParam[2] = thisParam[2] * 7e10
+                     myParams.append(thisParam)
+                myParams.append(satNames)
+        else:
+            myParams = SatVars0
+            myParams[1] = SatLons[i]
+            myParams = [[myParams[0], myParams[1], myParams[2]*7e10, myParams[3]], ['sat1']]
+
+        # Pull in this CME's parameters for input array
         # Tilt 
         tilt = CME.tilt
         # Calculate vr
@@ -1217,13 +1298,7 @@ def goANTEATR(makeRestart=False, satPath=False):
         deltaCA = CME.deltaCSAx
         IVDfs = CME.IVDfs
         
-        # get sat pos using simple orbit
-        myParams = SatVars0
-        myParams[1] = SatLons[i]
-        # replace with the correct sat position for this time if using path
-        if satPath:
-            myParams = [satLatf(CMEarray[0].t*60), satLonf(CMEarray[0].t*60), satRf(CMEarray[0].t*60),0]
-                                     
+
         # Add in ensemble variation if desired
         if (i > 0) and useFCSW:
             if 'SWn' in EnsInputs: CME.nSW = np.random.normal(loc=CME.nSW, scale=EnsInputs['SWn'])
@@ -1260,103 +1335,102 @@ def goANTEATR(makeRestart=False, satPath=False):
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile
+        MHin = False
+        if doMH:
+            MHin = [CME.MHarea, CME.MHdist]
         
         # SW polarity in or out - THINK THIS WAS FLIPPED FOR ISSI/PROPOSAL CASE?
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
-        isSilent = False
-        if satPath:
-            if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout)
-            else:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=[satLatf2, satLonf2, satRf2], flagScales=flagScales, doPUP=doPUP, aFIDOinside=doFIDO, inorout=inorout)
-        else:
-            if doMH:
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=[CME.MHarea, CME.MHdist], aFIDOinside=doFIDO, inorout=inorout)
-            else:    
-                ATresults, Elon, CME.vs, estDur, thetaT, thetaP, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, aFIDOinside=doFIDO, inorout=inorout)
         
-        # update background SW params to current values
-        # will do nothing if using given values but needed for
-        # 1D profile to make FIDO-SIT happy
-        CME.nSW, CME.vSW, CME.BSW, CME.BSWvec = SWparams[0], SWparams[1], SWparams[2], SWparams[3]        
+        isSilent = False
+        if actualPath:            
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout)
+        else:
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout)
+            
+                      
         # Check if miss or hit  
+        # Need to account for mix of hits and misses with multi TO DO!!
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
-            # get improved v estimates using FIDO code
-            vFvec, vExvec = getvCMEframe(1., thetaT, thetaP, ATresults[5][-1], ATresults[6][-1], CME.vs)
-            temp = rotx(vFvec, -(90.-tilt))
-            temp2 = roty(temp, CMElat - myParams[0]) 
-            vInSitu = rotz(temp2, CMElon - myParams[1])
-            vF = vInSitu[0] / 1e5
-            #print (sd)
-            # this is vExp for axis and cs not the same as measured vexp....
-            temp = rotx(vExvec, -(90.-tilt))
-            temp2 = roty(temp, CMElat - myParams[0]) 
-            vExVec = rotz(temp2, CMElon - myParams[1])
-            vEx = vExVec[0] / 1e5
-        
-            # Can add in ForeCAT time to ANTEATR time
-            FCATtime = CME.t/60./24
-            # want time of first contact, which is not idx -1 if do fullContact/FIDO
-            hitIdx = -1
-            if doFIDO:
-                regs = FIDOresults[7]
-                hitTime = FIDOresults[0][np.min(np.where(regs == 1))]/24
-                hitIdx = np.min(np.where(ATresults[0] >= hitTime))
-            TotTime  = ATresults[0][hitIdx]+FCATtime
-            rCME     = ATresults[1][hitIdx]
-            CMEvs    = ATresults[2][hitIdx]
-            CMEAW    = ATresults[3][hitIdx]
-            CMEAWp   = ATresults[4][hitIdx]
-            deltax   = ATresults[5][hitIdx]
-            deltap   = ATresults[6][hitIdx]
-            deltaCA  = ATresults[7][hitIdx]
-            B0       = ATresults[8][hitIdx]/1e5
-            cnm      = ATresults[9][hitIdx]
-            CMEn     = ATresults[10][hitIdx]
-            logT     = ATresults[11][hitIdx]
-            # Store things to pass to FIDO ensembles
-            ANTsatLons[i] = Elon # lon at time CME nose is at Earth/sat radius
-            # update CME if has that variable
-            CME.points[CC.idcent][1,0] = rCME
-            CME.AW = CMEAW*dtor
-            CME.AWp = CMEAWp*dtor
-            CME.deltaAx = deltax
-            CME.deltaCS = deltap
-            CME.deltaCSAx = deltaCA
-            # this B0 is actually Btor, which is what FIDO wants (Btor at center at time of impact)
-            CME.B0 = B0 * 1e5 * np.sign(FRB) * deltap * CME.tau # in nT now
-            CME.cnm   = cnm
-            CME.impV = vF
-            CME.impVE = vEx
-            #CME.t = TotTime
-            CME.FRT = logT
             
-            # CME sheath parameters
-            if doPUP:
-                # check if it was able to form a sheath (might not if vCME < vSW)
-                if (1 in PUPresults[11]):
-                    CME.hasSheath = True
-                    shIdx = np.min(np.where(PUPresults[11]==1))
-                    CME.vShock = PUPresults[0][shIdx]
-                    CME.comp   = PUPresults[1][shIdx]
-                    CME.shDur  = PUPresults[4][shIdx]
-                    CME.shDens = PUPresults[6][shIdx]
-                    CME.shB    = PUPresults[7][shIdx]
-                    CME.shTheta = PUPresults[8][shIdx]
-                    CME.shvt   = PUPresults[10][shIdx]
-                    CME.shT    = PUPresults[9][shIdx]
-                    CME.shv    = ATresults[2][shIdx][0]
+            for sat in satNames:
+                thisSum = outSum[sat]
+                # check if input for this sat
+                if thisSum[0] != -9999:
+                    thisvs = vsArr[sat]
+                    FRhit = thisSum[0] / 24.
+                    FRidx = np.min(np.where(ATresults[0] >= FRhit))
+                    pidx = np.where(satNames == sat)[0]
+                    thisParams = myParams[pidx[0]]
+                    thisAngs = angArr[sat]
+                    # get improved v estimates using FIDO code
+                    vFvec, vExvec = getvCMEframe(1., thisAngs[0], thisAngs[1], ATresults[5][FRidx], ATresults[6][FRidx], CME.vs)
+                    temp = rotx(vFvec, -(90.-tilt))
+                    temp2 = roty(temp, CMElat - thisParams[0]) 
+                    vInSitu = rotz(temp2, CMElon - thisParams[1])
+                    vF = vInSitu[0] / 1e5
+                    
+                    # this is vExp for axis and cs not the same as measured vexp....
+                    temp = rotx(vExvec, -(90.-tilt))
+                    temp2 = roty(temp, CMElat - thisParams[0]) 
+                    vExVec = rotz(temp2, CMElon - thisParams[1])
+                    vEx = vExVec[0] / 1e5
             
-            print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(estDur)+' hr')
-            # prev would take comp of v's in radial direction, took out for now !!!!
-            if not noDate:
-                dImp = dObj + datetime.timedelta(days=TotTime)
-                print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
-            print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
-            
-                             
+                    # Can add in ForeCAT time to ANTEATR time
+                    FCATtime = CME.t/60./24
+                    # Now want time of FR first contact, which is not idx -1 if do fullContact/FIDO
+                    hitIdx = -1
+                    if doFIDO:
+                        regs = FIDOresults[sat][7]
+                        hitTime = FIDOresults[sat][0][np.min(np.where(regs == 1))]/24
+                        hitIdx = np.min(np.where(ATresults[0] >= hitTime))
+                    TotTime  = ATresults[0][hitIdx]+FCATtime
+                    rCME     = ATresults[1][hitIdx]
+                    CMEAW    = ATresults[3][hitIdx]
+                    CMEn     = ATresults[10][hitIdx]
+                    logT     = ATresults[11][hitIdx]
+                    
+                    print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(thisSum[5])+' hr')
+                    
+                    if not noDate:
+                        dImp = dObj + datetime.timedelta(days=TotTime)
+                        print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+                    print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
+                                      
+                    # Record FIDO/PUP results specific to each satellite
+                    if doFIDO:
+                        # Save FIDO profiles
+                        theseFIDOres = FIDOresults[sat]
+                        for j in range(len(theseFIDOres[0])):
+                            outprint = str(i)
+                            outprint = outprint.zfill(4) + '   '
+                            Btot = np.sqrt(theseFIDOres[1][j]**2 + theseFIDOres[2][j]**2 + theseFIDOres[3][j]**2)
+                            if isSat:
+                                outstuff = [theseFIDOres[0][j]/24+FCATtime, Btot, theseFIDOres[1][j], theseFIDOres[2][j], theseFIDOres[3][j], theseFIDOres[4][j], theseFIDOres[5][j], theseFIDOres[6][j], theseFIDOres[7][j]]
+                            else:
+                                # GSE coords, flip R,T to xy
+                                outstuff = [theseFIDOres[0][j]/24+FCATtime, Btot, -theseFIDOres[1][j], -theseFIDOres[2][j], theseFIDOres[3][j], theseFIDOres[4][j], theseFIDOres[5][j], theseFIDOres[6][j], theseFIDOres[7][j]]    
+                            for iii in outstuff:
+                                outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                            FIDOfiles[pidx[0]].write(outprint+'\n')
+                
+                    if doPUP:
+                        # Save sheath/shock properties at first contact
+                        #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
+                        # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
+                        # get idx appropriate for each CME
+                        shIdx = hitIdx #np.min(np.where(PUPresults[11,:] == 1))
+                        outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
+                        outprint = str(i)
+                        outprint = outprint.zfill(4) + '   '
+                        for iii in outstuff:
+                            outprint = outprint +'{:6.3f}'.format(iii) + ' '
+                        SITfiles[pidx[0]].write(outprint+'\n')
+                    
+            # Save results for the full simulation (satellite independent)
+                          
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
             for j in range(len(ATresults[0])):
@@ -1366,7 +1440,8 @@ def goANTEATR(makeRestart=False, satPath=False):
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')
-            # save PUP results (if doing)
+                
+            # save PUP profile (if doing)
             if doPUP:
                 if CME.hasSheath:
                     for j in range(len(PUPresults[0])):
@@ -1383,33 +1458,6 @@ def goANTEATR(makeRestart=False, satPath=False):
                     for iii in outstuff:
                         outprint = outprint + '{:6.3f}'.format(iii) + ' '
                     PUPfile.write(outprint+'\n')
-                    
-            if doFIDO:
-                # Save FIDO profiles
-                for j in range(len(FIDOresults[0])):
-                    outprint = str(i)
-                    outprint = outprint.zfill(4) + '   '
-                    Btot = np.sqrt(FIDOresults[1][j]**2 + FIDOresults[2][j]**2 + FIDOresults[3][j]**2)
-                    if isSat:
-                        outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, FIDOresults[1][j], FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]
-                    else:
-                        # GSE coords, flip R,T to xy
-                        outstuff = [FIDOresults[0][j]/24+FCATtime, Btot, -FIDOresults[1][j], -FIDOresults[2][j], FIDOresults[3][j], FIDOresults[4][j], FIDOresults[5][j], FIDOresults[6][j], FIDOresults[7][j]]    
-                    for iii in outstuff:
-                        outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                    FIDOfile.write(outprint+'\n')
-                
-            if doPUP:
-                # Save sheath/shock properties at first contact
-                #outstuff = id [dur, comp, Mach, n, vsheath, B, vshock] + 
-                # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
-                shIdx = np.min(np.where(PUPresults[11,:] == 1))
-                outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
-                outprint = str(i)
-                outprint = outprint.zfill(4) + '   '
-                for iii in outstuff:
-                    outprint = outprint +'{:6.3f}'.format(iii) + ' '
-                SITfile.write(outprint+'\n')
                 
                 
         elif ATresults[0][0] == 8888:
@@ -1445,33 +1493,15 @@ def goANTEATR(makeRestart=False, satPath=False):
                 
         else:
             print('Miss')
-        
-                        
-        # write a file to restart ANTEATR/FIDO from current CME values
-        # this is probably outdated...
-        if makeRestart:      
-            # update current inps with things that have changed in ForeCAT to pass to
-            currentInps['CMEr'] = rCME
-            currentInps['CMEvr'] = CME.vs[0] /1e5
-            currentInps['CMEAW']  = CMEAW
-            currentInps['CMEAWp'] = CMEAWp
-            currentInps['CMEdelAx'] = deltax
-            currentInps['CMEdelCS'] = deltap
-            currentInps['FRB'] = CME.B0
-            currentInps['FRCnm'] = CME.cnm
-            currentInps['SatLon'] = Elon
-            currentInps['date'] = dImp.strftime('%Y')+dImp.strftime('%m')+dImp.strftime('%d')
-            currentInps['time'] = dImp.strftime("%H:%M")
-            # SW params if using those...
-            genNXTtxt(CME, num=str(i), tag='FIDO')
-        
-        
+               
     ANTEATRfile.close()  
     if doPUP: 
         PUPfile.close()
-        SITfile.close()
+        for afile in SITfiles:
+            afile.close()
     if doFIDO:
-        FIDOfile.close()
+        for afile in FIDOfiles:
+            afile.close()
     
     
 # This have been updated since FIDO has now been integrated with ANTEATR
@@ -1600,6 +1630,86 @@ def genNXTtxt(CME, num='', tag=''):
             NXTtxt.write(key+': '+str(currentInps[key])+' \n')
     NXTtxt.close()
     
+def thankslambdas(satfiles, satPos0, dObj, nSats):
+    satPaths = []
+    
+    satRfA, satLatfA, satLonfA = makeSatPaths(satfiles[0], dObj, Clon0=satPos0[0][1])
+    satPaths.append([satLatfA, satLonfA, satRfA])
+    if nSats >= 2:
+        satRfB, satLatfB, satLonfB = makeSatPaths(satfiles[1], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfB, satLonfB, satRfB])
+    if nSats >= 3:
+        satRfC, satLatfC, satLonfC = makeSatPaths(satfiles[2], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfC, satLonfC, satRfC])
+    if nSats >= 4:
+        satRfD, satLatfD, satLonfD = makeSatPaths(satfiles[3], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfD, satLonfD, satRfD])
+    if nSats >= 5:
+        satRfE, satLatfE, satLonfE = makeSatPaths(satfiles[4], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfE, satLonfE, satRfE])
+    if nSats >= 6:
+        satRfF, satLatfF, satLonfF = makeSatPaths(satfiles[5], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfF, satLonfF, satRfF])
+    if nSats >= 7:
+        satRfG, satLatfG, satLonfG = makeSatPaths(satfiles[6], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfG, satLonfG, satRfG])
+    if nSats >= 8:
+        satRfH, satLatfH, satLonfH = makeSatPaths(satfiles[7], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfH, satLonfH, satRfH])
+    if nSats >= 9:
+        satRfI, satLatfI, satLonfI = makeSatPaths(satfiles[8], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfI, satLonfI, satRfI])
+    if nSats == 10:
+        satRfJ, satLatfJ, satLonfJ = makeSatPaths(satfiles[9], dObj, Clon0=satPos0[1][1])
+        satPaths.append([satLatfJ, satLonfJ, satRfJ])
+        
+    return satPaths
+
+def satPathWrapper(satPath):
+    satNames = []
+    satPos0  = []
+    satfiles = []
+    havePaths = True
+    if satPath[-5:] == '.sats':
+        satFile = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+        nSats = len(satFile)
+        if nSats > 10:
+            sys.exit('Can only run 10 or fewer satellites')
+        if len(satFile[0]) != 5:
+            sys.exit('.sats file should be SatName Lat0 Lon0 R0 File')
+            
+        # reset havePaths bc need to check if multi simple sats
+        havePaths = False
+        try:
+            a = float(satFile[0][4])
+        except:
+            havePaths = True    
+            
+        if havePaths:
+            for i in range(nSats):
+                if satFile[i][4][-4:] != '.sat':
+                    sys.exit('Need to provide satellite files as .sat')
+                    
+        for i in range(nSats):
+            thisSat = satFile[i]
+            satNames.append(thisSat[0])
+            satPos0.append([float(thisSat[1]), float(thisSat[2]), float(thisSat[3]), 0])
+            if not havePaths:
+                satPos0[-1][3] = float(thisSat[4])
+            else:
+                satfiles.append(thisSat[4])
+    else:
+        satNames.append('sat1')
+        satPos0.append([satPos[0], satPos[1], satPos[2]*7e10, 0])
+        satfiles.append(satPath)    
+            
+    if havePaths:
+        satPaths = thankslambdas(satfiles, satPos0, dObj, nSats)
+    else:
+        satPaths = satPos0
+    satPaths.append(satNames)
+    
+    return satPaths
 
 def runOSPREI():
     setupOSPREI()
@@ -1613,18 +1723,13 @@ def runOSPREI():
     currentInps = {}
     for key in input_values: currentInps[key] = input_values[key]
     
-    global doSatPath 
+    global doSatPath
     doSatPath = False
-    global satRf, satLatf, satLonf
+    
     if 'satPath' in input_values:
-        doSatPath = True
         satPath = input_values['satPath']
-        # functions give correct R/lat/lon if give t in sec from start time
-        satRf, satLatf, satLonf = makeSatPaths(satPath, dObj, Clon0=satPos[1])
-        # reset the initial CME distance using satRf if doing FIDO only 
-        # and wasn't originally given a distance
-        if input_values['SatR'] == '9999':
-           satPos[2] = satRf[0]
+        satPaths = satPathWrapper(satPath)
+          
     if doFC:
         goForeCAT(makeRestart=False)        
     else:
@@ -1633,8 +1738,12 @@ def runOSPREI():
     
     #readMoreInputs()
 
-    if doANT: goANTEATR(makeRestart=False, satPath=doSatPath)
-    
+    if doANT: 
+        if 'satPath' in input_values:
+            goANTEATR(makeRestart=False, satPathIn=satPaths)
+        else:
+            goANTEATR(makeRestart=False)
+            
     # Option for FIDO only when not running ANTEATR
     # (actually just run ANTEATR w/no forces near arrival)
     if doFIDO and not doANT: 
