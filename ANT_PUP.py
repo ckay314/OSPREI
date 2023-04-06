@@ -396,14 +396,14 @@ def makeSWfuncs(fname, time=None, doAll=False, isArr=False):
     else:
         return [frho, fv, fBr, fBlon, fT]  
 
-def getSWvals(r_in, SWfuncs, doMH=False, returnReg=False):
+def getSWvals(r_in, SWfuncs, doMH=False, returnReg=False, deltatime=0):
     # returns the actual values of n, vr, Br, Blon, T
     SWvec = np.zeros(5)
     for i in range(5):
         SWvec[i] = SWfuncs[i](r_in)
     if hasattr(doMH, '__len__'):
         if returnReg:
-            MHouts, HSSreg = emp.getHSSprops(r_in/1.5e13, doMH[0], doMH[1], doMH[2], doMH[3], doMH[4], doMH[5], returnReg=True)
+            MHouts, HSSreg = emp.getHSSprops(r_in/1.5e13, doMH[0]+deltatime, doMH[1], doMH[2], doMH[3], doMH[4], doMH[5], returnReg=True)
         else:
             MHouts = emp.getHSSprops(r_in/1.5e13, doMH[0], doMH[1], doMH[2], doMH[3], doMH[4], doMH[5])
             
@@ -699,6 +699,9 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     # if want FIDO profile force it to do full contact
     if aFIDOinside:
         fullContact = True
+        
+    # Solar rotation rate
+    solRotRate = 360. / (24.47 * 24 )
     
     # sheath properties
     sheath_mass = 0.
@@ -726,7 +729,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             satPos[satNames[i]] = satPosIn[i]            
     else:
         nSats = len(satfsIn)
-        print (nSats)
         satPos = {}
         satfs = {}
         if nSats == 1:
@@ -1089,7 +1091,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 if aFIDOinside and (CMElens[0] > satPos[satID][2]*0.5) and not hitSheath[satID] and not reachedCME[satID]:
                     # get SW values
                     if doMH:
-                        SWatsat, HSSreg   = getSWvals(satPos[satID][2], SWfs, doMH=doMH, returnReg=doMH)
+                        # need to adjust satR for lon diff from CME nose
+                        dlonMH = CMElon - satPos[satID][1]
+                        dtMH = solRotRate * dlonMH
+                        SWatsat, HSSreg   = getSWvals(satPos[satID][2], SWfs, doMH=doMH, returnReg=doMH, deltatime=dtMH)
                         FIDOstuff[satID] = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
                         if writeFile: print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
                     else:
