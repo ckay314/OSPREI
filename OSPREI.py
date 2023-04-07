@@ -252,6 +252,10 @@ def checkInputs(printNonCrit=False):
     else:
         sys.exit('CME Angular Width (CMEAW) required to run')
     
+    if 'CMEyaw' in input_values:
+        CMElat = float(input_values['CMElat'])
+        if np.abs(CMElat) > 90.:
+            sys.exit('CME yaw (CMEyaw) must be within +/- 90 deg') 
     
 
     # Important parameters with defaults ----------------------------------------------------------------
@@ -759,7 +763,7 @@ def checkInputs(printNonCrit=False):
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
-    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'MHarea', 'MHdist']
+    possible_vars =  ['CMElat', 'CMElon', 'CMEtilt', 'CMEyaw', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB', 'PFSSscale', 'IVDf1', 'IVDf2', 'IVDf', 'Gamma', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'MHarea', 'MHdist']
     print( 'Determining parameters varied in ensemble...')
     EnsData = np.genfromtxt(FC.fprefix+'.ens', dtype=str, encoding='utf8')
     # Make a dictionary containing the variables and their uncertainty
@@ -907,6 +911,7 @@ def genEnsMem(runnum=0):
     if 'Gamma' in input_values: CME.gamma = float(input_values['Gamma'])
     if 'MHdist' in input_values: CME.MHdist = float(input_values['MHdist'])    
     if 'MHarea' in input_values: CME.MHarea = float(input_values['MHarea'])    
+    if 'CMEyaw' in input_values: CME.yaw = float(input_values['CMEyaw'])    
     
     # add changes to non ForeCAT things onto the CME object
     for item in EnsInputs.keys():
@@ -960,7 +965,11 @@ def genEnsMem(runnum=0):
             outstr += '{:6.3f}'.format(CME.MHdist) + ' '
         if item == 'MHarea':
             CME.MHarea = np.random.normal(loc=float(input_values['MHarea']), scale=EnsInputs['MHarea'])
-            outstr += '{:6.2f}'.format(CME.MHarea) + ' '        
+            outstr += '{:6.2f}'.format(CME.MHarea) + ' '  
+        if item == 'CMEyaw':
+            CME.yaw = np.random.normal(loc=float(input_values['CMEyaw']), scale=EnsInputs['CMEyaw'])
+            outstr += '{:6.2f}'.format(CME.yaw) + ' '  
+                  
     ensembleFile.write(outstr+'\n')  
     # used to set CME.vs here, seems unnecessary b/c done in other parts of code       
     return CME
@@ -1128,7 +1137,8 @@ def makeCMEarray():
     if 'SWB'    in input_values: CME.BSW = float(input_values['SWB'])
     if 'MHarea'    in input_values: CME.MHarea = float(input_values['MHarea'])
     if 'MHdist'    in input_values: CME.MHdist = float(input_values['MHdist'])
-
+    if 'CMEyaw'    in input_values: CME.yaw = float(input_values['CMEyaw'])
+    
     # Move to end of ForeCAT distance    
     CME = move2corona(CME, rmax)
          
@@ -1232,8 +1242,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         
         # reset path functions for t0 at start of ANTEATR
         # need to do for each satellite if > 1
-        if satPath:
-            
+        if satPath:           
             if actualPath:
                 satfs = [[] for i in range(len(satPath))]
                 satfs[0] = [lambda x: satPath[0][0](x + CME.t*60), lambda x: satPath[0][1](x + CME.t*60), lambda x: satPath[0][2](x + CME.t*60)]
@@ -1329,7 +1338,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma]
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma, CME.yaw]
         SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
         
         # check if given SW 1D profiles
@@ -1349,12 +1358,13 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         else:
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout)
             
-                      
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!
         if ATresults[0][0] not in [9999, 8888]:
             impactIDs.append(i)
-            
+            if (1 in PUPresults[11]):
+                CME.hasSheath = True
+                
             for sat in satNames:
                 thisSum = outSum[sat]
                 # check if input for this sat

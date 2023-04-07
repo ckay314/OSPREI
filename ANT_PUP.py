@@ -538,13 +538,17 @@ def add2outsFIDO(outsFIDO, FIDOarr):
 
     return outsFIDO  
 
-def whereAmI(Epos, CMEpos, CMElens, deltax, deltap):
+def whereAmI(Epos, CMEpos, CMElens, deltax, deltap, yaw):
     # [Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens
     # Get Earth/sat pos in CME coordinate frame
     Epos1 = SPH2CART(Epos)
     temp = rotz(Epos1, -CMEpos[1])
     temp2 = roty(temp, CMEpos[0])
-    Epos2 = rotx(temp2, 90.-CMEpos[2])
+    temp3 = rotx(temp2, 90.-CMEpos[2])
+    temp3[0] -= CMElens[0]
+    Epos2 = roty(temp3, yaw)
+    Epos2[0] += CMElens[0]
+    
     # Get the CME axis
     psis = np.linspace(-math.pi/2, math.pi/2, 1001)
     sns = np.sign(psis)
@@ -632,7 +636,7 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     
     return vCMEframe, vCSVec
 
-def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, comp=1.):
+def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, yaw, comp=1.):
     # Get Btor/Bpol at s/c location
     Btor = B0 * deltap * (tau - (axDist / maxDistFR)**2)
     ecH  = np.sqrt(deltap**2 * np.sin(thisParat)**2 + np.cos(thisParat)**2)
@@ -645,7 +649,8 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     Bp_vec = Bpol * pdir
     Btot = Bt_vec + Bp_vec
     # Convert to spacecraft coord system
-    temp = rotx(Btot, -(90.-CMEtilt))
+    temp0 = roty(Btot, -yaw)
+    temp = rotx(temp0, -(90.-CMEtilt))
     temp2 = roty(temp, CMElat - Elat) 
     Bvec = rotz(temp2, CMElon - Elon)
     
@@ -653,7 +658,8 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     vCMEframe, vExpCME = getvCMEframe(axDist / maxDistFR, thisPsi, thisParat, deltax, deltap, vs)
     #print ('          ',thisParat*180/3.14, vCMEframe, vExpCME)
     # rotate to s/c frame
-    temp = rotx(vCMEframe, -(90.-CMEtilt))
+    temp0 = roty(vCMEframe, -yaw)
+    temp = rotx(temp0, -(90.-CMEtilt))
     temp2 = roty(temp, CMElat - Elat) 
     vInSitu = rotz(temp2, CMElon - Elon )
 
@@ -690,6 +696,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     cnm        = invec[13] # 1.927 for Lundquist
     temScale   = invec[14] 
     fT         = invec[15] - 1 # 0 for isothermal, 2./3 for adiabatic
+    yaw        = invec[16]
     
     # polarity of FR for aFIDOinside set by CMEH, defaults to 1 for positive/right hand (-1 for left)
     # amb SW in or out set by inorout, defaults to 1 for out (-1 for in)
@@ -708,7 +715,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     sheath_wid  = 0.
     sheath_dens = 0.
     hitSheath = False
-    inint = 0
+    inint1 = 0
     global Tratio, rratio
     Tratio = 1
     rratio = 1
@@ -1048,8 +1055,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg]
         
         # PUP/sheath array
-        inint1 = 0
-        if True in hitSheath: inint = 1
+        if inint1 == 0:
+            for satID in sats2check:
+                if hitSheath[satID]:
+                    inint1 = 1
         PUPstuff = []
         if doPUP:
             PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint1]
@@ -1122,7 +1131,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         
             if theFront >= check_dist:
                 # Get Earth/sat pos in CME coordinate frame            
-                axDist, maxDistFR, thisPsi, thisParat = whereAmI([satPos[satID][2], satPos[satID][0], satPos[satID][1]], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap)
+                axDist, maxDistFR, thisPsi, thisParat = whereAmI([satPos[satID][2], satPos[satID][0], satPos[satID][1]], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap, yaw)
 
                 if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
                 # check if in sheath and save if so
@@ -1147,11 +1156,13 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
                             ndir = np.cross(tdir, pdir)
                             # attempt to get signs correct in sheath based on inorout, flip unit vecs to most aligned choice
-                            temp = rotx(ndir, -(90.-CMEtilt))
+                            temp0 = roty(ndir, -yaw)
+                            temp = rotx(temp0, -(90.-CMEtilt))
                             temp2 = roty(temp, CMElat - satPos[satID][0]) 
                             ndirSAT = np.array(rotz(temp2, CMElon - satPos[satID][1]))
                         
-                            temp = rotx(pdir, -(90.-CMEtilt))
+                            temp0 = roty(pdir, -yaw)
+                            temp = rotx(temp0, -(90.-CMEtilt))
                             temp2 = roty(temp, CMElat - satPos[satID][0]) 
                             pdirSAT = np.array(rotz(temp2, CMElon - satPos[satID][1]))
                         
@@ -1187,7 +1198,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                          
                     # Get the FR properties and print
                     if aFIDOinside and printNow:
-                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs)         
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, yaw)         
                         #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
                         # This adds extra compression if the expansion is compression in the rear
                         '''CMEgam = fT+1
@@ -1265,7 +1276,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             HSSreg = 0
                     
                         FIDOarr = [t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
-                        outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID]) 
+                        print (FIDOarr)
+                        outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOarr) 
                         
                         if writeFile:
                             print2file([t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg],  f4s[satID], '{:8.5f}')

@@ -146,6 +146,9 @@ class CME:
         self.impV = 0.
         self.impVE = 0.
         self.gamma = 1.3333
+        # add yaw option for ANT/FIDO but not used in FCAT
+        self.yaw = 0.
+        
         
         # CME sheath properties
         self.hasSheath = False

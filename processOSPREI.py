@@ -242,7 +242,6 @@ def txt2obj(GCStime):
                 vol = math.pi*thisRes.ANTrr*thisRes.ANTrp *  lenFun(thisRes.ANTdelAxs[-1])*thisRes.ANTrs[-1]
                 thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3'''
                 
-                
                 if OSP.doPUP:
                     thisRes.PUPvshocks = PUPdata[myidxs,1]
                     thisRes.PUPcomps = PUPdata[myidxs,2]
@@ -1251,14 +1250,14 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                 if dates[nowIdx[-1]] > maxdate: maxdate = dates[nowIdx[-1]]
                     
     if tightDates:
-        lesstight = 12 
+        lesstight = 6 
         hasSheath = False
         if isinstance(OSP.obsShstart, float): 
             mindate = base + datetime.timedelta(days=(OSP.obsShstart-1))
         else:
             mindate = base + datetime.timedelta(days=(OSP.obsFRstart-1))
         mindate = mindate - datetime.timedelta(hours=lesstight) 
-        maxdate = base + datetime.timedelta(days=(OSP.obsFRend-1)) + datetime.timedelta(hours=lesstight+4)      
+        maxdate = base + datetime.timedelta(days=(OSP.obsFRend-1)) + datetime.timedelta(hours=lesstight)      
     
     axes[0].set_ylabel('B (nT)')
     axes[1].set_ylabel('B$_x$ (nT)')

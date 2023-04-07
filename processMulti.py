@@ -35,7 +35,7 @@ import empHSS as emp
 import processOSPREI as proOSP
 
 # SWpadB set manually to make sure long enough for all cases, cutoff using xlim
-def makeISplot(allRes, SWpadF=12, SWpadB = 40, bfCase=None, plotn=False, tightDates=False, setTrange=False):
+def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDates=False, setTrange=False):
     
     fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
     mindate = None
@@ -203,16 +203,20 @@ def makeISplot(allRes, SWpadF=12, SWpadB = 40, bfCase=None, plotn=False, tightDa
                 for j in ticks2hide:
                     yticks[j].label1.set_visible(False)
     
-
-    
+    dx =0.07
+    plt.gcf().text(0.2+dx, 0.955, 'L23', fontsize=14, weight="bold", color=cos[1])
+    plt.gcf().text(0.28+dx, 0.955, 'L23+PUP', fontsize=14, weight="bold", color=cos[2])
+    plt.gcf().text(0.47+dx, 0.955, 'K23', fontsize=14, weight="bold", color=cos[3])
+    plt.gcf().text(0.55+dx, 0.955, 'K23*', fontsize=14, weight="bold", color=cos[4])
+    plt.gcf().text(0.635+dx, 0.955, 'K23*+HSS', fontsize=14, weight="bold", color=cos[0])
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)[:8]+'_multiIS'+figtag)    
-
+    #plt.show()
 
 
 # Modify this to loop as needed
-OSP.setupOSPREI()    
+'''OSP.setupOSPREI()    
 ResArr = proOSP.txt2obj(0)
 OGname = OSP.thisName
 OGdoPUP = OSP.doPUP
@@ -233,7 +237,23 @@ ResArr5 = proOSP.txt2obj(0)
 
 
 allRes = [ResArr, ResArr2, ResArr3, ResArr4, ResArr5]
-alldoPUPs = [True,  False, True, True]
+alldoPUPs = [True,  False, True, True]'''
+
+OSP.setupOSPREI()    
+ResArr = proOSP.txt2obj(0)
+OGname = OSP.thisName
+OGdoPUP = OSP.doPUP
+
+OSP.thisName = '20220126F10'
+OSP.doPUP = True
+ResArr2 = proOSP.txt2obj(0)
+
+OSP.thisName = '20220126F20'
+OSP.doPUP = True
+ResArr3 = proOSP.txt2obj(0)
+
+allRes = [ResArr, ResArr2, ResArr3]
+alldoPups = [True, True, True]
 
 # set back to first
 OSP.thisName = OGname
