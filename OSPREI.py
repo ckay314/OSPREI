@@ -1376,14 +1376,16 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                     thisParams = myParams[pidx[0]]
                     thisAngs = angArr[sat]
                     # get improved v estimates using FIDO code
-                    vFvec, vExvec = getvCMEframe(1., thisAngs[0], thisAngs[1], ATresults[5][FRidx], ATresults[6][FRidx], CME.vs)
-                    temp = rotx(vFvec, -(90.-tilt))
+                    vFvec, vExvec = getvCMEframe(1., thisAngs[0], thisAngs[1], ATresults[5][FRidx], ATresults[6][FRidx], vsArr[sat])
+                    temp0 = roty(vFvec, -CME.yaw)
+                    temp = rotx(temp0, -(90.-tilt))
                     temp2 = roty(temp, CMElat - thisParams[0]) 
                     vInSitu = rotz(temp2, CMElon - thisParams[1])
                     vF = vInSitu[0] / 1e5
                     
                     # this is vExp for axis and cs not the same as measured vexp....
-                    temp = rotx(vExvec, -(90.-tilt))
+                    temp0 = roty(vExvec, -CME.yaw)
+                    temp = rotx(temp0, -(90.-tilt))
                     temp2 = roty(temp, CMElat - thisParams[0]) 
                     vExVec = rotz(temp2, CMElon - thisParams[1])
                     vEx = vExVec[0] / 1e5

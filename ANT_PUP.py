@@ -1198,8 +1198,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                          
                     # Get the FR properties and print
                     if aFIDOinside and printNow:
-                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, yaw)         
-                        #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, yaw)                              #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
                         # This adds extra compression if the expansion is compression in the rear
                         '''CMEgam = fT+1
                         cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
@@ -1221,7 +1220,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     if not printNow and not reachedCME[satID]:
                         outsCME, outsSheath = add2outs(outsCME, outsSheath, fullCMEstuff, PUPstuff)
                         outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID])                 
-                        
                         if writeFile:
                             print2file(fullCMEstuff, f1, '{:8.5f}')
                             if doPUP:
@@ -1276,7 +1274,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             HSSreg = 0
                     
                         FIDOarr = [t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
-                        print (FIDOarr)
                         outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOarr) 
                         
                         if writeFile:
