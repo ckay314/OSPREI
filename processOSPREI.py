@@ -561,6 +561,7 @@ def makeCPAplot(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.13,right=0.95,top=0.95,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.'+figtag)
+    plt.close() 
     
 def makeCPAhist(ResArr):
     fig = plt.figure(constrained_layout=True, figsize=(8,8))
@@ -637,7 +638,8 @@ def makeCPAhist(ResArr):
     ax2[2].set_xlabel('Counts')
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPAhist.'+figtag)
-
+    plt.close() 
+    
 def makeADVplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
     axes = [axes[0,0], axes[0,0], axes[0,1], axes[1,0], axes[1,0], axes[2,0], axes[2,0], axes[1,1], axes[1,1], axes[2,1]]
@@ -770,6 +772,7 @@ def makeADVplot(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.95,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ADV.'+figtag)
+    plt.close() 
     
 def makeDragless(ResArr):
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(10,10))
@@ -899,7 +902,8 @@ def makeDragless(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.93,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.'+figtag)
-
+    plt.close() 
+    
 def makePUPplot(ResArr):
     fig, axes = plt.subplots(2, 4, sharex=True, figsize=(16,8))
     axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[0,2], axes[0,2], axes[0,3], axes[0,3], axes[1,0], axes[1,0], axes[1,0], axes[1,1], axes[1,1], axes[1,2],  axes[1,2], axes[1,3], axes[1,3]]
@@ -1012,7 +1016,8 @@ def makePUPplot(ResArr):
     plt.subplots_adjust(wspace=0.3, hspace=0.01,left=0.06,right=0.99,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANTPUP.'+figtag)
-
+    plt.close() 
+    
 def makeDragplot(ResArr):
     fig, axes = plt.subplots(3, 2, sharex=True, figsize=(14,10))
     axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[1,0], axes[1,0], axes[1,1], axes[1,1], axes[2,0], axes[2,0], axes[2,1], axes[2,1], axes[2,1]]
@@ -1177,7 +1182,8 @@ def makeDragplot(ResArr):
     plt.subplots_adjust(hspace=0.1,left=0.08,right=0.95,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Drag.'+figtag)
-
+    plt.close() 
+    
 def makeAThisto(ResArr, satID=0):
     satName = satNames[satID]
     if len(satName)>1:
@@ -1237,6 +1243,7 @@ def makeAThisto(ResArr, satID=0):
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANT'+satName+'.'+figtag)
+    plt.close() 
      
 def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDates=False, setTrange=False, satID=0):
     satName = satNames[satID]
@@ -1408,7 +1415,8 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'_BF'+str(bfCase)+'.'+figtag)
     else:
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'.'+figtag)    
-    
+    plt.close() 
+        
 def makeFIDOhistos(ResArr, satID=0):
     satName = satNames[satID]
     if len(satName)>1:
@@ -1469,7 +1477,8 @@ def makeFIDOhistos(ResArr, satID=0):
     
     plt.subplots_adjust(wspace=0.15, hspace=0.25,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_FIDOhist'+satName+'.'+figtag)
-
+    plt.close() 
+    
 def makeSIThistos(ResArr):
     fig, axes = plt.subplots(3, 3, figsize=(10,10), sharey=True)
     axes = [axes[0,0], axes[0,1], axes[0,2], axes[1,0], axes[1,1], axes[1,2], axes[2,0], axes[2,1], axes[2,2]]
@@ -1548,7 +1557,8 @@ def makeSIThistos(ResArr):
     
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_SIThist.'+figtag)
-
+    plt.close() 
+    
 def makeallIShistos(ResArr, satID=0):
     satName = satNames[satID]
     if len(satName)>1:
@@ -1640,6 +1650,7 @@ def makeallIShistos(ResArr, satID=0):
     
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist'+satName+'.'+figtag)
+    plt.close() 
     
 def makeEnsplot(ResArr, critCorr=0.5, satID=0):
     satName = satNames[satID]
@@ -1868,7 +1879,7 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
         cb = fig.colorbar(img, cax=cbar_ax, orientation='horizontal')   
         cb.set_label('Correlation') 
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+figtag)
-    
+        plt.close() 
     else:
         print('No significant correlations, not making ENS plot')
                     
@@ -2062,7 +2073,8 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
     cbar_ax = fig.add_axes([ax0pos.x0, 0.94, ax0pos.width, 0.02])
     cbar = fig.colorbar(c, cax=cbar_ax, orientation='horizontal')
     cbar.ax.set_title('Percentage Chance')        
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc'+satName+'.'+figtag)    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc'+satName+'.'+figtag)   
+    plt.close() 
                                
 def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
     # Start by filling in the area that corresponds to the CME in a convenient frame
@@ -2505,7 +2517,8 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
 
     plt.xticks(fontsize=10)    
     plt.subplots_adjust(wspace=0.2, hspace=0.46,left=0.1,right=0.95,top=0.85,bottom=0.12)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours'+satName+'.png')    
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours'+satName+'.png')   
+    plt.close() 
 
 def hourify(tARR, vecin):
     # Assume input is in days, will spit out results in hourly averages
@@ -3123,7 +3136,7 @@ def enlilesqueMer(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnlilesqueMer'+countstr+'.'+figtag)
         plt.close()
         
-def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
+def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0):
     # assume we are plotting the seed case but will change if specified in call
     thisCME = ResArr[key]
     
@@ -3145,6 +3158,15 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         Tfuncs = emp.getTmodel(MHarea)
         vlonfuncs = emp.getvlonmodel(MHarea)
         HSSfuncs = [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs]
+    
+    if doSat:
+        if 'satPath' in OSP.input_values:
+            satPath = OSP.input_values['satPath']
+        satPaths = OSP.satPathWrapper(satPath)
+        satNames = satPaths[-1]
+        satPaths = satPaths[:-1]
+        nSat = len(satNames)
+    
 
     # initialize grid
     nTheta = 181
@@ -3188,10 +3210,16 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         
         # get satellite position
         if doSat:
-            satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
-            satLon = satLonf(thistime*24*3600) - CMElon
-            satR   = satRf(thistime*24*3600) / 215.
-            satLat   = satLatf(thistime*24*3600)
+            satRs, satLats, satLons = [], [], []
+            for i in range(nSat):
+                satLats.append(satPaths[i][0](thistime*24*3600))
+                satLons.append(satPaths[i][1](thistime*24*3600)-CMElon)
+                satRs.append(satPaths[i][2](thistime*24*3600)/215.)
+            
+            #satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
+            #satLon = satLonf(thistime*24*3600) - CMElon
+            #satR   = satRf(thistime*24*3600) / 215.
+            #satLat   = satLatf(thistime*24*3600)
     
         # set up background SW w/o CME
         if not OSP.doMH:
@@ -3274,7 +3302,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
             for j in mightBin:
                 # check if actually in CME
                 # Meridional
-                thispos = np.array([rs[j]*215, angs[i]/dtor, satLon])
+                thispos = np.array([rs[j]*215, angs[i]/dtor, merLon])
                 CMEpos = np.array([CMElat, 0, CMEtilt])
                 vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS)
                 rbar = vpmag/maxrFR
@@ -3316,8 +3344,9 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
         ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
 
         if doSat:
-            ax[0].plot(satLat*dtor, satR, 'o', color='cyan')        
-            ax[1].plot(satLon*dtor, satR, 'o', color='cyan')        
+            for i in range(nSat):
+                ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')        
+                ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')        
         ax[0].set_xticklabels([])
         ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
         ax[0].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
@@ -3403,7 +3432,7 @@ if __name__ == '__main__':
     if OSP.doANT:
         if OSP.doPUP:
             # make IP plot including sheath stuff
-            makePUPplot(ResArr)
+            makePUPplot(ResArr) #Fix this
         else:
             # Make drag profile
             makeDragless(ResArr)
@@ -3417,7 +3446,7 @@ if __name__ == '__main__':
 
     # Ensemble plots
     if nEns > 1:
-        '''if OSP.doFC:
+        if OSP.doFC:
             # Make CPA plot
             makeCPAhist(ResArr)
             
@@ -3440,18 +3469,18 @@ if __name__ == '__main__':
                     makeallIShistos(ResArr, satID=i)
             # Kp probability timeline
             for i in range(nSat):
-                makeAllprob(ResArr, satID=i)'''
+                makeAllprob(ResArr, satID=i)
 
         # Slow plots -- worth commenting out if running quick tests
         # and not looking specifically at these
         
         # Ensemble input-output plot
-        #for i in range(nSat):
-        #    makeEnsplot(ResArr,critCorr=0.5, satID=i)
+        for i in range(nSat):
+            makeEnsplot(ResArr,critCorr=0.5, satID=i)
         
         # Contour plot
-        #for i in range(nSat):
-        #    makeContours(ResArr, satID=i)
+        for i in range(nSat):
+            makeContours(ResArr, satID=i)
     
     # Also slow now
     for i in range(nSat):

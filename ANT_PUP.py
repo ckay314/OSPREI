@@ -538,7 +538,7 @@ def add2outsFIDO(outsFIDO, FIDOarr):
 
     return outsFIDO  
 
-def whereAmI(Epos, CMEpos, CMElens, deltax, deltap, yaw):
+def whereAmI(Epos, CMEpos, CMElens, deltax, deltap, yaw=0):
     # [Er, Elat, Elon], [CMElat, CMElon, CMEtilt], CMElens
     # Get Earth/sat pos in CME coordinate frame
     Epos1 = SPH2CART(Epos)
@@ -1131,7 +1131,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         
             if theFront >= check_dist:
                 # Get Earth/sat pos in CME coordinate frame            
-                axDist, maxDistFR, thisPsi, thisParat = whereAmI([satPos[satID][2], satPos[satID][0], satPos[satID][1]], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap, yaw)
+                axDist, maxDistFR, thisPsi, thisParat = whereAmI([satPos[satID][2], satPos[satID][0], satPos[satID][1]], [CMElat, CMElon, CMEtilt], CMElens, deltax, deltap, yaw=yaw)
 
                 if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
                 # check if in sheath and save if so
