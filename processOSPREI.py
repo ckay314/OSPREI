@@ -1369,7 +1369,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         if setTrange:
             axes[5].set_ylim([0,1e6])
         
-    if ObsData is not None:
+    if (ObsData[0] is not None):
         axes[0].plot(ObsData[satID][0,:], ObsData[satID][1,:], linewidth=4, color='r')
         axes[1].plot(ObsData[satID][0,:], ObsData[satID][2,:], linewidth=4, color='r')
         axes[2].plot(ObsData[satID][0,:], ObsData[satID][3,:], linewidth=4, color='r')
@@ -3484,8 +3484,9 @@ if __name__ == '__main__':
     
     # Also slow now
     for i in range(nSat):
-        if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
-            getISmetrics(ResArr, satID=i)
+        if OSP.obsFRstart is not None:
+            if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
+                getISmetrics(ResArr, satID=i)
     
     if False:
         enlilesqueBoth(ResArr, bonusTime=24)
