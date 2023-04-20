@@ -51,7 +51,7 @@ def setupOSPREI():
     # Set defaults for these values
     global suffix, nRuns
     # these are values its convenient to read early for processOSPREI
-    global time, satPos, Sat_rot, ObsDataFile, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat
+    global time, satPos, Sat_rot, ObsDataFile, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat, simYaw
     global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath
     suffix = ''
     nRuns  = 1
@@ -64,6 +64,7 @@ def setupOSPREI():
     flag1DSW = False
     doPUP   = False
     doMH    = False
+    simYaw  = False
     isSat   = False
     obsFRstart, obsFRend, obsShstart = None, None, None
     mass = 5.
@@ -106,6 +107,9 @@ def setupOSPREI():
         elif temp[0][:-1] == 'doMH':
             if temp[1] == 'True':
                 doMH = True
+        elif temp[0][:-1] == 'simYaw':
+            if temp[1] == 'True':
+                simYaw = True
         elif temp[0][:-1] == 'isSat':
             if temp[1] == 'True':
                 isSat = True
@@ -749,6 +753,16 @@ def checkInputs(printNonCrit=False):
                 sys.exit('Initial HSS front distance (MHdist) must be in [-0.4, 1.5] AU') 
         else:
             sys.exit('Initial HSS front distance (MHdist) must be provided if MEOW-HiSS is included')
+    
+    # Yaw check
+    if 'simYaw' in input_values:
+        simYaw = input_values['simYaw']
+        if simYaw in ['True', 'False']:
+            if simYaw == 'True':
+                simYaw = True
+        else:
+            sys.exit('Flag for simulating yaw rotation (simYaw) must be either True or False')
+    
         
     # bonus check - are lons near one another    
     if not hasSatPath:
@@ -1354,9 +1368,9 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         
         isSilent = False
         if actualPath:            
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw)
         else:
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw)
             
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!
@@ -1448,7 +1462,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j], ATresults[12,j]]
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j], ATresults[12,j], ATresults[13,j], ATresults[14,j], ATresults[15,j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')

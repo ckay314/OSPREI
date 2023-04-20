@@ -236,6 +236,77 @@ def getDrag(CMElens, vs, Mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, 
     
     return dragAccels
     
+def calcYawTorque(CMElens, CMEpos, AW, vs, deltax, deltap, yaw, solRotRate, SWfs, Cd, doMH, saveForces=False):        
+    # Get radial distance at edges
+    # Get xy in CME frame 
+    rEdge = CMElens[1]
+    rxyL = rEdge*np.array([np.cos(AW), 0, np.sin(AW)])
+    rxyR = rEdge*np.array([np.cos(AW), 0, -np.sin(AW)])
+    
+    # subtract front distance 
+    rxyL[0] -= CMElens[0]
+    rxyR[0] -= CMElens[0]
+
+    # rotate by yaw
+    rxyL2 = roty(rxyL, -yaw)
+    rxyL2[0] += CMElens[0]
+
+    rxyR2 = roty(rxyR, -yaw)
+    rxyR2[0] += CMElens[0]
+    
+    
+    rLside = np.sqrt(rxyL2[0]**2 + rxyL2[2]**2)
+    rRside = np.sqrt(rxyR2[0]**2 + rxyR2[2]**2)
+    
+    #Need to project edges onto eq plane to get lon diff for HSS -> rest of stuff ok
+    # to assume everything in xz plane
+    rxyL3 = rotx(rxyL2, -(90.-CMEpos[2]))
+    rxyL4 = roty(rxyL3, -CMEpos[0])
+    rxyR3 = rotx(rxyR2, -(90.-CMEpos[2]))
+    rxyR4 = roty(rxyR3, -CMEpos[0])
+    
+    #dlonLSide = np.arctan2(rxyL2[2], rxyL2[0]) / dtor
+    #dlonRSide = np.arctan2(rxyR2[2], rxyR2[0]) / dtor
+    
+    dlonLSide = np.arctan2(rxyL4[1], rxyL4[0]) / dtor
+    dlonRSide = np.arctan2(rxyR4[1], rxyR4[0]) / dtor
+    
+    dtMHL = -dlonLSide * solRotRate 
+    dtMHR = -dlonRSide * solRotRate
+    
+    SWatsatL  = getSWvals(rLside, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHL)
+    SWatsatR  = getSWvals(rRside, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHR)
+
+    # Get velocity at front of each side
+    vEdgeL, vExpL = getvCMEframe(1, math.pi/2, 0, deltax, deltap, vs) 
+    vEdgeR, vExpR = getvCMEframe(1, -math.pi/2, 0, deltax, deltap, vs)
+    
+    vEdgeL = roty(vEdgeL, -yaw)
+    vEdgeR = roty(vEdgeR, -yaw)
+    
+    rhatCMEframeL = np.array([np.cos(np.abs(dlonLSide*dtor)), 0, np.sin(dlonLSide*dtor)])
+    rhatCMEframeR = np.array([np.cos(np.abs(dlonRSide*dtor)), 0, np.sin(dlonRSide*dtor)])
+
+    vrEdgeL = np.dot(rhatCMEframeL, vEdgeL)
+    vrEdgeR = np.dot(rhatCMEframeR, vEdgeR)
+    
+    CMEarea = 4*CMElens[1]*CMElens[4] 
+    dragL = -Cd*CMEarea*SWatsatL[0] * (vrEdgeL-SWatsatL[1]) * np.abs(vrEdgeL-SWatsatL[1]) 
+    dragR = -Cd*CMEarea*SWatsatR[0] * (vrEdgeR-SWatsatR[1]) * np.abs(vrEdgeR-SWatsatR[1])
+            
+    # need to take angle still
+    lever = np.sqrt((CMElens[6]+CMElens[3])**2 + (CMElens[4]+CMElens[3])**2)
+    lev_angL = np.arctan2((CMElens[0] - rxyL2[0]), rxyL2[2])
+    norm_vecL = np.array([np.cos(lev_angL), 0., np.sin(lev_angL)])
+    lev_angR = np.arctan2((CMElens[0] - rxyR2[0]), np.abs(rxyR2[2]))
+    norm_vecR = np.array([np.cos(lev_angR), 0., -np.sin(lev_angR)])
+    torque = -( np.dot(lever*norm_vecL, dragL*rhatCMEframeL) - np.dot(lever*norm_vecR, dragR*rhatCMEframeR))
+    if saveForces:
+        moarOuts = [-np.dot(lever*norm_vecL, dragL*rhatCMEframeL), np.dot(lever*norm_vecR, dragR*rhatCMEframeR), lever, dragL, dragR, np.dot(norm_vecL, rhatCMEframeL), np.dot(norm_vecR, rhatCMEframeR)]
+        return torque, moarOuts
+    else:
+        return torque
+
 def IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales):
     vs = np.zeros(7)
     # vs = [vFront 0, vEdge 1, vBulk 2, vexpBr 3, vexpBp 4, vexpA 5, vexpC 6]
@@ -402,7 +473,7 @@ def getSWvals(r_in, SWfuncs, doMH=False, returnReg=False, deltatime=0):
     for i in range(5):
         SWvec[i] = SWfuncs[i](r_in)
     if hasattr(doMH, '__len__'):
-        if returnReg:
+        if doMH:
             MHouts, HSSreg = emp.getHSSprops(r_in/1.5e13, doMH[0]+deltatime, doMH[1], doMH[2], doMH[3], doMH[4], doMH[5], returnReg=True)
         else:
             MHouts = emp.getHSSprops(r_in/1.5e13, doMH[0], doMH[1], doMH[2], doMH[3], doMH[4], doMH[5])
@@ -491,7 +562,7 @@ def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
     # CME: 0 t, 1 r, 2 vs, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 reg
     # Sheath: 0 vS, 1 comp, 2 MA, 3 Wid, 4 Dur, 5 Mass, 6 Dens, 7 B, 8 Theta, 9 Temp, 10 Vt, 11 InSheath
 
-    #fullCMEstuff = [0 t/3600./24., 1 CMElens[0]/rsun, 2 AW*180/pi,  3 AWp*180/pi, 4 CMElens[5]/rsun, 5 CMElens[3]/rsun, 6 CMElens[4]/rsun, 7 CMElens[6]/rsun, 8 CMElens[2]/rsun, 9 vs[0]/1e5, 10 vs[1]/1e5, 11 vs[5]/1e5, 12 vs[3]/1e5, 13 vs[4]/1e5, 14 vs[6]/1e5, 15 vs[2]/1e5, 16 rho/1.67e-24, 17 B0*1e5, 18 cnm, 19 np.log10(temCME), 20 HSSreg]
+    #fullCMEstuff = [0 t/3600./24., 1 CMElens[0]/rsun, 2 AW*180/pi,  3 AWp*180/pi, 4 CMElens[5]/rsun, 5 CMElens[3]/rsun, 6 CMElens[4]/rsun, 7 CMElens[6]/rsun, 8 CMElens[2]/rsun, 9 vs[0]/1e5, 10 vs[1]/1e5, 11 vs[5]/1e5, 12 vs[3]/1e5, 13 vs[4]/1e5, 14 vs[6]/1e5, 15 vs[2]/1e5, 16 rho/1.67e-24, 17 B0*1e5, 18 cnm, 19 np.log10(temCME), 20 yaw 21 yaw v [deg/hr] 22 yaw accel [0.5 a * (3600^2)] 23 HSSreg]
     outsCME[0].append(CMEarr[0]) 
     outsCME[1].append(CMEarr[1])
     outsCME[2].append([CMEarr[9], CMEarr[10], CMEarr[11], CMEarr[12], CMEarr[13], CMEarr[14], CMEarr[15]])
@@ -504,7 +575,10 @@ def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
     outsCME[9].append(CMEarr[18])
     outsCME[10].append(CMEarr[16])
     outsCME[11].append(CMEarr[19])
-    outsCME[12].append(CMEarr[20])
+    outsCME[12].append(CMEarr[23])
+    outsCME[13].append(CMEarr[20])
+    outsCME[14].append(CMEarr[21])
+    outsCME[15].append(CMEarr[22])
     
     if len(sheatharr) != 0:
         #PUPstuff = [0 r, 1 vShock, 2 Ma, 3 sheath_wid, 4 sheath_dur, 5 sheath_mass/1e15, 6 sheath_dens, 7 np.log10(Tratio*SWfront[4]), 8 Tratio, 9 Bsh, 10 thetaBsh, 11 vtSh, 12 inint]
@@ -630,10 +704,12 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     nCS = np.array([np.cos(thetaP)/delCS, np.sin(thetaP), 0.])
     normN2 = np.sqrt(np.sum(nCS**2))
     nCS = nCS / normN2
-    nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
+    rotAng = np.arccos(np.dot(nAx, nCS))*np.sign(thetaT)
+    #nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
+    nCSatAx = np.array([nCS[0] * np.cos(np.abs(rotAng)), nCS[1], nCS[0] * np.sin(rotAng)])
     vCSVec = vCS * nCSatAx
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
-    
+
     return vCMEframe, vCSVec
 
 def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, yaw, comp=1.):
@@ -671,7 +747,7 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     return Bvec, vInSitu, vExpCME
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1):
+def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1, simYaw=False):
     # testing things
     #satfsIn = [satfs[0], satfs[0], ['sat1', 'sat2']]
     #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]], [Epos[0], Epos[1]-10, (Epos[2]) *7e10, Epos[3]]]
@@ -797,6 +873,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if saveForces:
             fname3 = 'MH_forces_'+name+'.dat'
             f3 = open(fname3, 'w')
+            if simYaw:
+                fnameYaw = 'MH_torque_'+name+'.dat'
+                fYaw.open(fnameYaw, 'w')
+            
         if aFIDOinside:
             # Might have multiple satellites so need multiple save files
             fname4s = {}
@@ -830,7 +910,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
     SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
     SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
-        
+       
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
     if flagScales:
@@ -862,7 +942,11 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         else:
             fscales = [0.5, 0.5]
     vs = IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales)    
-            
+    
+    # angular velocity
+    yawv = 0. # assume starts stationary, v = angular w (rad/s)
+    yawMom = 0. # will 
+    yawAcc = 0.
         
     printR = rFront
     runSim = True
@@ -882,7 +966,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         vsArr[aSatID] = []
         angArr[aSatID] = []
 
-    outsCME = [[] for i in range(13)]
+    outsCME = [[] for i in range(16)]
     outsSheath = [[] for i in range(12)]
     outsFIDO = {}
     FIDOstuff = {}
@@ -907,7 +991,14 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             dragAccels = getDrag(CMElens, vs, Mass+sheath_mass, AW, AWp, Cd, SWfront, SWfrontB, SWedge, SWedgeB, ndotz)
             # Update accels to include drag forces
             totAccels += dragAccels
-
+        
+        torque = 0.
+        if simYaw:
+            if saveForces:
+                torque, torOuts = calcYawTorque(CMElens, [CMElat, CMElon, CMEtilt], AW, vs, deltax, deltap, yaw, solRotRate, SWfs, Cd, doMH, saveForces=True)
+            else:
+                torque = calcYawTorque(CMElens, [CMElat, CMElon, CMEtilt], AW, vs, deltax, deltap, yaw, solRotRate, SWfs, Cd, doMH)
+        
         # Internal flux rope forces
         if not axisOff:
             aTotNose, aTotEdge = getAxisF(deltax, deltap, CMElens[4], CMElens[6], B0, cnm, tau, rho)
@@ -986,6 +1077,20 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Check if moving backwards, can happen with bad inputs (large CME->large Bax force)
         if vs[0] < 0:
             return makeFailArr(8888)
+            
+        if simYaw:
+            InoseY = 0.25 * rho * math.pi**2 * deltax * CMElens[6] * CMElens[4]**2 * (2*CMElens[6]**2 * (deltax**2 + 4*np.sqrt(1-deltax**2) +3) + 8*(deltax + np.sqrt(1-deltax**2))*CMElens[6]*CMElens[4] + 7*CMElens[4]**2)  
+            
+            # leggies
+            Ileg = Mass/2. * ((CMElens[0] - 2*CMElens[2]/3)**2 + (2*CMElens[6]/3)**2)
+            Itot = InoseY + 2 * Ileg
+            
+            # conservation of ang mom, yawv will slow down as I grows
+            yawv = yawMom / Itot 
+            yawAcc = torque/Itot
+            yaw += (yawv * dt + 0.5 * yawAcc * dt**2) / dtor
+            yawv += yawAcc*dt
+            yawMom = Itot * yawv
                
         if doPUP:
             sheath_dur = sheath_wid*7e10/vs[0]/3600
@@ -1051,8 +1156,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # ------Set up state vectors at the end of a time step--------------
         # ------------------------------------------------------------------
         # CME array
-        CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, HSSreg]
-        fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), HSSreg]
+        CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, yaw, yawv/dtor*3600, (0.5 * yawAcc *3600**2) / dtor, HSSreg]
+        fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), yaw, yawv/dtor*3600, (0.5 * yawAcc *3600**2) / dtor, HSSreg]
         
         # PUP/sheath array
         if inint1 == 0:
@@ -1066,11 +1171,13 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # Forces
         if saveForces:
             forcestuff = [t/3600./24., CMElens[0]/rsun, aTotNose, aTotEdge * ndotz, aTotEdge * np.sqrt(1-ndotz**2), aTotNose - aTotEdge * np.sqrt(1-ndotz**2), aTotEdge * ndotz,    aBr, aBr * ndotz, aBr, aBr/deltap,   aPTr, aPTr * ndotz, aPTr, aPTp,     dragAccels[0], dragAccels[1], dragAccels[2], dragAccels[3], dragAccels[4], dragAccels[5], dragAccels[6]]
-        
-        #FIDOstuff = [] # will replace if needed
-        
-                        
-        
+            
+            # Torques
+            if simYaw:
+                torstuff = [t/3600./24., CMElens[0]/rsun, torOuts[0], torOuts[1], torOuts[2], torOuts[3], torOuts[4], torOuts[5]]
+                
+
+ 
         # ------------------------------------------------------------------
         # ----------------- Save and print everything ----------------------
         # ------------------------------------------------------------------
@@ -1094,6 +1201,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                     print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')                
                 if saveForces:  
                     print2file(forcestuff, f3, '{:11.3f}')
+                    if simYaw:
+                        print2file(torstuff, fYaw, '{:12.5f}')
             
             # save SW values to FIDO file (if doing)
             for satID in sats2check:
@@ -1318,7 +1427,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 print ('Transit Time:     ', outSum[satID][0])
                 print ('Final Velocity:   ', outSum[satID][1], outSum[satID][2])
                 print ('CME nose dist:    ', outSum[satID][3])
-                print ('Earth longitude:  ', outSum[satID][4])
+                print ('Sat. longitude:  ', outSum[satID][4])
                 print ('Est. Duration:    ', outSum[satID][5])
             print ('')
 

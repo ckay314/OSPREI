@@ -179,6 +179,10 @@ def txt2obj(GCStime):
             if not OSP.doFC:  
                 thisRes = EnsRes(OSP.thisName)
                 thisRes.myID = i
+                # add in CME lat lon tilt
+                thisRes.FClats = [float(OSP.input_values['CMElat'])]
+                thisRes.FClons = [float(OSP.input_values['CMElon'])]
+                thisRes.FCtilts = [float(OSP.input_values['CMEtilt'])]                
             else:
                 thisRes = ResArr[i]
                 
@@ -216,6 +220,9 @@ def txt2obj(GCStime):
                 thisRes.ANTtaus  = ANTdata[myidxs,17]
                 thisRes.ANTns    = ANTdata[myidxs,18]
                 thisRes.ANTlogTs = ANTdata[myidxs,19] 
+                thisRes.ANTyaws  = ANTdata[myidxs,21] 
+                thisRes.ANTyawvs = ANTdata[myidxs,22] 
+                thisRes.ANTyawAs = ANTdata[myidxs,23] 
                 
                 # idx of where sheath and/or FR start, will be replaced if FIDOing
                 thisRes.ANTshidx = -1
@@ -3169,9 +3176,9 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
     
 
     # initialize grid
-    nTheta = 181
+    nTheta = 361
     nRs = 121
-    angs = np.radians(np.linspace(-90, 90, nTheta))
+    angs = np.radians(np.linspace(-180, 180, nTheta))
     CHangs = np.where(np.abs(angs) <= CHang)
     rs = np.linspace(0, 1.2, nRs)
     r, theta = np.meshgrid(rs, angs)
@@ -3180,7 +3187,6 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
     CMElat  = thisCME.FClats[-1]
     CMElon  = thisCME.FClons[-1] 
     CMEtilt = thisCME.FCtilts[-1]
-    
     tANT0 = thisCME.ANTtimes[0]
     
     # figure out time res
@@ -3211,10 +3217,16 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         # get satellite position
         if doSat:
             satRs, satLats, satLons = [], [], []
-            for i in range(nSat):
-                satLats.append(satPaths[i][0](thistime*24*3600))
-                satLons.append(satPaths[i][1](thistime*24*3600)-CMElon)
-                satRs.append(satPaths[i][2](thistime*24*3600)/215.)
+            try:
+                for i in range(nSat):
+                    satLats.append(satPaths[i][0](thistime*24*3600))
+                    satLons.append(satPaths[i][1](thistime*24*3600)-CMElon)
+                    satRs.append(satPaths[i][2](thistime*24*3600)/215.)
+            except:
+                for i in range(nSat):
+                    satLats.append(satPaths[i][0])
+                    satLons.append(satPaths[i][1]-CMElon + satPaths[i][3] * thistime*24*3600/dtor)
+                    satRs.append(satPaths[i][2]/215.)
             
             #satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
             #satLon = satLonf(thistime*24*3600) - CMElon
@@ -3222,22 +3234,26 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
             #satLat   = satLatf(thistime*24*3600)
     
         # set up background SW w/o CME
+        try:
+            vSW = OSP.vSW
+        except:
+            vSW = 300
         if not OSP.doMH:
-            values *= OSP.vSW
+            values *= vSW
         else:
             for j in range(len(rs)):
                 # Meridional Slice
-                valuesMer[:,j] = OSP.vSW
+                valuesMer[:,j] = vSW
                 t1 = t0 + thistime*24
                 thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                valuesMer[CHangs,j] = ((thispoint[1]-1) * np.sqrt((CHang -np.abs(angs[CHangs]))/CHang) + 1 )* OSP.vSW
+                valuesMer[CHangs,j] = ((thispoint[1]-1) * np.sqrt((CHang -np.abs(angs[CHangs]))/CHang) + 1 )*vSW
                 # Equatorial Slice
                 for i in range(len(angs)):
                     ang = angs[i]
                     dtang = -ang / rotrate / dtor
                     t1 = t0 + dtang + thistime*24
                     thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                    valuesEq[i,j] = thispoint[1] * OSP.vSW
+                    valuesEq[i,j] = thispoint[1] * vSW
                 
         # add in CME
         # get evolved CME properties
@@ -3250,6 +3266,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         deltaCS = thisCME.ANTdelCSs[idx]
         vExps = [thisCME.ANTvFs[idx], thisCME.ANTvEs[idx], thisCME.ANTvBs[idx], thisCME.ANTvCSrs[idx], thisCME.ANTvCSps[idx], thisCME.ANTvAxrs[idx], thisCME.ANTvAxps[idx]]
         sheathwid = thisCME.PUPwids[idx]
+        yaw = thisCME.ANTyaws[idx]
 
         # calc CME lens
         CMElens = np.zeros(7)
@@ -3269,16 +3286,20 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
 
         # Rotate out of CME frame
         axvec = [xFR,0,zFR]
+        axvec = roty([xFR-CMEr,0,zFR], -yaw)
+        axvec = [axvec[0]+CMEr, 0, axvec[2]]
+        
         axvec1 = rotx(axvec,-(90-CMEtilt))
         xyzpos = roty(axvec1,-CMElat)
         #xyzpos = rotz(axvec2, CMElon) # assuming in ref frame where CMElon = 0
         axLats = np.arctan2(xyzpos[2], np.sqrt(xyzpos[0]**2 + xyzpos[1]**2)) / dtor
         axLons = np.arctan2(xyzpos[1], xyzpos[0]) / dtor
         axRs = np.sqrt(xyzpos[0]**2 + xyzpos[1]**2 + xyzpos[2]**2)
-        Lon2R = CubicSpline(axLons,axRs,bc_type='natural') 
+        Lon2R = CubicSpline(axLons,axRs,bc_type='natural')
+ 
     
         # Get min/max lon to tighten range to check if inCME
-        dLon = 15
+        dLon = 30
         minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
         idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
         idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
@@ -3304,26 +3325,26 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
                 # Meridional
                 thispos = np.array([rs[j]*215, angs[i]/dtor, merLon])
                 CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS)
+                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                 rbar = vpmag/maxrFR
                 if rbar <= 1:
                     # get velocity if in CME
                     vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
                     valuesMer[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
                     isCMEMer[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (rs[j]*215. > CMElens[0]):
+                elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR):#(rs[j]*215. > CMElens[0]):
                     valuesMer[i,j] = vExps[0]
                 # Equatorial
                 thispos = np.array([rs[j]*215, 0, angs[i]/dtor])
                 CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS)
+                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                 rbar = vpmag/maxrFR
                 if rbar <= 1:
                     # get velocity if in CME
                     vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
                     valuesEq[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
                     isCMEEq[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (rs[j]*215. > CMElens[0]):
+                elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR): #(rs[j]*215. > CMElens[0]):
                     valuesEq[i,j] = vExps[0]
                
     
@@ -3332,7 +3353,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         else:
             fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
         
-        levels = np.linspace(200, 700, 30)    
+        levels = np.linspace(200, 1000, 30)    
         CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
         ax[0].contour(theta, r, isCMEMer, [0.1,1])
  
@@ -3345,7 +3366,9 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
 
         if doSat:
             for i in range(nSat):
-                ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')        
+                # only include sat in meridonal plot if fairly close to that plane
+                if np.abs(satLons[i]) < 5:
+                    ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')        
                 ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')        
         ax[0].set_xticklabels([])
         ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
@@ -3489,6 +3512,6 @@ if __name__ == '__main__':
                 getISmetrics(ResArr, satID=i)
     
     if False:
-        enlilesqueBoth(ResArr, bonusTime=24)
+        enlilesqueBoth(ResArr, bonusTime=24, doSat=True)
 
         
