@@ -2,6 +2,8 @@ import numpy as np
 import math
 import ForeCAT_functions as FC
 import ForceFields as FF
+from scipy.special import ellipk, ellipe
+
 
 global dtor, radeg
 dtor  = 0.0174532925   # degrees to radians
@@ -246,7 +248,9 @@ class CME:
         if ee == 0: Irot = self.rho * math.pi**2 * cc * bb**2 * (cc**2 + 1.25 * bb**2)
         # more complicated general version
         else:
-            Irot = 0.25 * self.rho * bb**2 *cc * math.pi**2 * (2. * (1+2.*ee**2)*np.power(ome2, .5) * cc**2 + 3. * bb**2 * (np.sqrt(ome2) - ome2**2) / ee**2 + bb**2 * ome2) 
+            eps = ee**2 / (ee**2 - 1)
+            Irot = 0.5 * math.pi * self.rho * bb**2 * cc * ( 4*cc**2*(ellipk(eps) + (ee**2-1)*ellipe(eps))/ee**2/np.sqrt(ome2) + bb**2 * (ellipk(ee**2) + 3*((ee**2 - 1)*ellipk(ee**2) + ellipe(ee**2))/ee**2))
+ 
             
         # switch between GPU and CPU
         tottor = FF.calc_torqueCPU(self)

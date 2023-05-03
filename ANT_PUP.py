@@ -5,6 +5,8 @@ import os.path
 from scipy.interpolate import CubicSpline
 import pickle
 import empHSS as emp
+from scipy.special import ellipk, ellipe
+
 
 global rsun, dtor, radeg, kmRs
 rsun  =  7e10		 # convert to cm, 0.34 V374Peg
@@ -290,7 +292,7 @@ def calcYawTorque(CMElens, CMEpos, AW, vs, deltax, deltap, yaw, solRotRate, SWfs
     vrEdgeL = np.dot(rhatCMEframeL, vEdgeL)
     vrEdgeR = np.dot(rhatCMEframeR, vEdgeR)
     
-    CMEarea = 4*CMElens[1]*CMElens[4] 
+    CMEarea = 2*CMElens[1]*CMElens[4] # Only half the CME length
     dragL = -Cd*CMEarea*SWatsatL[0] * (vrEdgeL-SWatsatL[1]) * np.abs(vrEdgeL-SWatsatL[1]) 
     dragR = -Cd*CMEarea*SWatsatR[0] * (vrEdgeR-SWatsatR[1]) * np.abs(vrEdgeR-SWatsatR[1])
             
@@ -1081,9 +1083,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if simYaw:
             InoseY = 0.25 * rho * math.pi**2 * deltax * CMElens[6] * CMElens[4]**2 * (2*CMElens[6]**2 * (deltax**2 + 4*np.sqrt(1-deltax**2) +3) + 8*(deltax + np.sqrt(1-deltax**2))*CMElens[6]*CMElens[4] + 7*CMElens[4]**2)  
             
-            # leggies
-            Ileg = Mass/2. * ((CMElens[0] - 2*CMElens[2]/3)**2 + (2*CMElens[6]/3)**2)
-            Itot = InoseY + 2 * Ileg
+            bb = CMElens[4]
+            RR = CMElens[6]
+            ee = np.sqrt(1 - deltax**2)
+            Itot = 2 * math.pi * rho * bb**2 * RR * (ellipk(ee**2) * ((deltax*RR+bb)**2 + 0.75*bb**2) + RR**2 *ellipe(ee**2)/(1-ee**2) - 2*(deltax*RR+bb)*RR/(ee*np.sqrt(1-ee**2)) * np.arctan(np.sqrt(ee**2/(1-ee**2))) )
             
             # conservation of ang mom, yawv will slow down as I grows
             yawv = yawMom / Itot 
