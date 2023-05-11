@@ -120,9 +120,9 @@ def runForeCAT(CME, rmax, silent=False, path=False):
         newlon = CME.cone[1,2] - FC.lon0 + FC.rotrate * 60. * FC.radeg * CME.t
         CME.cone[1,2] = newlon
         CME.calc_points()
-    
+    vsArr = np.array(outvs)
     # Return the path data if needed, else just return final CME 
     if path:
-        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, outvs, outvdefs, outdeltaAxs, outdeltaCSs, outdeltaCAs])
+        return CME, np.array([outts, outRs, outlats, outlons, outtilts, outAWs, outAWps, vsArr[:,0], vsArr[:,1], vsArr[:,2], vsArr[:,3], vsArr[:,4], vsArr[:,5], vsArr[:,6], outvdefs, outdeltaAxs, outdeltaCSs, outdeltaCAs])
     else:
         return CME
