@@ -42,77 +42,83 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
     maxdate = None
     ResArr = allRes[0]
 
-    lw, co, zord = 7, '#332288', 11
-    cos = ['r', 'yellow', 'orange', '#88CCEE', 'b']
-    zos = [15, 10, 11, 12, 13]
+    lw, co, zord = 6, '#332288', 11
+    cos = ['r', '#FBB917', '#FF6700', '#88CCEE', 'b', 'maroon']
+    zos = [15, 10, 11, 12, 13, 14]
     counter = -1
     for ResArr in allRes:        
         counter += 1
         co = cos[counter]    
         zord = zos[counter] 
         
-        key = 0    
-        if ResArr[key].FIDOtimes is not None: #not ResArr[key].miss:
+        key = 0  
+        whichSat = 0  
+        if ResArr[key].FIDOtimes[whichSat] is not None: #not ResArr[key].miss:
             if OSP.noDate:
-                dates = ResArr[key].FIDOtimes
+                dates = ResArr[key].FIDOtimes[whichSat]
             else:
                 base = datetime.datetime(proOSP.yr, 1, 1, 0, 0)
                 if not OSP.doANT:
-                    dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes])
+                    dates = np.array([base + datetime.timedelta(days=(i-1)) for i in ResArr[key].FIDOtimes[whichSat]])
                 else:
-                    dates = np.array([base + datetime.timedelta(days=(i+proOSP.DoY)) for i in ResArr[key].FIDOtimes])
+                    dates = np.array([base + datetime.timedelta(days=(i+proOSP.DoY)) for i in ResArr[key].FIDOtimes[whichSat]])
+            
             # plot the flux rope
-            nowIdx = ResArr[key].FIDO_FRidx
-            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], linewidth=lw, color=co, zorder=zord)
+            nowIdx = ResArr[key].FIDO_FRidx[whichSat]
+            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[whichSat][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
             if OSP.isSat or plotn:
-                axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
             else:
-                axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[whichSat][nowIdx], linewidth=lw, color=co, zorder=zord)
             if mindate is None: 
                 mindate = dates[nowIdx[0]]
                 maxdate = dates[nowIdx[-1]]
 
             # plot the sheath (and the FR start so connected)
-            if len(ResArr[key].FIDO_shidx) != 0:
-                nowIdx = ResArr[key].FIDO_shidx
-                nowIdx = np.append(nowIdx, ResArr[key].FIDO_FRidx[0])
-                axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+            if len(ResArr[key].FIDO_shidx[whichSat]) != 0:
+                nowIdx = ResArr[key].FIDO_shidx[whichSat]
+                nowIdx = np.append(nowIdx, ResArr[key].FIDO_FRidx[whichSat][0])
+                axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[whichSat][nowIdx]/1e6, '--', linewidth=lw, color=co, zorder=zord)
                 if OSP.isSat or plotn:
-                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:
-                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[whichSat][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 #axes[4].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=2, color='DarkGray')
             
             # plot SW outside of sh+FR
-            if len(ResArr[key].FIDO_SWidx) > 0:
-                if len(ResArr[key].FIDO_shidx) != 0:
-                    frontEnd, backStart = dates[ResArr[key].FIDO_shidx[0]], dates[ResArr[key].FIDO_FRidx[-1]]
+            if len(ResArr[key].FIDO_SWidx[whichSat]) > 0:
+                if len(ResArr[key].FIDO_shidx[whichSat]) != 0:
+                    frontEnd, backStart = dates[ResArr[key].FIDO_shidx[whichSat][0]], dates[ResArr[key].FIDO_FRidx[whichSat][-1]]
                 else:
-                    frontEnd, backStart = dates[ResArr[key].FIDO_FRidx[0]], dates[ResArr[key].FIDO_FRidx[-1]]
-                frontStart, backEnd = frontEnd-datetime.timedelta(hours=SWpadF), backStart+datetime.timedelta(hours=SWpadB)
+                    frontEnd, backStart = dates[ResArr[key].FIDO_FRidx[whichSat][0]], dates[ResArr[key].FIDO_FRidx[whichSat][-1]]
+                    
+                if OSP.noDate:
+                    frontStart, backEnd = frontEnd-SWpadF, backStart+SWpadB
+                else:
+                    frontStart, backEnd = frontEnd-datetime.timedelta(hours=SWpadF), backStart+datetime.timedelta(hours=SWpadB)
                 frontIdx = np.where((dates>=frontStart) & (dates <=frontEnd))[0]
                 backIdx = np.where((dates>=backStart) & (dates <=backEnd))[0]
                 for nowIdx in [frontIdx, backIdx]:
-                    axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[whichSat][nowIdx]/1e6, ':', linewidth=lw, color=co, zorder=zord)
                     if OSP.isSat or plotn:
-                        axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     else:
-                        axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                        axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[whichSat][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                 
             if len(ResArr[key].FIDO_SWidx) > 0:    
                 if dates[frontIdx[0]] < mindate: mindate = dates[frontIdx[0]]
@@ -137,7 +143,7 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
     axes[2].set_ylabel('B$_y$ (nT)')
     axes[3].set_ylabel('B$_z$ (nT)')
     axes[4].set_ylabel('v (km/s)')
-    axes[5].set_ylabel('T (K)')
+    axes[5].set_ylabel('T (MK)')
     if OSP.isSat or plotn:
         axes[6].set_ylabel('n (cm$^{-3}$)')
     else:
@@ -171,7 +177,7 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
         axes[2].plot(ObsData[0,:], ObsData[3,:], linewidth=obslw, color=obsCol)
         axes[3].plot(ObsData[0,:], ObsData[4,:], linewidth=obslw, color=obsCol)
         axes[4].plot(ObsData[0,:], ObsData[6,:], linewidth=obslw, color=obsCol)
-        axes[5].plot(ObsData[0,:], ObsData[7,:], linewidth=obslw, color=obsCol)    
+        axes[5].plot(ObsData[0,:], ObsData[7,:]/1e5, linewidth=obslw, color=obsCol)    
         if OSP.isSat or plotn:
             axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=4, color=obsCol)
         elif hasKp:
@@ -202,13 +208,14 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
                 ticks2hide = np.array(range(len(yticks)-1))[::2]
                 for j in ticks2hide:
                     yticks[j].label1.set_visible(False)
-    
-    dx =0.07
-    plt.gcf().text(0.2+dx, 0.955, 'L23', fontsize=14, weight="bold", color=cos[1])
-    plt.gcf().text(0.28+dx, 0.955, 'L23+PUP', fontsize=14, weight="bold", color=cos[2])
-    plt.gcf().text(0.47+dx, 0.955, 'K23', fontsize=14, weight="bold", color=cos[3])
-    plt.gcf().text(0.55+dx, 0.955, 'K23*', fontsize=14, weight="bold", color=cos[4])
-    plt.gcf().text(0.635+dx, 0.955, 'K23*+HSS', fontsize=14, weight="bold", color=cos[0])
+    if True:
+        dx =-0.0
+        plt.gcf().text(0.3+dx, 0.955, 'L23', fontsize=14, weight="bold", color=cos[1])
+        plt.gcf().text(0.37+dx, 0.955, 'K23', fontsize=14, weight="bold", color=cos[2])
+        plt.gcf().text(0.44+dx, 0.955, 'K23$^S$', fontsize=14, weight="bold", color=cos[3])
+        plt.gcf().text(0.52+dx, 0.955, 'K23$^{SD}$', fontsize=14, weight="bold", color=cos[4])
+        plt.gcf().text(0.61+dx, 0.955, 'K23$^{SDH}$', fontsize=14, weight="bold", color=cos[5])
+        plt.gcf().text(0.72+dx, 0.955, 'K23$^{SDHR}$', fontsize=14, weight="bold", color=cos[0])
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)[:8]+'_multiIS'+figtag)    
@@ -216,53 +223,73 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
 
 
 # Modify this to loop as needed
-'''OSP.setupOSPREI()    
-ResArr = proOSP.txt2obj(0)
-OGname = OSP.thisName
-OGdoPUP = OSP.doPUP
+if True:
+    OSP.setupOSPREI()    
+    ResArr = proOSP.txt2obj(0)
+    OGname = OSP.thisName
+    OGdoPUP = OSP.doPUP
 
-OSP.thisName = '20220126VL_olddrag'
-OSP.doPUP = False
-ResArr2 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126build0'
+    OSP.doPUP = False
+    ResArr2 = proOSP.txt2obj(0)
 
-OSP.thisName = '20220126VL_olddragPUP'
-OSP.doPUP = True
-ResArr3 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126build1'
+    OSP.doPUP = True
+    ResArr3 = proOSP.txt2obj(0)
 
-OSP.thisName = '20220126redo_olddrag_noMH'
-ResArr4 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126build2'
+    ResArr4 = proOSP.txt2obj(0)
 
-OSP.thisName = '20220126redo_noMH'
-ResArr5 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126build3'
+    ResArr5 = proOSP.txt2obj(0)
 
+    OSP.thisName = '20220126build4'
+    ResArr6 = proOSP.txt2obj(0)
 
-allRes = [ResArr, ResArr2, ResArr3, ResArr4, ResArr5]
-alldoPUPs = [True,  False, True, True]'''
+    allRes = [ResArr, ResArr2, ResArr3, ResArr4, ResArr5, ResArr6]
+    alldoPUPs = [True,  False, True, True, True, True]
 
-OSP.setupOSPREI()    
-ResArr = proOSP.txt2obj(0)
-OGname = OSP.thisName
-OGdoPUP = OSP.doPUP
+if False:
+    OSP.setupOSPREI()    
+    ResArr = proOSP.txt2obj(0)
+    OGname = OSP.thisName
+    OGdoPUP = OSP.doPUP
 
-OSP.thisName = '20220126F10'
-OSP.doPUP = True
-ResArr2 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126F10'
+    OSP.doPUP = True
+    ResArr2 = proOSP.txt2obj(0)
 
-OSP.thisName = '20220126F20'
-OSP.doPUP = True
-ResArr3 = proOSP.txt2obj(0)
+    OSP.thisName = '20220126F20'
+    OSP.doPUP = True
+    ResArr3 = proOSP.txt2obj(0)
 
-allRes = [ResArr, ResArr2, ResArr3]
-alldoPups = [True, True, True]
+    allRes = [ResArr, ResArr2, ResArr3]
+    alldoPups = [True, True, True]
+
+# slow Push case
+if False:   
+    OSP.setupOSPREI()    
+    ResArr = proOSP.txt2obj(0)
+    OGname = OSP.thisName
+    OGdoPUP = OSP.doPUP
+
+    OSP.thisName = 'slownoPush'
+    OSP.doPUP = True
+    ResArr2 = proOSP.txt2obj(0)
+    
+    allRes = [ResArr, ResArr2]
+    alldoPups = [True, True]
+
 
 # set back to first
 OSP.thisName = OGname
-
+    
 # Pull in observational data
 global ObsData
 ObsData = None
 if OSP.ObsDataFile is not None:
-    ObsData = proOSP.readInData()
+    ObsData = proOSP.readInData(OSP.ObsDataFile)
+    
     
 # Make multi IS plot
 makeISplot(allRes)
