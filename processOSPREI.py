@@ -3374,20 +3374,26 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
                 # only include sat in meridonal plot if fairly close to that plane
                 if np.abs(satLons[i]) < 5:
                     ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')        
-                ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')        
+                ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')  
         ax[0].set_xticklabels([])
         ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
         ax[0].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
         ax[0].set_rlabel_position(180)
         ax[0].set_rlim(0,1.2)
-        ax[0].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        
+        if not OSP.noDate:
+            ax[0].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
+        else:
+            ax[0].set_title("{:#.2f}".format(thistime)+ ' days')
+            
         ax[1].set_xticklabels([])
         ax[1].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
         ax[1].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
         ax[1].set_rlabel_position(180)
         ax[1].set_rlim(0,1.2)
-        ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
+        if not OSP.noDate:
+            ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
+        else:
+            ax[1].set_title("{:#.2f}".format(thistime)+ ' days')
         plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
         if doColorbar:

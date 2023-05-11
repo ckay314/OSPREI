@@ -1448,7 +1448,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                         # PUP 0 vShock, 1 r, 2 Ma, 3 wid, 4 dur, 5 mass, 6 dens 7 temp 8 theta 9 B 10 vt 11 init
                         # get idx appropriate for each CME
                         shIdx = hitIdx #np.min(np.where(PUPresults[11,:] == 1))
-                        outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx][0], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
+                        outstuff = [PUPresults[4,shIdx], PUPresults[1,shIdx], PUPresults[2,shIdx], PUPresults[6,shIdx], ATresults[2,shIdx], PUPresults[9,shIdx], PUPresults[0,shIdx], PUPresults[7,shIdx]]
                         outprint = str(i)
                         outprint = outprint.zfill(4) + '   '
                         for iii in outstuff:
@@ -1459,10 +1459,12 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                           
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
+            
+            # CME: 0 t, 1 r, 2 vFront, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 yaw, 13 yaw v, 14 reg, 15 vEdge 16 vCent 17  vrr 18 vrp 19 vLr 20 vLp 21 vXCent]
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
-                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j][0], ATresults[2,j][1], ATresults[2,j][2], ATresults[2,j][3], ATresults[2,j][4], ATresults[2,j][5], ATresults[2,j][6], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j], ATresults[12,j], ATresults[13,j], ATresults[14,j], ATresults[15,j]]
+                outstuff = [ATresults[0,j], ATresults[1,j], ATresults[3,j], ATresults[4,j], ATresults[5,j], ATresults[6,j], ATresults[7,j], ATresults[2,j], ATresults[15,j], ATresults[16,j], ATresults[17,j], ATresults[18,j], ATresults[19,j], ATresults[20,j], ATresults[8,j], ATresults[9,j], tau, ATresults[10,j], ATresults[11,j], ATresults[12,j], ATresults[13,j], ATresults[14,j], ATresults[15,j]]
                 for iii in outstuff:
                     outprint = outprint +'{:6.3f}'.format(iii) + ' '
                 ANTEATRfile.write(outprint+'\n')

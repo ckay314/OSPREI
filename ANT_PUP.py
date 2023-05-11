@@ -560,13 +560,13 @@ def makeFailArr(val):
     return np.array([[val]*11]), [[val]*6], [val, val, val, val, val, val], [[val]*2], [val, val, val, val], [[val]*16], [[val]*8]
 
 def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
-    # CME: 0 t, 1 r, 2 vs, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 reg
+    # CME: 0 t, 1 r, 2 vFront, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 yaw, 13 yaw v, 14 reg, 15 vEdge 16 vCent 17  vrr 18 vrp 19 vLr 20 vLp 21 vXCent]
     # Sheath: 0 vS, 1 comp, 2 MA, 3 Wid, 4 Dur, 5 Mass, 6 Dens, 7 B, 8 Theta, 9 Temp, 10 Vt, 11 InSheath
 
-    #fullCMEstuff = [0 t/3600./24., 1 CMElens[0]/rsun, 2 AW*180/pi,  3 AWp*180/pi, 4 CMElens[5]/rsun, 5 CMElens[3]/rsun, 6 CMElens[4]/rsun, 7 CMElens[6]/rsun, 8 CMElens[2]/rsun, 9 vs[0]/1e5, 10 vs[1]/1e5, 11 vs[5]/1e5, 12 vs[3]/1e5, 13 vs[4]/1e5, 14 vs[6]/1e5, 15 vs[2]/1e5, 16 rho/1.67e-24, 17 B0*1e5, 18 cnm, 19 np.log10(temCME), 20 yaw 21 yaw v [deg/hr] 22 yaw accel [0.5 a * (3600^2)] 23 HSSreg]
+    #fullCMEstuff = [0 t/3600./24., 1 CMElens[0]/rsun, 2 AW*180/pi,  3 AWp*180/pi, 4 CMElens[5]/rsun, 5 CMElens[3]/rsun, 6 CMElens[4]/rsun, 7 CMElens[6]/rsun, 8 CMElens[2]/rsun, 9 vs[0]/1e5, 10 vs[1]/1e5, 11 vs[5]/1e5, 12 vs[3]/1e5, 13 vs[4]/1e5, 13 vs[6]/1e5, 14 vs[2]/1e5, 15 rho/1.67e-24, 16 B0*1e5, 17 cnm, 18 np.log10(temCME), 19 yaw, 20 yawv/dtor*3600, 21 (0.5 * yawAcc *3600**2) / dtor, 22  HSSreg]
     outsCME[0].append(CMEarr[0]) 
     outsCME[1].append(CMEarr[1])
-    outsCME[2].append([CMEarr[9], CMEarr[10], CMEarr[11], CMEarr[12], CMEarr[13], CMEarr[14], CMEarr[15]])
+    outsCME[2].append(CMEarr[9])
     outsCME[3].append(CMEarr[2])
     outsCME[4].append(CMEarr[3])
     outsCME[5].append(CMEarr[4] / CMEarr[7]) # CMElens[5] / CMElens[6]
@@ -578,8 +578,15 @@ def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
     outsCME[11].append(CMEarr[19])
     outsCME[12].append(CMEarr[23])
     outsCME[13].append(CMEarr[20])
-    outsCME[14].append(CMEarr[21])
-    outsCME[15].append(CMEarr[22])
+    outsCME[14].append(CMEarr[22])
+    #CMEarr[10], CMEarr[11], CMEarr[12], CMEarr[13], CMEarr[14], CMEarr[15]]
+    outsCME[15].append(CMEarr[10])
+    outsCME[16].append(CMEarr[11])
+    outsCME[17].append(CMEarr[12])
+    outsCME[18].append(CMEarr[13])
+    outsCME[19].append(CMEarr[14])
+    outsCME[20].append(CMEarr[15])
+    
     
     if len(sheatharr) != 0:
         #PUPstuff = [0 r, 1 vShock, 2 Ma, 3 sheath_wid, 4 sheath_dur, 5 sheath_mass/1e15, 6 sheath_dens, 7 np.log10(Tratio*SWfront[4]), 8 Tratio, 9 Bsh, 10 thetaBsh, 11 vtSh, 12 inint]
@@ -971,7 +978,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         vsArr[aSatID] = []
         angArr[aSatID] = []
 
-    outsCME = [[] for i in range(16)]
+    outsCME = [[] for i in range(21)]
     outsSheath = [[] for i in range(12)]
     outsFIDO = {}
     FIDOstuff = {}
