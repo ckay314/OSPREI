@@ -249,19 +249,20 @@ def txt2obj(GCStime):
                 vol = math.pi*thisRes.ANTrr*thisRes.ANTrp *  lenFun(thisRes.ANTdelAxs[-1])*thisRes.ANTrs[-1]
                 thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3'''
                 
-                if OSP.doPUP:
-                    thisRes.PUPvshocks = PUPdata[myidxs,1]
-                    thisRes.PUPcomps = PUPdata[myidxs,2]
-                    thisRes.PUPMAs = PUPdata[myidxs,3]
-                    thisRes.PUPwids = PUPdata[myidxs,4]
-                    thisRes.PUPdurs = PUPdata[myidxs,5]
-                    thisRes.PUPMs = PUPdata[myidxs,6]
-                    thisRes.PUPns = PUPdata[myidxs,7]
-                    thisRes.PUPlogTs = PUPdata[myidxs,8]
-                    thisRes.PUPBthetas = PUPdata[myidxs,9]
-                    thisRes.PUPBs = PUPdata[myidxs,10]
-                    thisRes.PUPvts = PUPdata[myidxs,11]
-                    thisRes.PUPinit = PUPdata[myidxs,12]
+                if OSP.doPUP and (len(PUPdata.shape)!=1):
+                    if PUPdata[myidxs[0],1] != 8888:
+                        thisRes.PUPvshocks = PUPdata[myidxs,1]
+                        thisRes.PUPcomps = PUPdata[myidxs,2]
+                        thisRes.PUPMAs = PUPdata[myidxs,3]
+                        thisRes.PUPwids = PUPdata[myidxs,4]
+                        thisRes.PUPdurs = PUPdata[myidxs,5]
+                        thisRes.PUPMs = PUPdata[myidxs,6]
+                        thisRes.PUPns = PUPdata[myidxs,7]
+                        thisRes.PUPlogTs = PUPdata[myidxs,8]
+                        thisRes.PUPBthetas = PUPdata[myidxs,9]
+                        thisRes.PUPBs = PUPdata[myidxs,10]
+                        thisRes.PUPvts = PUPdata[myidxs,11]
+                        thisRes.PUPinit = PUPdata[myidxs,12]
                                         
                 ResArr[thisRes.myID] = thisRes
 
@@ -1267,7 +1268,6 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
             if key == bfCase:
                 lw, co, zord = 4, 'lightblue', 11
             
-            
         if ResArr[key].FIDOtimes[satID] is not None: #not ResArr[key].miss:
             if OSP.noDate:
                 dates = ResArr[key].FIDOtimes[satID]
@@ -1315,7 +1315,12 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                     frontEnd, backStart = dates[ResArr[key].FIDO_shidx[satID][0]], dates[ResArr[key].FIDO_FRidx[satID][-1]]
                 else:
                     frontEnd, backStart = dates[ResArr[key].FIDO_FRidx[satID][0]], dates[ResArr[key].FIDO_FRidx[satID][-1]]
-                frontStart, backEnd = frontEnd-datetime.timedelta(hours=SWpadF), backStart+datetime.timedelta(hours=SWpadB)
+                    
+                if OSP.noDate:
+                    frontStart, backEnd = frontEnd-SWpadF, backStart+SWpadB
+                else:
+                    frontStart, backEnd = frontEnd-datetime.timedelta(hours=SWpadF), backStart+datetime.timedelta(hours=SWpadB)
+                
                 frontIdx = np.where((dates>=frontStart) & (dates <=frontEnd))[0]
                 backIdx = np.where((dates>=backStart) & (dates <=backEnd))[0]
                 for nowIdx in [frontIdx, backIdx]:
@@ -3299,7 +3304,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
  
     
         # Get min/max lon to tighten range to check if inCME
-        dLon = 30
+        dLon = 50
         minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
         idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
         idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
@@ -3455,7 +3460,10 @@ if __name__ == '__main__':
     if OSP.doANT:
         if OSP.doPUP:
             # make IP plot including sheath stuff
-            makePUPplot(ResArr) #Fix this
+            try:
+                makePUPplot(ResArr) #Fix this
+            except:
+                print ('Assuming no sheath, not plotting PUP')
         else:
             # Make drag profile
             makeDragless(ResArr)
@@ -3465,7 +3473,7 @@ if __name__ == '__main__':
     if OSP.doFIDO:
         # Make in situ plot
         for i in range(nSat):
-            makeISplot(ResArr, satID=i)
+            makeISplot(ResArr, satID=i, SWpadF=2, SWpadB=2)
 
     # Ensemble plots
     if nEns > 1:

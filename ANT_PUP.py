@@ -165,7 +165,6 @@ def getCSF(deltax, deltap, bp, c, B0, cnm, tau, rho, Btot2, csTens):
     RcNose = 1./kNose   
     toAccN = deltap * pi * bp**2 * RcNose * rho
     aBr = (coeff3 + coeff4 - coeff4sw) * B0**2 * bp * RcNose / toAccN / deltap
-    #print (coeff3, coeff4, coeff4sw, coeff3 + coeff4 - coeff4sw)
     return aBr
     
 def getThermF(CMElens, temCME, nCME, SWfront, SWfrontB, SWedge):
@@ -558,7 +557,7 @@ def print2screen(vec, prefix=''):
     print (outstuff)
     
 def makeFailArr(val):
-    return np.array([[val]*11]), [[val]*6], [val, val, val, val, val, val], [[val]*2], [val, val, val, val], [[val]*12], [[val]*8]
+    return np.array([[val]*11]), [[val]*6], [val, val, val, val, val, val], [[val]*2], [val, val, val, val], [[val]*16], [[val]*8]
 
 def add2outs(outsCME, outsSheath, CMEarr, sheatharr):
     # CME: 0 t, 1 r, 2 vs, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 reg
@@ -652,7 +651,10 @@ def whereAmI(Epos, CMEpos, CMElens, deltax, deltap, yaw=0):
     # Find the sat position within the CS
     vpmag = np.sqrt(np.sum(vp**2))
     # poloidal angle, not the same as parametric t
-    CSpol = np.arccos(np.dot(vp, norm) / vpmag) 
+    arg = np.dot(vp, norm) / vpmag
+    if np.abs(arg) > 1:
+        arg = 1 * np.sign(arg)
+    CSpol = np.arccos(arg) 
     if (vp[1] < 0) and (vp[0] > 0):
         CSpol = -np.abs(CSpol)
     elif (vp[1] < 0) and (vp[0] < 0):
@@ -707,11 +709,12 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     normN2 = np.sqrt(np.sum(nCS**2))
     nCS = nCS / normN2
     rotAng = np.arccos(np.dot(nAx, nCS))*np.sign(thetaT)
+    if np.abs(rotAng) > np.pi/2:
+        rotAng = np.arccos(np.dot(nAx, -nCS))*np.sign(thetaT)
     #nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
     nCSatAx = np.array([nCS[0] * np.cos(np.abs(rotAng)), nCS[1], nCS[0] * np.sin(rotAng)])
     vCSVec = vCS * nCSatAx
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
-
     return vCMEframe, vCSVec
 
 def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, yaw, comp=1.):
@@ -877,7 +880,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             f3 = open(fname3, 'w')
             if simYaw:
                 fnameYaw = 'MH_torque_'+name+'.dat'
-                fYaw.open(fnameYaw, 'w')
+                fYaw = open(fnameYaw, 'w')
             
         if aFIDOinside:
             # Might have multiple satellites so need multiple save files
@@ -1108,7 +1111,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         
         # Update HSS position
         if hasattr(MEOWHiSS, '__len__'):
-            doMH[0] = MHt0+t/3600
+            doMH[0] = MHt0 + t/3600
 
         # Update Earth/satellite position
         for satID in sats2check:
@@ -1192,7 +1195,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             
             # print to screen    
             if not silent:
-                print2screen(CMEstuff)                
+                print2screen(CMEstuff)       
                 if doPUP:
                     print2screen(PUPstuff, prefix='      ') 
                  
@@ -1222,7 +1225,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                         SWatsat   = getSWvals(satPos[satID][2], SWfs)
                         FIDOstuff[satID] = [t/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100]
                         if writeFile: print2file(FIDOstuff[satID], f4s[satID], '{:8.5f}')
-                    
         # save CME/sheath data
         if printNow:
             outsCME, outsSheath = add2outs(outsCME, outsSheath, fullCMEstuff, PUPstuff)
@@ -1297,20 +1299,22 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 if axDist < maxDistFR:
                     # start saving at higher res once in CME
                     if not reachedCME[satID]:
-                         deltaPrintR = deltaPrintR/2.
+                         if len(sats2check)==nSats:
+                             deltaPrintR = deltaPrintR/4.
                          # save things for the summary print to screen
                          # want values at first contact even if doing full profile
                          # will replace duration if have more accurate version
                          TT = t/3600.
                          thisDur = 4 * CMElens[3] * (2*(vs[0]-vs[3])+3*vs[3])/(2*(vs[0]-vs[3])+vs[3])**2 / 3600.
                          outSum[satID] = [TT, vs[0]/1e5, vs[3]/1e5, CMElens[0]/7e10, satPos[satID][1], thisDur]
-                         vsArr[satID] = vs
+                         vsArr[satID] = np.copy(vs)
                          angArr[satID] = [thisPsi, thisParat]
                          reachedCME[satID] = True
                          
                     # Get the FR properties and print
                     if aFIDOinside and printNow:
-                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, yaw)                              #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
+                        BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, yaw)      
+                        #vA = np.sqrt((BSC[0]**2 + BSC[1]**2 + BSC[2]**2) / 4 / 3.14159 / (rho/1.67e-24))*1e5
                         # This adds extra compression if the expansion is compression in the rear
                         '''CMEgam = fT+1
                         cs = np.sqrt(2*(CMEgam) * 1.38e-16 *temCME / 1.67e-24)/1e5
@@ -1398,7 +1402,9 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 # Exit point if begins moving away from sat
                 else: 
                     sats2check.remove(satID)
-                    outsFIDO[satID] = 8888
+                    outsFIDO[satID] = [[8888]*8]
+                    if nSats == 1:
+                        vsArr[satID] = [8888, 8888, 8888, 8888, 8888, 8888]
                     #thisSum[satID] = -
                     if len(sats2check)==0:
                         runSim = False
@@ -1443,7 +1449,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if outSum[thissatID] != [-9999]:
             for i in range(len(outsFIDO[thissatID])): outsFIDO[thissatID][i] = np.array(outsFIDO[thissatID][i])
             outsFIDO[thissatID] = np.array(outsFIDO[thissatID])
-    
     return outsCME, outSum, vsArr, angArr, SWfront, outsSheath, outsFIDO  
         
         
@@ -1453,18 +1458,16 @@ if __name__ == '__main__':
     # Epos = [Elat, Elon, Eradius] -> technically doesn't have to be Earth    
     # SWparams = [nSW, vSW, BSW, TSW] at Eradius
     
-    invecs = [0, 0, 0, 1200.0, 10.0, 46, 18, 0.6, 0.6, 21.5, 3200, 1.0, 1., 1.927, 7.5e5, 1.33] # fast, use with flagScales = True 
-    invecsAvg = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 3.9e5, 1.33] # avg, use with flagScales = True 
-    invecsAvgLT = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
-    invecsSlow = [0, 0, 0, 350, 2., 25, 7, 0.7, 0.7, 21.5, 500, 1.0, 1., 1.927, 2e5, 1.33] # avg, use with flagScales = True 
+    invecs = [0, 0, 0, 1200.0, 10.0, 46, 18, 0.6, 0.6, 21.5, 3200, 1.0, 1., 1.927, 7.5e5, 1.33, 0] # fast, 
+    invecsAvg = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 3.9e5, 1.33, 0] # avg
+    invecsAvgLT = [0, 0, 0, 630, 5., 31, 10, 0.53, 0.7, 21.5, 1350, 1.0, 1., 1.927, 2e5, 1.33, 0] # avg lower T
+    invecsSlow = [0, 0, 0, 350, 2., 25, 7, 0.7, 0.7, 21.5, 500, 1.0, 1., 1.927, 2e5, 1.33, 0] # slow
 
-    satParams = [1.0, 00.0, 215.0, 0.0]
-    SWparams = [5.0, 440, 6.9, 6.2e4]
+    satParams = [[0.0, 00.0, 215.0*7e10, 0.0], ['sat1']] #[1.0, 00.0, 215.0, 0.0]
+    SWinparams = [5.0, 440, 6.9, 6.2e4]
     MHDparams = [4.5, 386, 3.1, 4.52e4]
     
     fname0 = 'SWnoHSS.dat'
-    
-    fname = 'StefanDataFull/' + 'HSS_artificial_latfromcenter=00' + 'deg_CHarea=' + '8.0e+10' + 'km2.npy'
     
     CHtag = ['A', 'B', 'C']
     HSStag = ['1', '2', '3', '4']
@@ -1473,22 +1476,21 @@ if __name__ == '__main__':
     HSSdists = [0.2, 0.5, 0.8, 1.1]
     allIns = [invecs, invecsAvg, invecsAvgLT]
     
-    for k in [0]:#range(2): # CME speed
+    '''for k in range(3): # CME speed
         print ('')
         print ('')
         print ('')
         print ('')
-        for i in [0]:#range(3): # CH size
-            for j in [0]:#range(4): # HSS dists
+        for i in range(3): # CH size
+            for j in range(4): # HSS dists
+                # T or S for time-dep or static
                 print (i+1, j+1, vtag[k]+'T'+CHtag[i]+HSStag[j])
                 #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(allIns[k], satParams, MHDparams, silent=True, flagScales=True, doPUP=True, name=vtag[k]+'T'+CHtag[i]+HSStag[j], MEOWHiSS = [CHareas[i], HSSdists[j]], saveForces=True)
-                CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts, FIDOouts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True, MEOWHiSS=[400,0.], saveForces=True, name='new')
+                ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(allIns[k], satParams, SWinparams, silent=True, doPUP=True, name=vtag[k]+'T'+CHtag[i]+HSStag[j], MEOWHiSS = [CHareas[i], HSSdists[j]], simYaw=True, saveForces=True)'''
                 
-                #CMEouts, Elon, vs, estDur, thisPsi, parat, SWfront, sheathOuts = getAT(invecsAvgLT, satParams, MHDparams, silent=False, flagScales=True, doPUP=True)
-            
-                '''print (vtag[k]+'S'+CHtag[i]+HSStag[j])
-                shidx = -1
-                if sheathOuts[-1][-1] == 1:
-                    shidx = np.min(np.where(sheathOuts[-1] ==1 ))
-                print (vs[0]/1e5, vs[3]/1e5, CMEouts[3][-1], CMEouts[4][-1], CMEouts[5][-1], CMEouts[6][-1], CMEouts[8][-1], CMEouts[10][-1], CMEouts[11][-1], CMEouts[0][-1]*24, estDur, sheathOuts[1][shidx], sheathOuts[0][shidx], sheathOuts[2][shidx], sheathOuts[3][shidx], sheathOuts[4][shidx], sheathOuts[5][shidx], sheathOuts[6][shidx], sheathOuts[9][shidx], sheathOuts[7][shidx], sheathOuts[8][shidx], sheathOuts[10][shidx], CMEouts[0][shidx]*24, CMEouts[12][-1])'''
+    for k in range(3):
+        ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(allIns[k], satParams, SWinparams, silent=True, doPUP=True, name=vtag[k]+'noHSS', simYaw=True, saveForces=True)
+    
+    # slow push option
+    ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invecsSlow, satParams, SWinparams, silent=True, doPUP=True, name='slowPushAmb', MEOWHiSS = [800, 0.0], simYaw=True, saveForces=True)
     
