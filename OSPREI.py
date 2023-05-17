@@ -618,7 +618,11 @@ def checkInputs(printNonCrit=False):
                 sys.exit('Solar wind temperature (SWT) must be in [1e4, 5e5] K if satR is near 1 AU') 
         else:
             input_values['SWT'] = str(75000)
-        
+            
+    if 'SWR' in input_values:
+        SWR = float(input_values['SWR'])
+        if (SWR < 1) or  (SWR > 1000):
+            sys.exit('Distance for solar wind values (SWR) must be in [1, 10000] Rs')    
     
     # General simulation parameters ------------------------------------------------
     if 'date' in input_values:
@@ -768,12 +772,13 @@ def checkInputs(printNonCrit=False):
     if not hasSatPath:
         CMElon = float(input_values['CMElon'])
         satLon = float(input_values['SatLon'])
-    if (CMElon > 300) and (satLon < 0):
-        satLon += 360.
-        input_values['SatLon'] = str(satLon)
-    if (CMElon < 0) and (satLon > 360):
-        CMElon += 360.
-        input_values['CMElon'] = str(CMElon)
+        
+        if (CMElon > 300) and (satLon < 0):
+            satLon += 360.
+            input_values['SatLon'] = str(satLon)
+        if (CMElon < 0) and (satLon > 360):
+            CMElon += 360.
+            input_values['CMElon'] = str(CMElon)
 
 def setupEns():
     # All the possible parameters one could in theory want to vary
@@ -1361,16 +1366,20 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         MHin = False
         if doMH:
             MHin = [CME.MHarea, CME.MHdist]
+            
+        # check if given distance of SW measurements, otherwise ANT will assume first sat loc
+        SWR = None
+        if 'SWR' in input_values:
+            SWR = float(input_values['SWR'])    
         
         # SW polarity in or out - THINK THIS WAS FLIPPED FOR ISSI/PROPOSAL CASE?
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
-        
         isSilent = False
         if actualPath:            
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
         else:
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
             
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!
@@ -1761,28 +1770,28 @@ def thankslambdas(satfiles, satPos0, dObj, nSats):
         satRfB, satLatfB, satLonfB = makeSatPaths(satfiles[1], dObj, Clon0=satPos0[1][1])
         satPaths.append([satLatfB, satLonfB, satRfB])
     if nSats >= 3:
-        satRfC, satLatfC, satLonfC = makeSatPaths(satfiles[2], dObj, Clon0=satPos0[1][1])
+        satRfC, satLatfC, satLonfC = makeSatPaths(satfiles[2], dObj, Clon0=satPos0[2][1])
         satPaths.append([satLatfC, satLonfC, satRfC])
     if nSats >= 4:
-        satRfD, satLatfD, satLonfD = makeSatPaths(satfiles[3], dObj, Clon0=satPos0[1][1])
+        satRfD, satLatfD, satLonfD = makeSatPaths(satfiles[3], dObj, Clon0=satPos0[3][1])
         satPaths.append([satLatfD, satLonfD, satRfD])
     if nSats >= 5:
-        satRfE, satLatfE, satLonfE = makeSatPaths(satfiles[4], dObj, Clon0=satPos0[1][1])
+        satRfE, satLatfE, satLonfE = makeSatPaths(satfiles[4], dObj, Clon0=satPos0[4][1])
         satPaths.append([satLatfE, satLonfE, satRfE])
     if nSats >= 6:
-        satRfF, satLatfF, satLonfF = makeSatPaths(satfiles[5], dObj, Clon0=satPos0[1][1])
+        satRfF, satLatfF, satLonfF = makeSatPaths(satfiles[5], dObj, Clon0=satPos0[5][1])
         satPaths.append([satLatfF, satLonfF, satRfF])
     if nSats >= 7:
-        satRfG, satLatfG, satLonfG = makeSatPaths(satfiles[6], dObj, Clon0=satPos0[1][1])
+        satRfG, satLatfG, satLonfG = makeSatPaths(satfiles[6], dObj, Clon0=satPos0[6][1])
         satPaths.append([satLatfG, satLonfG, satRfG])
     if nSats >= 8:
-        satRfH, satLatfH, satLonfH = makeSatPaths(satfiles[7], dObj, Clon0=satPos0[1][1])
+        satRfH, satLatfH, satLonfH = makeSatPaths(satfiles[7], dObj, Clon0=satPos0[7][1])
         satPaths.append([satLatfH, satLonfH, satRfH])
     if nSats >= 9:
-        satRfI, satLatfI, satLonfI = makeSatPaths(satfiles[8], dObj, Clon0=satPos0[1][1])
+        satRfI, satLatfI, satLonfI = makeSatPaths(satfiles[8], dObj, Clon0=satPos0[8][1])
         satPaths.append([satLatfI, satLonfI, satRfI])
     if nSats == 10:
-        satRfJ, satLatfJ, satLonfJ = makeSatPaths(satfiles[9], dObj, Clon0=satPos0[1][1])
+        satRfJ, satLatfJ, satLonfJ = makeSatPaths(satfiles[9], dObj, Clon0=satPos0[9][1])
         satPaths.append([satLatfJ, satLonfJ, satRfJ])
         
     return satPaths
@@ -1797,8 +1806,8 @@ def satPathWrapper(satPath):
         nSats = len(satFile)
         if nSats > 10:
             sys.exit('Can only run 10 or fewer satellites')
-        if len(satFile[0]) != 5:
-            sys.exit('.sats file should be SatName Lat0 Lon0 R0 File')
+        if len(satFile[0]) not in [5,6,9]:
+            sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')
             
         # reset havePaths bc need to check if multi simple sats
         havePaths = False

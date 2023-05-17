@@ -2779,376 +2779,7 @@ def getISmetrics(ResArr, satID=0):
         # make new IS plot with best fit highlighted
         makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID)
             
-def enlilesqueEq(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
-    # assume we are plotting the seed case but will change if specified in call
-    thisCME = ResArr[key]
-    
-    # set up solar wind background
-    rotrate = 360. / (24.47 * 24 ) # 24.47 day rot at equator, in deg/hor
-    #print (OSP.vSW, OSP.MHarea, OSP.MHdist)
-    
-    if OSP.doMH:
-        MHarea = OSP.MHarea
-        MHdist = OSP.MHdist
-        t0, xs0, vs, a1 = emp.getxmodel(MHarea, MHdist)
-        vfuncs = emp.getvmodel(MHarea)
-        nfuncs = emp.getnmodel(MHarea)
-        Brfuncs = emp.getBrmodel(MHarea)
-        Blonfuncs = emp.getBlonmodel(MHarea)
-        Tfuncs = emp.getTmodel(MHarea)
-        vlonfuncs = emp.getvlonmodel(MHarea)
-        HSSfuncs = [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs]
-
-    # initialize grid
-    nTheta = 181
-    nRs = 121
-    angs = np.radians(np.linspace(-90, 90, nTheta))
-    rs = np.linspace(0, 1.2, nRs)
-    r, theta = np.meshgrid(rs, angs)
-    
-    # CME properties that will not change during ANT
-    CMElat  = thisCME.FClats[-1]
-    CMElon  = 0
-    CMElonCR  = thisCME.FClons[-1] # do everything relative to CMElon = 0 = x ax but use to place sat
-    CMEtilt = thisCME.FCtilts[-1]
-    
-    tANT0 = thisCME.ANTtimes[0]
-    
-    # figure out time res
-    dR = 5 # rs
-    r0 = int(thisCME.ANTrs[0]/dR)*dR
-    rend = int(thisCME.ANTrs[-1]/dR)*dR
-    npics = int((rend-r0)/dR)+1
-    
-    for iii in range(npics+bonusTime):
-        if iii < npics:
-            idx = np.min(np.where(thisCME.ANTrs >=r0 + iii*dR ))
-        else:
-            idx = np.min(np.where(thisCME.ANTrs >=r0 + (npics-1)*dR ))
-        print (r0 + iii*dR)
-        # Make figure for certain timesteps
-        values = np.ones((angs.size, rs.size))
-        isCME  = np.zeros((angs.size, rs.size))
-        thistime = thisCME.ANTtimes[idx] - tANT0 # in days
-        if iii >= npics:
-            # get CME radial speed
-            thisv = thisCME.ANTvFs[idx]
-            deltatime = (iii-npics +1)*dR * 7e10 / (thisv *1e5) / (3600*24)
-            thistime += deltatime
-            
-        
-        # get satellite position
-        if doSat:
-            satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
-            satLon = satLonf(thistime*24*3600) - CMElonCR
-            satR   = satRf(thistime*24*3600) / 215.
-    
-        # set up background SW w/o CME
-        if not OSP.doMH:
-            values *= OSP.vSW
-        else:
-            for j in range(len(rs)):
-                for i in range(len(angs)):
-                    ang = angs[i]
-                    dtang = -ang / rotrate / dtor
-                    t1 = t0 + dtang + thistime*24
-                    thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                    values[i,j] = thispoint[1] * OSP.vSW
-                
-        # add in CME
-        # get evolved CME properties
-        CMEr  = thisCME.ANTrs[idx]
-        if iii >= npics:
-            CMEr += (iii-npics +1)*dR
-        CMEAW = thisCME.ANTAWs[idx]
-        CMEAWp = thisCME.ANTAWps[idx]
-        deltaAx = thisCME.ANTdelAxs[idx]
-        deltaCS = thisCME.ANTdelCSs[idx]
-        vExps = [thisCME.ANTvFs[idx], thisCME.ANTvEs[idx], thisCME.ANTvBs[idx], thisCME.ANTvCSrs[idx], thisCME.ANTvCSps[idx], thisCME.ANTvAxrs[idx], thisCME.ANTvAxps[idx]]
-        sheathwid = thisCME.PUPwids[idx]
-
-        # calc CME lens
-        CMElens = np.zeros(7)
-        CMElens[0] = CMEr
-        CMElens[4] = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) * CMElens[0]
-        CMElens[3] = deltaCS * CMElens[4]
-        CMElens[6] = (np.tan(CMEAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + deltaAx * np.tan(CMEAW*dtor))  
-        CMElens[5] = deltaAx * CMElens[6]
-        CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
-        CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
-        # get the axis
-        nFR = 31 # axis resolution
-        thetas = np.linspace(-np.pi/2, np.pi/2, nFR)    
-        sns = np.sign(thetas)    
-        xFR = CMElens[2] + deltaAx * CMElens[6] * np.cos(thetas)
-        zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas)))) 
-
-        # Rotate out of CME frame
-        axvec = [xFR,0,zFR]
-        axvec1 = rotx(axvec,-(90-CMEtilt))
-        xyzpos = roty(axvec1,-CMElat)
-        #xyzpos = rotz(axvec2, CMElon) # assuming in ref frame where CMElon = 0
-        axLats = np.arctan2(xyzpos[2], np.sqrt(xyzpos[0]**2 + xyzpos[1]**2)) / dtor
-        axLons = np.arctan2(xyzpos[1], xyzpos[0]) / dtor
-        axRs = np.sqrt(xyzpos[0]**2 + xyzpos[1]**2 + xyzpos[2]**2)
-        Lon2R = CubicSpline(axLons,axRs,bc_type='natural') 
-    
-        # Get min/max lon to tighten range to check if inCME
-        dLon = 15
-        minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
-        idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
-        idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
-        # if highly vertical then lon width actually set by AWp
-        minLon = np.min([minLon, int(CMElon - 0.5*CMEAWp)])
-        maxLon = np.max([maxLon, int(CMElon + 0.5*CMEAWp)])
-
-        idx_min = np.min(np.where(angs >= minLon*dtor))
-        idx_max = np.max(np.where(angs <= maxLon*dtor))+1
-
-        for i in np.arange(idx_min-dLon, idx_max+dLon, 1):
-            if i < idx1:
-                axR = Lon2R(angs[idx1]/dtor)
-            elif i > idx2:
-                axR = Lon2R(angs[idx2]/dtor)
-            else:
-                axR = Lon2R(angs[i]/dtor)
-            minR = (axR - 1.5*CMElens[3])/215
-            maxR = (axR + 1.5*CMElens[3])/215
-            mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
-            for j in mightBin:
-                # check if actually in CME
-                thispos = np.array([rs[j]*215, 0, angs[i]/dtor])
-                CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS)
-                rbar = vpmag/maxrFR
-                if rbar <= 1:
-                    # get velocity if in CME
-                    vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
-                    #temp = rotx(vCMEframe, -(90.-CMEtilt))
-                    #temp2 = roty(temp, CMEpos[0] - thispos[1]) 
-                    #vInSitu = rotz(temp2, CMEpos[1] - thispos[2])
-                    values[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
-                    isCME[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (rs[j]*215. > CMElens[0]):
-                    values[i,j] = vExps[0]
-    
-        if doColorbar:        
-            fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(12,10))
-        else:
-            fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(10,10))
-        
-        levels = np.linspace(200, 700, 30)    
-        CS = ax.contourf(theta, r, values, levels=levels, cmap=cm.inferno )
-        ax.contour(theta, r, isCME, [0.1,1])
-        if doSat:
-            plt.plot(satLon*dtor, satR, 'o', color='cyan')        
-        if doColorbar:
-            cbar = plt.colorbar(CS)
-            cbar.ax.set_yticklabels([str(int(i)) for i in cbar.get_ticks()])
-            cbar.set_label('v (km/s)')
-        ax.set_xticklabels([])
-        ax.set_rlabel_position(180)
-        ax.set_rlim(0,1.2)
-        #ax.set_yticklabels([])
-        ax.set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        plt.subplots_adjust(left=0.05,right=0.95,top=0.95,bottom=0.05)
-        #plt.show()     
-        countstr = str(iii)
-        countstr = countstr.zfill(3)
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnlilesqueEq'+countstr+'.'+figtag)
-        plt.close()
-
-def enlilesqueMer(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0):
-    # assume we are plotting the seed case but will change if specified in call
-    thisCME = ResArr[key]
-    
-    # set up solar wind background
-    rotrate = 360. / (24.47 * 24 ) # 24.47 day rot at equator, in deg/hor
-    #print (OSP.vSW, OSP.MHarea, OSP.MHdist)
-    
-    if OSP.doMH:
-        MHarea = OSP.MHarea
-        MHdist = OSP.MHdist
-        areaRs = MHarea *1e10 / (7e5)**2
-        CHrad  = np.sqrt(areaRs/np.pi)
-        CHang  = np.arctan(CHrad)
-        t0, xs0, vs, a1 = emp.getxmodel(MHarea, MHdist)
-        vfuncs = emp.getvmodel(MHarea)
-        nfuncs = emp.getnmodel(MHarea)
-        Brfuncs = emp.getBrmodel(MHarea)
-        Blonfuncs = emp.getBlonmodel(MHarea)
-        Tfuncs = emp.getTmodel(MHarea)
-        vlonfuncs = emp.getvlonmodel(MHarea)
-        HSSfuncs = [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs]
-
-    # initialize grid
-    nTheta = 181
-    nRs = 121
-    angs = np.radians(np.linspace(-90, 90, nTheta))
-    CHangs = np.where(np.abs(angs) <= CHang)
-    rs = np.linspace(0, 1.2, nRs)
-    r, theta = np.meshgrid(rs, angs)
-    
-    # CME properties that will not change during ANT
-    CMElat  = thisCME.FClats[-1]
-    CMElon  = thisCME.FClons[-1] 
-    CMEtilt = thisCME.FCtilts[-1]
-    
-    tANT0 = thisCME.ANTtimes[0]
-    
-    # figure out time res
-    dR = 5 # rs
-    r0 = int(thisCME.ANTrs[0]/dR)*dR
-    rend = int(thisCME.ANTrs[-1]/dR)*dR
-    npics = int((rend-r0)/dR)+1
-    
-    for iii in range(npics+bonusTime):
-        if iii < npics:
-            idx = np.min(np.where(thisCME.ANTrs >=r0 + iii*dR ))
-        else:
-            idx = np.min(np.where(thisCME.ANTrs >=r0 + (npics-1)*dR ))
-        print (r0 + iii*dR)
-        # Make figure for certain timesteps
-        values = np.ones((angs.size, rs.size))
-        isCME  = np.zeros((angs.size, rs.size))
-        thistime = thisCME.ANTtimes[idx] - tANT0 # in days
-        if iii >= npics:
-            # get CME radial speed
-            thisv = thisCME.ANTvFs[idx]
-            deltatime = (iii-npics +1)*dR * 7e10 / (thisv *1e5) / (3600*24)
-            thistime += deltatime
-            
-        
-        # get satellite position
-        if doSat:
-            satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
-            satLon = satLonf(thistime*24*3600) - CMElon
-            satR   = satRf(thistime*24*3600) / 215.
-    
-        # set up background SW w/o CME
-        if not OSP.doMH:
-            values *= OSP.vSW
-        else:
-            for j in range(len(rs)):
-                values[:,j] = OSP.vSW
-                t1 = t0 + thistime*24
-                thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                values[CHangs,j] = ((thispoint[1]-1) * np.sqrt((CHang -np.abs(angs[CHangs]))/CHang) + 1 )* OSP.vSW
-                '''for i in range(len(angs)):
-                    ang = angs[i]
-                    dtang = -ang / rotrate / dtor
-                    t1 = t0 + dtang + thistime*24
-                    thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                    values[i,j] = thispoint[1] * OSP.vSW'''
-                
-        # add in CME
-        # get evolved CME properties
-        CMEr  = thisCME.ANTrs[idx]
-        if iii >= npics:
-            CMEr += (iii-npics +1)*dR
-        CMEAW = thisCME.ANTAWs[idx]
-        CMEAWp = thisCME.ANTAWps[idx]
-        deltaAx = thisCME.ANTdelAxs[idx]
-        deltaCS = thisCME.ANTdelCSs[idx]
-        vExps = [thisCME.ANTvFs[idx], thisCME.ANTvEs[idx], thisCME.ANTvBs[idx], thisCME.ANTvCSrs[idx], thisCME.ANTvCSps[idx], thisCME.ANTvAxrs[idx], thisCME.ANTvAxps[idx]]
-        sheathwid = thisCME.PUPwids[idx]
-
-        # calc CME lens
-        CMElens = np.zeros(7)
-        CMElens[0] = CMEr
-        CMElens[4] = np.tan(CMEAWp*dtor) / (1 + deltaCS * np.tan(CMEAWp*dtor)) * CMElens[0]
-        CMElens[3] = deltaCS * CMElens[4]
-        CMElens[6] = (np.tan(CMEAW*dtor) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + deltaAx * np.tan(CMEAW*dtor))  
-        CMElens[5] = deltaAx * CMElens[6]
-        CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
-        CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
-        # get the axis
-        nFR = 31 # axis resolution
-        thetas = np.linspace(-np.pi/2, np.pi/2, nFR)    
-        sns = np.sign(thetas)    
-        xFR = CMElens[2] + deltaAx * CMElens[6] * np.cos(thetas)
-        zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas)))) 
-
-        # Rotate out of CME frame
-        axvec = [xFR,0,zFR]
-        axvec1 = rotx(axvec,-(90-CMEtilt))
-        xyzpos = roty(axvec1,-CMElat)
-        #xyzpos = rotz(axvec2, CMElon) # assuming in ref frame where CMElon = 0
-        axLats = np.arctan2(xyzpos[2], np.sqrt(xyzpos[0]**2 + xyzpos[1]**2)) / dtor
-        axLons = np.arctan2(xyzpos[1], xyzpos[0]) / dtor
-        axRs = np.sqrt(xyzpos[0]**2 + xyzpos[1]**2 + xyzpos[2]**2)
-        Lon2R = CubicSpline(axLons,axRs,bc_type='natural') 
-    
-        # Get min/max lon to tighten range to check if inCME
-        dLon = 15
-        minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
-        idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
-        idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
-        # if highly vertical then lon width actually set by AWp
-        minLon = np.min([minLon, int(CMElon - 0.5*CMEAWp)])
-        maxLon = np.max([maxLon, int(CMElon + 0.5*CMEAWp)])
-
-        idx_min = np.min(np.where(angs >= minLon*dtor))
-        idx_max = np.max(np.where(angs <= maxLon*dtor))+1
-
-        for i in np.arange(idx_min-dLon, idx_max+dLon, 1):
-            if i < idx1:
-                axR = Lon2R(angs[idx1]/dtor)
-            elif i > idx2:
-                axR = Lon2R(angs[idx2]/dtor)
-            else:
-                axR = Lon2R(angs[i]/dtor)
-            minR = (axR - 1.5*CMElens[3])/215
-            maxR = (axR + 1.5*CMElens[3])/215
-            mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
-            for j in mightBin:
-                # check if actually in CME
-                thispos = np.array([rs[j]*215, angs[i]/dtor, satLon])
-                CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS)
-                rbar = vpmag/maxrFR
-                if rbar <= 1:
-                    # get velocity if in CME
-                    vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
-                    #temp = rotx(vCMEframe, -(90.-CMEtilt))
-                    #temp2 = roty(temp, CMEpos[0] - thispos[1]) 
-                    #vInSitu = rotz(temp2, CMEpos[1] - thispos[2])
-                    values[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
-                    isCME[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (rs[j]*215. > CMElens[0]):
-                    values[i,j] = vExps[0]
-               
-    
-        if doColorbar:        
-            fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(12,10))
-        else:
-            fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(10,10))
-        
-        levels = np.linspace(200, 700, 30)    
-        CS = ax.contourf(theta, r, values, levels=levels, cmap=cm.inferno )
-        ax.contour(theta, r, isCME, [0.1,1])
-        
-        # block out inner boundary
-        ax.fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
-
-        if doSat:
-            plt.plot(satLon*dtor, satR, 'o', color='cyan')        
-        if doColorbar:
-            cbar = fig.colorbar(CS)
-            cbar.set_label('v (km/s)')
-        ax.set_xticklabels([])
-        ax.set_rlabel_position(180)
-        ax.set_rlim(0,1.2)
-        #ax.set_yticklabels([])
-        ax.set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        plt.subplots_adjust(left=0.05,right=0.95,top=0.95,bottom=0.05)
-        #plt.show()     
-        countstr = str(iii)
-        countstr = countstr.zfill(3)
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnlilesqueMer'+countstr+'.'+figtag)
-        plt.close()
-        
-def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0):
+def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, both=True):
     # assume we are plotting the seed case but will change if specified in call
     thisCME = ResArr[key]
     
@@ -3177,14 +2808,15 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         satPaths = OSP.satPathWrapper(satPath)
         satNames = satPaths[-1]
         satPaths = satPaths[:-1]
-        nSat = len(satNames)
+        nSat = len(satNames)    
     
 
     # initialize grid
     nTheta = 361
     nRs = 121
     angs = np.radians(np.linspace(-180, 180, nTheta))
-    CHangs = np.where(np.abs(angs) <= CHang)
+    if OSP.doMH:
+        CHangs = np.where(np.abs(angs) <= CHang)
     rs = np.linspace(0, 1.2, nRs)
     r, theta = np.meshgrid(rs, angs)
     
@@ -3218,7 +2850,6 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
             deltatime = (iii-npics +1)*dR * 7e10 / (thisv *1e5) / (3600*24)
             thistime += deltatime
             
-        
         # get satellite position
         if doSat:
             satRs, satLats, satLons = [], [], []
@@ -3244,7 +2875,8 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         except:
             vSW = 300
         if not OSP.doMH:
-            values *= vSW
+            valuesMer = vSW * np.ones(valuesMer.shape)
+            valuesEq = vSW * np.ones(valuesMer.shape)
         else:
             for j in range(len(rs)):
                 # Meridional Slice
@@ -3328,7 +2960,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
             for j in mightBin:
                 # check if actually in CME
                 # Meridional
-                thispos = np.array([rs[j]*215, angs[i]/dtor, merLon])
+                thispos = np.array([rs[j]*215, angs[i%360]/dtor, merLon])
                 CMEpos = np.array([CMElat, 0, CMEtilt])
                 vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                 rbar = vpmag/maxrFR
@@ -3340,7 +2972,7 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
                 elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR):#(rs[j]*215. > CMElens[0]):
                     valuesMer[i,j] = vExps[0]
                 # Equatorial
-                thispos = np.array([rs[j]*215, 0, angs[i]/dtor])
+                thispos = np.array([rs[j]*215, 0, angs[i%360]/dtor])
                 CMEpos = np.array([CMElat, 0, CMEtilt])
                 vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                 rbar = vpmag/maxrFR
@@ -3358,7 +2990,8 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         else:
             fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
         
-        levels = np.linspace(200, 1000, 30)    
+        vel0,vel1 = 300,600
+        levels = np.linspace(vel0, vel1, 30)    
         CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
         ax[0].contour(theta, r, isCMEMer, [0.1,1])
  
@@ -3379,7 +3012,11 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
         ax[0].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
         ax[0].set_rlabel_position(180)
+        rlabels = ax[0].get_ymajorticklabels()
+        for label in rlabels:
+            label.set_color('white')
         ax[0].set_rlim(0,1.2)
+        ax[0].set_title('Meridional plane')
         if not OSP.noDate:
             ax[0].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
         else:
@@ -3389,7 +3026,11 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         ax[1].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
         ax[1].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
         ax[1].set_rlabel_position(180)
+        rlabels = ax[1].get_ymajorticklabels()
+        for label in rlabels:
+            label.set_color('white')
         ax[1].set_rlim(0,1.2)
+        ax[1].set_title('Equitorial plane')
         if not OSP.noDate:
             ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
         else:
@@ -3397,10 +3038,13 @@ def enlilesqueBoth(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merL
         plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
         if doColorbar:
-            plt.subplots_adjust(left=0.01,right=0.8,top=0.93,bottom=0.05, wspace=0.05)
-            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-            cbar = fig.colorbar(CS, cax=cbar_ax)
+            plt.subplots_adjust(left=0.02,right=0.98,top=0.87,bottom=0.18, wspace=0.05)
+            cbar_ax = fig.add_axes([0.25, 0.11, 0.5, 0.025])
+            cbar = fig.colorbar(CS, cax=cbar_ax, orientation='horizontal')
             cbar.set_label('v (km/s)')
+            cbar.set_ticks(np.arange(vel0,vel1+1,50))
+        else:
+            plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
         #plt.show()     
         countstr = str(iii)
@@ -3435,7 +3079,7 @@ if __name__ == '__main__':
         if nSat == 1:
             ObsData = [readInData(OSP.ObsDataFile)]
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
-        else:
+        '''else:
             ObsData = [[] for i in range (nSat)]
             temp = np.genfromtxt(OSP.ObsDataFile, dtype='unicode')
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
@@ -3449,9 +3093,22 @@ if __name__ == '__main__':
                 ObsData[idx] = aObsData
                 OSP.obsShstart[idx] = float(temp[i][1])
                 OSP.obsFRstart[idx] = float(temp[i][2])
-                OSP.obsFRend[idx] = float(temp[i][3])
-        ObsData = np.array(ObsData)
-            
+                OSP.obsFRend[idx] = float(temp[i][3])'''
+        
+        
+    # if have multi sats
+    elif 'satPath' in OSP.input_values:
+        satPath = OSP.input_values['satPath']
+        if (satPath[-4:] == 'sats'):
+            ObsData = [[] for i in range(nSat)]
+            temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+            OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
+            for i in range(nSat):
+                ObsData[i] = readInData(temp[i][5])
+                OSP.obsFRstart[i] = float(temp[i][7])
+                OSP.obsFRend[i] = float(temp[i][8])
+                OSP.obsShstart[i] = float(temp[i][6])
+    
     global nEns
     nEns = len(ResArr.keys())
 
@@ -3520,12 +3177,12 @@ if __name__ == '__main__':
             makeContours(ResArr, satID=i)
     
     # Also slow now
-    for i in range(nSat):
+    '''for i in range(nSat):
         if OSP.obsFRstart is not None:
             if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
-                getISmetrics(ResArr, satID=i)
+                getISmetrics(ResArr, satID=i)'''
     
-    if False:
-        enlilesqueBoth(ResArr, bonusTime=24, doSat=True)
+    if True:
+        enlilesque(ResArr, bonusTime=24, doSat=True)
 
         

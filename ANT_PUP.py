@@ -759,7 +759,7 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     return Bvec, vInSitu, vExpCME
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1, simYaw=False):
+def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1, simYaw=False, SWR=None):
     # testing things
     #satfsIn = [satfs[0], satfs[0], ['sat1', 'sat2']]
     #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]], [Epos[0], Epos[1]-10, (Epos[2]) *7e10, Epos[3]]]
@@ -849,7 +849,11 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     # Check if passed 1 AU values -> scaling of empirical model
     # this will used the first sat in satnames so put 1 AU first (or fix this in some clever way later)
     if not isinstance(SWparams, str):    
-        SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], satPos[satNames[0]][2]/1.5e13]
+        if SWR == None:
+            SWdist = satPos[satNames[0]][2]/1.5e13
+        else:
+            SWdist = SWR / 215.
+        SWparams = [SWparams[0], SWparams[1], SWparams[2], SWparams[3], SWdist]
     # If given string, func will convert text file to profile
     # Otherwise uses the array
     SWfs = makeSWfuncs(SWparams, time=SWidx)
@@ -936,9 +940,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
 
     # get CME temperature based on expected SW temp at center of nose CS
     temSW = getSWvals(CMElens[0]-CMElens[3], SWfs, doMH=doMH)[4]
-    temCME = CMET
     if flagScales:
         temCME = temScale * temSW
+    else:
+        temCME = CMET
     temscaler = np.power(CMElens[3] * CMElens[4] * initlen , fT) * temCME
     
     # use to pull out inputs for uniform B/T across multiple cases instead
