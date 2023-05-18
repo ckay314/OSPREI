@@ -784,9 +784,9 @@ def makeADVplot(ResArr):
     
 def makeDragless(ResArr):
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(10,10))
-    axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[1,0], axes[1,0], axes[1,1], axes[1,1]]
-    c1   = ['LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue']
-    c2   = ['DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue']
+    axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[1,0], axes[1,0], axes[1,1], axes[1,1], axes[0,1]]
+    c1   = ['LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'CherryRed']
+    c2   = ['DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'Maroon']
     # this isn't the exact end for all cases but don't really care in this figure
     # since more showing trend with distance and it flattens
     rStart = ResArr[0].ANTrs[0]
@@ -799,11 +799,15 @@ def makeDragless(ResArr):
         if (not ResArr[i].miss) and (not ResArr[i].fail):
             nImp += 1
             hits.append(i)
-            
+    
+    npts = 8
+    if OSP.simYaw:
+        npts = 9
+        axes[8] = axes[2].twinx()
     
     # Arrays to hold spline results
     fakers = np.linspace(rStart,rEnd,100, endpoint=True)
-    splineVals = np.zeros([nImp, 100, 8])
+    splineVals = np.zeros([nImp, 100, npts])
     means = np.zeros([100, 8])
     stds  = np.zeros([100, 8])
     lims  = np.zeros([100, 2, 8])
@@ -831,9 +835,12 @@ def makeDragless(ResArr):
             thefit = CubicSpline(ResArr[key].ANTrs,ResArr[key].ANTBtors,bc_type='natural')
             splineVals[i,:, 6] = thefit(fakers)
             thefit = CubicSpline(ResArr[key].ANTrs,ResArr[key].ANTlogTs,bc_type='natural')
-            splineVals[i,:, 7] = thefit(fakers)                         
+            splineVals[i,:, 7] = thefit(fakers)   
+            if OSP.simYaw:
+                thefit = CubicSpline(ResArr[key].ANTrs,ResArr[key].ANTyaws,bc_type='natural')
+                splineVals[i,:, 8] = thefit(fakers)
             i += 1
-        for i in range(8):
+        for i in range(npts):
             means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
             stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
             lims[:,0,i] = np.max(splineVals[:,:,i], axis=0) 
@@ -850,12 +857,15 @@ def makeDragless(ResArr):
     axes[5].plot(ResArr[0].ANTrs, ResArr[0].ANTvCSrs, linewidth=4, color='b', zorder=3)
     axes[6].plot(ResArr[0].ANTrs, ResArr[0].ANTBtors, linewidth=4, color='k', zorder=3)
     axes[7].plot(ResArr[0].ANTrs, ResArr[0].ANTlogTs, linewidth=4, color='b', zorder=3)    
+    if OSP.simYaw:
+        axes[8].plot(ResArr[0].ANTrs, ResArr[0].ANTyaws, linewidth=4, color='Maroon', zorder=3)    
+        
     
     degree = '$^\circ$'
     
     # Add the final position as text
     if nEns > 1:
-        all_AWs, all_AWps, all_delAxs, all_delCSs, all_vFs, all_vCSrs, all_Btors, all_Ts = [], [], [], [], [], [], [], []
+        all_AWs, all_AWps, all_delAxs, all_delCSs, all_vFs, all_vCSrs, all_Btors, all_Ts, all_yaws = [], [], [], [], [], [], [], [], []
         for key in hits:
             all_AWs.append(ResArr[key].ANTAWs[-1])
             all_AWps.append(ResArr[key].ANTAWps[-1])
@@ -865,6 +875,8 @@ def makeDragless(ResArr):
             all_vCSrs.append(ResArr[key].ANTvCSrs[-1])
             all_Btors.append(ResArr[key].ANTBtors[-1])
             all_Ts.append(ResArr[key].ANTlogTs[-1])
+            if OSP.simYaw:
+                all_yaws.append(ResArr[key].ANTyaws[-1])
         fitAWs = norm.fit(all_AWs)
         fitAWps = norm.fit(all_AWps)
         fitdelAxs = norm.fit(all_delAxs)
@@ -873,6 +885,8 @@ def makeDragless(ResArr):
         fitvCSrs = norm.fit(all_vCSrs)
         fitBtors = norm.fit(all_Btors)
         fitTs    = norm.fit(all_Ts)
+        if OSP.simYaw:
+            fityaws = norm.fit(all_yaws)
         
         
         axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
@@ -883,7 +897,9 @@ def makeDragless(ResArr):
         axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
         axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')        
+        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')     
+        if OSP.simYaw:
+            axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
     else:
         axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
@@ -892,7 +908,9 @@ def makeDragless(ResArr):
         axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
         axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[-1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[-1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')        
+        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[-1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b') 
+        if OSP.simYaw:
+            axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon') 
 
                   
     # Labels
@@ -901,6 +919,8 @@ def makeDragless(ResArr):
     axes[4].set_ylabel('v$_F$, v$_{Exp}$ (km/s)')
     axes[6].set_ylabel('B (nT)')
     axes[7].set_ylabel('log(T) (K)')
+    if OSP.simYaw:
+        axes[8].set_ylabel('Yaw ('+degree+')')
     axes[7].set_ylim([3,6.5])
     axes[6].set_ylim([1,5e4])
     axes[4].set_xlabel('Distance (R$_S$)')
@@ -2068,9 +2088,7 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
     if OSP.isSat or plotn:
         axes[6].set_ylabel('n (cm$^{-3}$)')
     else:
-        axes[6].set_ylabel('Kp')
-        
-        
+        axes[6].set_ylabel('Kp')        
     
     xlims = list(axes[6].get_xlim())
     xlims[1] = xlims[1]- 3/24.
@@ -2592,7 +2610,17 @@ def getISmetrics(ResArr, satID=0):
     obshr = np.zeros([len(goodidx), 8])
     obshr[:,0] = obshrt[goodidx]
     
+    # Need to check whether sat has all data or not
+    haveObsidx = []
     for i in range(7):
+        thisParam = ObsData[satID][i+1,:]
+        isNans = []
+        for j in range(len(thisParam)):
+            if math.isnan(thisParam[j]): isNans.append(j)
+        if len(isNans) < len(thisParam) * 0.5:
+            haveObsidx.append(i)            
+    
+    for i in haveObsidx:
         hrvalsObs = hourify(obst, ObsData[satID][i+1,:])
         obshr[:,i+1] = hrvalsObs[goodidx]
     
@@ -2630,13 +2658,15 @@ def getISmetrics(ResArr, satID=0):
             # 1 full transient, 2 sheath, 3 FR
             if hasSheath:
                 rngs = [[obstSh, obstFR2], [obstSh, obstFR1], [obstFR1, obstFR2]]
+                haveObsidxFull = [haveObsidx[i] for i in range(len(haveObsidx))] + [haveObsidx[i] +7 for i in range(len(haveObsidx))] +  [haveObsidx[i] +14 for i in range(len(haveObsidx))]
             else:
                 rngs =[[obstFR1, obstFR2]]
+                haveObsidxFull = [haveObsidx[i] for i in range(len(haveObsidx))] + [haveObsidx[i] +7 for i in range(len(haveObsidx))]
             
             outprint = ''
             rngcounter = 0
             for rng in rngs:    
-                for i in range(7):
+                for i in haveObsidx:
                     hrvals = hourify(thistime, compVals[i])
                     
                     # take section within range
@@ -2684,6 +2714,10 @@ def getISmetrics(ResArr, satID=0):
     else:
         print ('Average Errors:')
     avgErr = np.mean(allScores, axis=0)
+    for i in range(len(avgErr)):
+        if i not in haveObsidxFull:
+            avgErr[i] = 9999.
+            meanVals[i] = 9999.
     outprint = ''
     for val in avgErr:
         outprint += '{:.3f}'.format(val)+' '
@@ -2693,13 +2727,21 @@ def getISmetrics(ResArr, satID=0):
     weightedScores = allScores/meanVals
     print ('Average Weighted Errors:')
     avgwErr = np.mean(weightedScores, axis=0)
+    for i in range(len(avgErr)):
+        if i not in haveObsidxFull:
+            avgwErr[i] = 9999.
     outprint = ''
     for val in avgwErr:
         outprint += '{:.3f}'.format(val)+' '
     print (outprint)         
     
     totTimeErr = np.sum(timingErr, axis=1)
-    oneScores = np.sum(weightedScores[:,[0,4,5,6]], axis=1) + totTimeErr
+    want2use = [0,4,5,6]
+    canuse = []
+    for i in range(7):
+        if (i in want2use) and (i in haveObsidx):
+            canuse.append(i)
+    oneScores = np.sum(weightedScores[:,canuse], axis=1) + totTimeErr
     print ('Seed has total score of ', oneScores[0])
     bestScore = np.min(oneScores)
     bestidx = np.where(oneScores == bestScore)[0]
@@ -2712,76 +2754,88 @@ def getISmetrics(ResArr, satID=0):
     # make scatter triangle plot of inputs colored by error
     nVaried = len(ResArr[0].EnsVal.keys())
     ensKeys = ResArr[0].EnsVal.keys()
-    # make plot showing scores vs ensemble inputs
-    '''fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
-    axes = axes.reshape([-1])
-    counter = 0
-    for key in goodkeys:
-        axCounter=0
-        for keyV in ensKeys:
-           axes[axCounter].scatter(ResArr[key].EnsVal[keyV], oneScores[counter])
-           axCounter +=1
-        counter += 1
-    axes[0].set_ylim([0,2])
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores.png')'''
-    
-    if nEns > 1:
-        '''fig, axes = plt.subplots(nVaried-1, nVaried-1, figsize=(nVaried+1,nVaried+1))
-        i = 0
-        key2idx = {}
-        idx2key = {}
-        for key in ensKeys:
-            key2idx[key] = i
-            idx2key[i] = key
-            i += 1
-    
+    # Slow plots that we typically don't need but useful for exploring ensemble sensitivites
+    if False:
+        # make plot showing scores vs ensemble inputs
+        fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
+        axes = axes.reshape([-1])
         counter = 0
-        medScore = np.median(oneScores)
-        stdScores = np.std(oneScores)
-        rng = 2*stdScores
-        minScore = medScore - 0.5 * rng
-        oneScoresNorm = (oneScores - minScore) / rng
-    
         for key in goodkeys:
-            thisRes = ResArr[key].EnsVal
-            for i in range(nVaried):
-                for j in range(i):
-                    axes[i-1,j].scatter(thisRes[idx2key[j]], thisRes[idx2key[i]], color= cm.RdBu_r(oneScoresNorm[counter])*np.ones(1), s=10)
+            axCounter=0
+            for keyV in ensKeys:
+               axes[axCounter].scatter(ResArr[key].EnsVal[keyV], oneScores[counter])
+               axCounter +=1
             counter += 1
+        axes[0].set_ylim([0,2])
+        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores.png')
     
-        for i in range(nVaried-2):
-            for j in range(nVaried-1):
-                axes[i,j].set_xticklabels([])
-        for j in range(nVaried-2):
-            for i in range(nVaried-1):
-                axes[i,j+1].set_yticklabels([])
-                plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
+        if nEns > 1:
+            fig, axes = plt.subplots(nVaried-1, nVaried-1, figsize=(nVaried+1,nVaried+1))
+            i = 0
+            key2idx = {}
+            idx2key = {}
+            for key in ensKeys:
+                key2idx[key] = i
+                idx2key[i] = key
+                i += 1
+    
+            counter = 0
+            medScore = np.median(oneScores)
+            stdScores = np.std(oneScores)
+            rng = 2*stdScores
+            minScore = medScore - 0.5 * rng
+            oneScoresNorm = (oneScores - minScore) / rng
+    
+            for key in goodkeys:
+                thisRes = ResArr[key].EnsVal
+                for i in range(nVaried):
+                    for j in range(i):
+                        axes[i-1,j].scatter(thisRes[idx2key[j]], thisRes[idx2key[i]], color= cm.RdBu_r(oneScoresNorm[counter])*np.ones(1), s=10)
+                counter += 1
+    
+            for i in range(nVaried-2):
+                for j in range(nVaried-1):
+                    axes[i,j].set_xticklabels([])
+            for j in range(nVaried-2):
+                for i in range(nVaried-1):
+                    axes[i,j+1].set_yticklabels([])
+                    plt.setp(axes[-1,i].xaxis.get_majorticklabels(), rotation=70 )
             
-        plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)  
+            plt.subplots_adjust(hspace=0.01, wspace=0.01, bottom=0.15, top=0.95, right=0.99)  
       
-        for i in range(nVaried-1):
-            axes[-1,i].set_xlabel(idx2key[i])
-            axes[i,0].set_ylabel(idx2key[i+1])
-        for i in range(nVaried-1):
-            for j in range(i+1,nVaried-1):
-                axes[i,j].set_axis_off()
+            for i in range(nVaried-1):
+                axes[-1,i].set_xlabel(idx2key[i])
+                axes[i,0].set_ylabel(idx2key[i+1])
+            for i in range(nVaried-1):
+                for j in range(i+1,nVaried-1):
+                    axes[i,j].set_axis_off()
     
-        # add color bar
-        cbar_ax = fig.add_axes([0.5, 0.7, 0.4, 0.05])  
-        norm = colors.Normalize(vmin=minScore, vmax=minScore+rng)  
-        cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cm.RdBu_r),cax=cbar_ax, orientation='horizontal')   
-        cb.set_label('Quality Metric') 
+            # add color bar
+            cbar_ax = fig.add_axes([0.5, 0.7, 0.4, 0.05])  
+            norm = colors.Normalize(vmin=minScore, vmax=minScore+rng)  
+            cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cm.RdBu_r),cax=cbar_ax, orientation='horizontal')   
+            cb.set_label('Quality Metric') 
     
             
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')'''
+            plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')
     
     
         # make new IS plot with best fit highlighted
         makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID)
             
-def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, both=True):
+def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, planes='both'):
     # assume we are plotting the seed case but will change if specified in call
     thisCME = ResArr[key]
+    
+    # check whether doing both, eq only, or mer only
+    if planes in ['Both', 'both', 'BOTH']:
+        doEq, doMer = True, True
+    elif planes in ['Eq', 'eq', 'EQ']:
+        doEq, doMer = True, False
+    elif planes in ['Mer', 'mer', 'MER']:
+        doEq, doMer = False, True
+    else:
+        sys.exit('Unrecognized keyword in planes in enlilesque. Pick from [both, eq, mer]')
     
     # set up solar wind background
     rotrate = 360. / (24.47 * 24 ) # 24.47 day rot at equator, in deg/hor
@@ -2875,22 +2929,26 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         except:
             vSW = 300
         if not OSP.doMH:
-            valuesMer = vSW * np.ones(valuesMer.shape)
-            valuesEq = vSW * np.ones(valuesMer.shape)
+            if doMer:
+                valuesMer = vSW * np.ones(valuesMer.shape)
+            if doEq:
+                valuesEq = vSW * np.ones(valuesMer.shape)
         else:
             for j in range(len(rs)):
                 # Meridional Slice
-                valuesMer[:,j] = vSW
-                t1 = t0 + thistime*24
-                thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                valuesMer[CHangs,j] = ((thispoint[1]-1) * np.sqrt((CHang -np.abs(angs[CHangs]))/CHang) + 1 )*vSW
-                # Equatorial Slice
-                for i in range(len(angs)):
-                    ang = angs[i]
-                    dtang = -ang / rotrate / dtor
-                    t1 = t0 + dtang + thistime*24
+                if doMer:
+                    valuesMer[:,j] = vSW
+                    t1 = t0 + thistime*24
                     thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
-                    valuesEq[i,j] = thispoint[1] * vSW
+                    valuesMer[CHangs,j] = ((thispoint[1]-1) * np.sqrt((CHang -np.abs(angs[CHangs]))/CHang) + 1 )*vSW
+                    # Equatorial Slice
+                if doEq:
+                    for i in range(len(angs)):
+                        ang = angs[i]
+                        dtang = -ang / rotrate / dtor
+                        t1 = t0 + dtang + thistime*24
+                        thispoint = emp.getHSSprops(rs[j], t1, t0, xs0, vs, a1, [nfuncs, vfuncs, Brfuncs, Blonfuncs, Tfuncs, vlonfuncs])
+                        valuesEq[i,j] = thispoint[1] * vSW
                 
         # add in CME
         # get evolved CME properties
@@ -2959,83 +3017,93 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
             for j in mightBin:
                 # check if actually in CME
-                # Meridional
-                thispos = np.array([rs[j]*215, angs[i%360]/dtor, merLon])
-                CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
-                rbar = vpmag/maxrFR
-                if rbar <= 1:
-                    # get velocity if in CME
-                    vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
-                    valuesMer[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
-                    isCMEMer[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR):#(rs[j]*215. > CMElens[0]):
-                    valuesMer[i,j] = vExps[0]
-                # Equatorial
-                thispos = np.array([rs[j]*215, 0, angs[i%360]/dtor])
-                CMEpos = np.array([CMElat, 0, CMEtilt])
-                vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
-                rbar = vpmag/maxrFR
-                if rbar <= 1:
-                    # get velocity if in CME
-                    vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
-                    valuesEq[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
-                    isCMEEq[i,j] = 1.
-                elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR): #(rs[j]*215. > CMElens[0]):
-                    valuesEq[i,j] = vExps[0]
+                if doMer:
+                    # Meridional
+                    thispos = np.array([rs[j]*215, angs[i%360]/dtor, merLon])
+                    CMEpos = np.array([CMElat, 0, CMEtilt])
+                    vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
+                    rbar = vpmag/maxrFR
+                    if rbar <= 1:
+                        # get velocity if in CME
+                        vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
+                        valuesMer[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
+                        isCMEMer[i,j] = 1.
+                    elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR):#(rs[j]*215. > CMElens[0]):
+                        valuesMer[i,j] = vExps[0]
+                if doEq:    
+                    # Equatorial
+                    thispos = np.array([rs[j]*215, 0, angs[i%360]/dtor])
+                    CMEpos = np.array([CMElat, 0, CMEtilt])
+                    vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
+                    rbar = vpmag/maxrFR
+                    if rbar <= 1:
+                        # get velocity if in CME
+                        vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
+                        valuesEq[i,j] = np.sqrt(vCMEframe[0]**2 + vCMEframe[1]**2 + vCMEframe[2]**2)
+                        isCMEEq[i,j] = 1.
+                    elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR): #(rs[j]*215. > CMElens[0]):
+                        valuesEq[i,j] = vExps[0]
                
-    
-        if doColorbar:        
-            fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(11,5))
+        if doMer and doEq:
+            if doColorbar:        
+                fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(11,5))
+            else:
+                fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
         else:
-            fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
+            if doColorbar:        
+                fig, ax = plt.subplots(1,1, subplot_kw=dict(projection='polar'), figsize=(5,7))
+            else:
+                fig, ax = plt.subplots(1,1, subplot_kw=dict(projection='polar'), figsize=(5,5.5))
+            ax = [ax, ax]
         
         vel0,vel1 = 300,600
         levels = np.linspace(vel0, vel1, 30)    
-        CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
-        ax[0].contour(theta, r, isCMEMer, [0.1,1])
- 
-        CS = ax[1].contourf(theta, r, valuesEq, levels=levels, cmap=cm.inferno )
-        ax[1].contour(theta, r, isCMEEq, [0.1,1])
-        
-        # block out inner boundary
-        ax[0].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
-        ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
-
+        if doMer:
+            CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
+            ax[0].contour(theta, r, isCMEMer, [0.1,1])
+            ax[0].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
+            
+        if doEq:
+            CS = ax[1].contourf(theta, r, valuesEq, levels=levels, cmap=cm.inferno )
+            ax[1].contour(theta, r, isCMEEq, [0.1,1])
+            ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
+            
         if doSat:
             for i in range(nSat):
                 # only include sat in meridonal plot if fairly close to that plane
-                if np.abs(satLons[i]) < 5:
-                    ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')        
-                ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')  
-        ax[0].set_xticklabels([])
-        ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
-        ax[0].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
-        ax[0].set_rlabel_position(180)
-        rlabels = ax[0].get_ymajorticklabels()
-        for label in rlabels:
-            label.set_color('white')
-        ax[0].set_rlim(0,1.2)
-        ax[0].set_title('Meridional plane')
-        if not OSP.noDate:
-            ax[0].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        else:
-            ax[0].set_title("{:#.2f}".format(thistime)+ ' days')
-            
-        ax[1].set_xticklabels([])
-        ax[1].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
-        ax[1].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
-        ax[1].set_rlabel_position(180)
-        rlabels = ax[1].get_ymajorticklabels()
-        for label in rlabels:
-            label.set_color('white')
-        ax[1].set_rlim(0,1.2)
-        ax[1].set_title('Equitorial plane')
-        if not OSP.noDate:
-            ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
-        else:
-            ax[1].set_title("{:#.2f}".format(thistime)+ ' days')
-        plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
+                if doMer:
+                    if np.abs(satLons[i]) < 10:
+                        ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')     
+                if doEq:   
+                    ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')  
+        if doMer:
+            ax[0].set_xticklabels([])
+            ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
+            ax[0].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
+            ax[0].set_rlabel_position(180)
+            rlabels = ax[0].get_ymajorticklabels()
+            for label in rlabels:
+                label.set_color('white')
+            ax[0].set_rlim(0,1.2)
+            ax[0].set_title('Meridional plane')
+            if not OSP.noDate:
+                ax[0].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
+            else:
+                ax[0].set_title("{:#.2f}".format(thistime)+ ' days')
+        if doEq:    
+            ax[1].set_xticklabels([])
+            ax[1].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
+            ax[1].set_yticklabels(['', '0.4', '', '0.8', '', '1.2'])
+            ax[1].set_rlabel_position(180)
+            rlabels = ax[1].get_ymajorticklabels()
+            for label in rlabels:
+                label.set_color('white')
+            ax[1].set_rlim(0,1.2)
+            ax[1].set_title('Equitorial plane')
+            if not OSP.noDate:
+                ax[1].set_title((OSP.dObj + datetime.timedelta(days=thistime)).strftime("%d %b %Y %H:%M:%S"))
+            else:
+                ax[1].set_title("{:#.2f}".format(thistime)+ ' days')
         
         if doColorbar:
             plt.subplots_adjust(left=0.02,right=0.98,top=0.87,bottom=0.18, wspace=0.05)
@@ -3043,6 +3111,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             cbar = fig.colorbar(CS, cax=cbar_ax, orientation='horizontal')
             cbar.set_label('v (km/s)')
             cbar.set_ticks(np.arange(vel0,vel1+1,50))
+            plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         else:
             plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
@@ -3079,25 +3148,10 @@ if __name__ == '__main__':
         if nSat == 1:
             ObsData = [readInData(OSP.ObsDataFile)]
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
-        '''else:
-            ObsData = [[] for i in range (nSat)]
-            temp = np.genfromtxt(OSP.ObsDataFile, dtype='unicode')
-            OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
-            for i in range(nSat):
-                aObsData = readInData(temp[i][4])
-                thissat = temp[i][0]
-                idx = np.where(satNames == thissat)[0]
-                if len(idx) != 1:
-                    sys.exit('Sat names in in situ list must match sat names in sat list')
-                idx = idx[0]
-                ObsData[idx] = aObsData
-                OSP.obsShstart[idx] = float(temp[i][1])
-                OSP.obsFRstart[idx] = float(temp[i][2])
-                OSP.obsFRend[idx] = float(temp[i][3])'''
-        
         
     # if have multi sats
     elif 'satPath' in OSP.input_values:
+        satNames = []
         satPath = OSP.input_values['satPath']
         if (satPath[-4:] == 'sats'):
             ObsData = [[] for i in range(nSat)]
@@ -3108,6 +3162,7 @@ if __name__ == '__main__':
                 OSP.obsFRstart[i] = float(temp[i][7])
                 OSP.obsFRend[i] = float(temp[i][8])
                 OSP.obsShstart[i] = float(temp[i][6])
+                satNames.append(temp[i][0])
     
     global nEns
     nEns = len(ResArr.keys())
@@ -3127,11 +3182,10 @@ if __name__ == '__main__':
                 makePUPplot(ResArr) #Fix this
             except:
                 print ('Assuming no sheath, not plotting PUP')
-        else:
-            # Make drag profile
-            makeDragless(ResArr)
-            # Non-forecast version with more params
-            #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
+        # Make drag profile
+        makeDragless(ResArr)
+        # Non-forecast version with more params
+        #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
 
     if OSP.doFIDO:
         # Make in situ plot
@@ -3177,12 +3231,20 @@ if __name__ == '__main__':
             makeContours(ResArr, satID=i)
     
     # Also slow now
-    '''for i in range(nSat):
-        if OSP.obsFRstart is not None:
+    for i in range(nSat):
+        if OSP.obsFRstart[i] not in [None, 9999.]:
+            print ('----------------------- Sat:' , satNames[i], '-----------------------')
             if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
-                getISmetrics(ResArr, satID=i)'''
+                getISmetrics(ResArr, satID=i)
+            print ('')
+            print('')
+        else:
+            print ('')
+            print ('Missing FR start for ', satNames[i], ' so no metrics')
+            print ('')
+            print ('')
     
-    if True:
-        enlilesque(ResArr, bonusTime=24, doSat=True)
+    if False:
+        enlilesque(ResArr, bonusTime=24, doSat=True, planes='eq')
 
         
