@@ -168,6 +168,8 @@ def txt2obj(GCStime):
         if OSP.doPUP:
             PUPfile = OSP.Dir+'/PUPresults'+OSP.thisName+'.dat'
             PUPdata = np.genfromtxt(PUPfile, dtype=float, encoding='utf8')
+            PUPids = PUPdata[:,0].astype(int)
+            unPUPids = np.unique(PUPdata[:,0].astype(int))
             
         global nHits, nFails
         nHits = 0
@@ -250,22 +252,24 @@ def txt2obj(GCStime):
                 thisRes.ANTn = OSP.mass*1e15 / vol / 1.67e-24 / (7e10)**3'''
                 
                 if OSP.doPUP and (len(PUPdata.shape)!=1):
-                    if PUPdata[myidxs[0],1] != 8888:
-                        thisRes.PUPvshocks = PUPdata[myidxs,1]
-                        thisRes.PUPcomps = PUPdata[myidxs,2]
-                        thisRes.PUPMAs = PUPdata[myidxs,3]
-                        thisRes.PUPwids = PUPdata[myidxs,4]
-                        thisRes.PUPdurs = PUPdata[myidxs,5]
-                        thisRes.PUPMs = PUPdata[myidxs,6]
-                        thisRes.PUPns = PUPdata[myidxs,7]
-                        thisRes.PUPlogTs = PUPdata[myidxs,8]
-                        thisRes.PUPBthetas = PUPdata[myidxs,9]
-                        thisRes.PUPBs = PUPdata[myidxs,10]
-                        thisRes.PUPvts = PUPdata[myidxs,11]
-                        thisRes.PUPinit = PUPdata[myidxs,12]
+                    myPUPidxs = np.where(PUPids==i)[0]  
+                    
+                    if PUPdata[myPUPidxs[0],1] != 8888:
+                        thisRes.PUPvshocks = PUPdata[myPUPidxs,1]
+                        thisRes.PUPcomps = PUPdata[myPUPidxs,2]
+                        thisRes.PUPMAs = PUPdata[myPUPidxs,3]
+                        thisRes.PUPwids = PUPdata[myPUPidxs,4]
+                        thisRes.PUPdurs = PUPdata[myPUPidxs,5]
+                        thisRes.PUPMs = PUPdata[myPUPidxs,6]
+                        thisRes.PUPns = PUPdata[myPUPidxs,7]
+                        thisRes.PUPlogTs = PUPdata[myPUPidxs,8]
+                        thisRes.PUPBthetas = PUPdata[myPUPidxs,9]
+                        thisRes.PUPBs = PUPdata[myPUPidxs,10]
+                        thisRes.PUPvts = PUPdata[myPUPidxs,11]
+                        thisRes.PUPinit = PUPdata[myPUPidxs,12]
                                         
                 ResArr[thisRes.myID] = thisRes
-
+    
     if OSP.doFIDO:
         global nSat, satNames
         satNames = ['']
@@ -309,7 +313,7 @@ def txt2obj(GCStime):
         # Reset FIDO data to hold correct number of sats
         for i in range(len(ResArr)):
             thisRes = ResArr[i]
-            thisRes.FIDOtimes  = [[] for i in range(nSat)]
+            thisRes.FIDOtimes  = [None for i in range(nSat)]
             thisRes.FIDOBxs    = [[] for i in range(nSat)]
             thisRes.FIDOBys    = [[] for i in range(nSat)]
             thisRes.FIDOBzs    = [[] for i in range(nSat)]
@@ -326,7 +330,7 @@ def txt2obj(GCStime):
             thisRes.FIDO_shdur = [0 for i in range(nSat)]
             thisRes.FIDO_FRexp = [0 for i in range(nSat)]
             thisRes.ANTshidx   = [[] for i in range(nSat)]
-            thisRes.ANTFRidx   = [[] for i in range(nSat)]
+            thisRes.ANTFRidx   = [None for i in range(nSat)]
             thisRes.ANTdur = [0 for i in range(nSat)]
             thisRes.ANTKp0 = [0 for i in range(nSat)]
             thisRes.FIDOnormrs = [[] for i in range(nSat)]
@@ -366,6 +370,10 @@ def txt2obj(GCStime):
                     # Set as an impact not a miss (might not have run ANTEATR)
                     thisRes.miss = False
                     myidxs = np.where(ids[k]==i)[0]
+                    thisRes.FIDOtimes[k] = FIDOdata[k][myidxs,1]
+                    # Check for duplicates in FIDO times, can happen apparently between diff regs
+                    uniqtimes, udix = np.unique(thisRes.FIDOtimes[k], return_index=True)
+                    myidxs = myidxs[udix]
                     thisRes.FIDOtimes[k] = FIDOdata[k][myidxs,1]
                     thisRes.FIDOBs[k]    = FIDOdata[k][myidxs,2]
                     thisRes.FIDOBxs[k]   = FIDOdata[k][myidxs,3]
@@ -430,7 +438,7 @@ def txt2obj(GCStime):
                             thisRes.SITmaxKp[k] = np.max(thisRes.FIDOKps[k][thisRes.SITidx[k]])
                        
                 ResArr[i] = thisRes
-            
+
     # if haven't run FC may have fewer CMEs in ResArr than total runs if have misses
     for j in range(OSP.nRuns):
         if j not in ResArr.keys():
@@ -785,7 +793,7 @@ def makeADVplot(ResArr):
 def makeDragless(ResArr):
     fig, axes = plt.subplots(2, 2, sharex=True, figsize=(10,10))
     axes = [axes[0,0], axes[0,0], axes[0,1], axes[0,1], axes[1,0], axes[1,0], axes[1,1], axes[1,1], axes[0,1]]
-    c1   = ['LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'CherryRed']
+    c1   = ['LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightGray', 'lightblue', 'LightPink']
     c2   = ['DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'DarkGray', 'dodgerblue', 'Maroon']
     # this isn't the exact end for all cases but don't really care in this figure
     # since more showing trend with distance and it flattens
@@ -808,9 +816,9 @@ def makeDragless(ResArr):
     # Arrays to hold spline results
     fakers = np.linspace(rStart,rEnd,100, endpoint=True)
     splineVals = np.zeros([nImp, 100, npts])
-    means = np.zeros([100, 8])
-    stds  = np.zeros([100, 8])
-    lims  = np.zeros([100, 2, 8])
+    means = np.zeros([100, npts])
+    stds  = np.zeros([100, npts])
+    lims  = np.zeros([100, 2, npts])
     
     axes[7] = axes[6].twinx()
     
@@ -1228,15 +1236,16 @@ def makeAThisto(ResArr, satID=0):
         if (not ResArr[key].miss) and (not ResArr[key].fail):
             # figure out when hits FR, may not be last pt if doing internal FIDO
             thisidx = ResArr[key].ANTFRidx[satID]
-            all_vFs.append(ResArr[key].ANTvFs[thisidx])
-            all_vExps.append(ResArr[key].ANTvCSrs[thisidx])
-            all_TTs.append(ResArr[key].ANTtimes[thisidx])    
-            all_durs.append(ResArr[key].ANTdur[satID])
-            all_Bfs.append(ResArr[key].ANTBpols[thisidx])
-            all_Bms.append(ResArr[key].ANTBtors[thisidx])
-            all_ns.append(ResArr[key].ANTns[thisidx])
-            all_Kps.append(ResArr[key].ANTKp0[satID])
-            all_Ts.append(ResArr[key].ANTlogTs[thisidx])
+            if thisidx is not None:
+                all_vFs.append(ResArr[key].ANTvFs[thisidx])
+                all_vExps.append(ResArr[key].ANTvCSrs[thisidx])
+                all_TTs.append(ResArr[key].ANTtimes[thisidx])    
+                all_durs.append(ResArr[key].ANTdur[satID])
+                all_Bfs.append(ResArr[key].ANTBpols[thisidx])
+                all_Bms.append(ResArr[key].ANTBtors[thisidx])
+                all_ns.append(ResArr[key].ANTns[thisidx])
+                all_Kps.append(ResArr[key].ANTKp0[satID])
+                all_Ts.append(ResArr[key].ANTlogTs[thisidx])
     # Ordered Data
     ordData = [all_vFs, all_vExps, all_TTs, all_Bfs, all_Bms, all_durs, all_Ts, all_ns, all_Kps] 
     names = ['v$_F$ (km/s)', 'v$_{Exp}$ (km/s)', 'Transit Time (days)', 'B$_F$ (nT)', 'B$_C$ (nT)', 'Duration (hours)', 'log$_{10}$T (K)','n (cm$^{-3}$)', 'Kp']
@@ -1287,7 +1296,6 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         elif bfCase is not None:
             if key == bfCase:
                 lw, co, zord = 4, 'lightblue', 11
-            
         if ResArr[key].FIDOtimes[satID] is not None: #not ResArr[key].miss:
             if OSP.noDate:
                 dates = ResArr[key].FIDOtimes[satID]
@@ -1400,8 +1408,8 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         
         if setTrange:
             axes[5].set_ylim([0,1e6])
-        
-    if (ObsData[0] is not None):
+    
+    if (ObsData[0][0] is not None):
         axes[0].plot(ObsData[satID][0,:], ObsData[satID][1,:], linewidth=4, color='r')
         axes[1].plot(ObsData[satID][0,:], ObsData[satID][2,:], linewidth=4, color='r')
         axes[2].plot(ObsData[satID][0,:], ObsData[satID][3,:], linewidth=4, color='r')
@@ -1465,7 +1473,7 @@ def makeFIDOhistos(ResArr, satID=0):
     
     # Collect the ensemble results
     for key in ResArr.keys(): 
-        if ResArr[key].FIDOtimes is not None:
+        if ResArr[key].FIDOtimes[0] is not None:
             all_dur.append(ResArr[key].FIDO_FRdur[satID])
             all_Bz.append(np.min(ResArr[key].FIDOBzs[satID]))
             all_Kp.append(np.max(ResArr[key].FIDOKps[satID]))
@@ -1735,7 +1743,8 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
     for key in ResArr.keys():
         if (not ResArr[key].miss):
             if not ResArr[key].fail:
-                goodIDs.append(key)
+                if ResArr[key].FIDOtimes[satID] is not None:
+                    goodIDs.append(key)
             else:
                 failIDs.append(key)
         elif configID == 100: goodIDs.append(key)
@@ -1781,12 +1790,14 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
             if (key in goodIDs) and (key not in failIDs):
                 if item == 'TT':
                     if OSP.doFIDO:
-                        OSPres[item].append(ResArr[key].FIDOtimes[satID][0])    
+                        if ResArr[key].FIDOtimes[satID] is not None:
+                            OSPres[item].append(ResArr[key].FIDOtimes[satID][0])    
                     else:
                         OSPres[item].append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)                    
                 if item == 'Dur':
                     if OSP.doFIDO:
-                        OSPres[item].append(ResArr[key].FIDO_FRdur[satID])
+                        if ResArr[key].FIDOtimes[satID] is not None:
+                            OSPres[item].append(ResArr[key].FIDO_FRdur[satID])
                     else:
                         OSPres[item].append(ResArr[key].ANTdur[satID])
                 if item == 'n':
@@ -1795,13 +1806,16 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
                     OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
                 if item == 'Kp':
                     if OSP.doFIDO:
-                        OSPres[item].append(np.max(ResArr[key].FIDOKps[satID]))
+                        if ResArr[key].FIDOtimes[satID] is not None:
+                            OSPres[item].append(np.max(ResArr[key].FIDOKps[satID]))
                     else:
                         OSPres[item].append(ResArr[key].ANTKp0[satID])
                 if item == 'B':
-                    OSPres[item].append(np.max(ResArr[key].FIDOBs[satID]))                                
+                    if ResArr[key].FIDOtimes[satID] is not None:
+                        OSPres[item].append(np.max(ResArr[key].FIDOBs[satID]))                                
                 if item == 'Bz':
-                    OSPres[item].append(np.min(ResArr[key].FIDOBzs[satID]))
+                    if ResArr[key].FIDOtimes[satID] is not None:
+                        OSPres[item].append(np.min(ResArr[key].FIDOBzs[satID]))
 
     print ('Number of hits: ', len(goodIDs)) 
     print ('Mean and Standard Deviation')
@@ -2126,7 +2140,7 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
     # get impacts, may be less than nEns
     hits = []
     for i in range(nEns):
-        if (not ResArr[i].miss) & (not ResArr[i].fail):
+        if (not ResArr[i].miss) & (not ResArr[i].fail) & (ResArr[i].ANTFRidx[satID] is not None):
             hits.append(i)
     allGrid = np.zeros([len(hits), ngrid, ngrid, nThings])
     
@@ -2144,7 +2158,7 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
             thisTilt = float(OSP.input_values['CMEtilt'])
         
         # use time of first impact
-        thisidx   = ResArr[key].ANTFRidx[satID]    
+        thisidx   = ResArr[key].ANTFRidx[satID]  
         thisAW    = ResArr[key].ANTAWs[thisidx]
         thisAWp   = ResArr[key].ANTAWps[thisidx]
         thisR     = ResArr[key].ANTrs[thisidx]
@@ -2749,12 +2763,15 @@ def getISmetrics(ResArr, satID=0):
     print ('')
 
 
-    
+    # make new IS plot with best fit highlighted
+    makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID)
     
     # make scatter triangle plot of inputs colored by error
     nVaried = len(ResArr[0].EnsVal.keys())
     ensKeys = ResArr[0].EnsVal.keys()
     # Slow plots that we typically don't need but useful for exploring ensemble sensitivites
+    # haven't double checked this with multi sat ensemble
+    
     if False:
         # make plot showing scores vs ensemble inputs
         fig, axes = plt.subplots(int(nVaried/2), 2, sharey=True, figsize=(8,12))
@@ -2820,8 +2837,6 @@ def getISmetrics(ResArr, satID=0):
             plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')
     
     
-        # make new IS plot with best fit highlighted
-        makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID)
             
 def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, planes='both'):
     # assume we are plotting the seed case but will change if specified in call
@@ -2960,7 +2975,10 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         deltaAx = thisCME.ANTdelAxs[idx]
         deltaCS = thisCME.ANTdelCSs[idx]
         vExps = [thisCME.ANTvFs[idx], thisCME.ANTvEs[idx], thisCME.ANTvBs[idx], thisCME.ANTvCSrs[idx], thisCME.ANTvCSps[idx], thisCME.ANTvAxrs[idx], thisCME.ANTvAxps[idx]]
-        sheathwid = thisCME.PUPwids[idx]
+        try:
+            sheathwid = thisCME.PUPwids[idx]
+        except:
+            sheathwid = 0
         yaw = thisCME.ANTyaws[idx]
 
         # calc CME lens
@@ -3051,21 +3069,22 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                 fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(10,5))
         else:
             if doColorbar:        
-                fig, ax = plt.subplots(1,1, subplot_kw=dict(projection='polar'), figsize=(5,7))
+                fig, ax = plt.subplots(1,1, subplot_kw=dict(projection='polar'), figsize=(5,6))
             else:
                 fig, ax = plt.subplots(1,1, subplot_kw=dict(projection='polar'), figsize=(5,5.5))
             ax = [ax, ax]
         
-        vel0,vel1 = 300,600
+        #vel0,vel1 = 300,750 # slow push limits
+        vel0,vel1 = 300,650
         levels = np.linspace(vel0, vel1, 30)    
         if doMer:
             CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
-            ax[0].contour(theta, r, isCMEMer, [0.1,1])
+            ax[0].contour(theta, r, isCMEMer, [0.1,1], colors='w')
             ax[0].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
             
         if doEq:
             CS = ax[1].contourf(theta, r, valuesEq, levels=levels, cmap=cm.inferno )
-            ax[1].contour(theta, r, isCMEEq, [0.1,1])
+            ax[1].contour(theta, r, isCMEEq, [0.1,1], colors='w')
             ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
             
         if doSat:
@@ -3106,14 +3125,20 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                 ax[1].set_title("{:#.2f}".format(thistime)+ ' days')
         
         if doColorbar:
-            plt.subplots_adjust(left=0.02,right=0.98,top=0.87,bottom=0.18, wspace=0.05)
-            cbar_ax = fig.add_axes([0.25, 0.11, 0.5, 0.025])
+            #plt.subplots_adjust(left=0.02,right=0.98,top=0.87,bottom=0.18, wspace=0.05)
+            if doEq and doMer:
+                cbar_ax = fig.add_axes([0.35, 0.12, 0.3, 0.025])
+            else:
+                cbar_ax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
             cbar = fig.colorbar(CS, cax=cbar_ax, orientation='horizontal')
             cbar.set_label('v (km/s)')
-            cbar.set_ticks(np.arange(vel0,vel1+1,50))
-            plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
+            cbar.set_ticks(np.arange(vel0,vel1+1,100))
+            #plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
+        
+        if doEq and doMer:
+            plt.subplots_adjust(left=0.03,right=0.97,top=0.93,bottom=0.15, wspace=0.05)        
         else:
-            plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
+            plt.subplots_adjust(left=0.03,right=0.97,top=0.95,bottom=0.13, wspace=0.05)
         
         #plt.show()     
         countstr = str(iii)
@@ -3154,15 +3179,18 @@ if __name__ == '__main__':
         satNames = []
         satPath = OSP.input_values['satPath']
         if (satPath[-4:] == 'sats'):
-            ObsData = [[] for i in range(nSat)]
+            ObsData = [[None] for i in range(nSat)]
             temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
             for i in range(nSat):
-                ObsData[i] = readInData(temp[i][5])
-                OSP.obsFRstart[i] = float(temp[i][7])
-                OSP.obsFRend[i] = float(temp[i][8])
-                OSP.obsShstart[i] = float(temp[i][6])
                 satNames.append(temp[i][0])
+                if len(temp[0]) >= 6:
+                    ObsData[i] = readInData(temp[i][5])
+                if len(temp[0]) == 9:
+                    OSP.obsFRstart[i] = float(temp[i][7])
+                    OSP.obsFRend[i] = float(temp[i][8])
+                    OSP.obsShstart[i] = float(temp[i][6])
+
     
     global nEns
     nEns = len(ResArr.keys())
@@ -3186,7 +3214,7 @@ if __name__ == '__main__':
         makeDragless(ResArr)
         # Non-forecast version with more params
         #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
-
+    
     if OSP.doFIDO:
         # Make in situ plot
         for i in range(nSat):
@@ -3194,7 +3222,7 @@ if __name__ == '__main__':
 
     # Ensemble plots
     if nEns > 1:
-        if OSP.doFC:
+        '''if OSP.doFC:
             # Make CPA plot
             makeCPAhist(ResArr)
             
@@ -3228,10 +3256,10 @@ if __name__ == '__main__':
         
         # Contour plot
         for i in range(nSat):
-            makeContours(ResArr, satID=i)
+            makeContours(ResArr, satID=i)'''
     
     # Also slow now
-    for i in range(nSat):
+    '''for i in range(nSat):
         if OSP.obsFRstart[i] not in [None, 9999.]:
             print ('----------------------- Sat:' , satNames[i], '-----------------------')
             if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
@@ -3242,9 +3270,9 @@ if __name__ == '__main__':
             print ('')
             print ('Missing FR start for ', satNames[i], ' so no metrics')
             print ('')
-            print ('')
+            print ('')'''
     
-    if False:
-        enlilesque(ResArr, bonusTime=24, doSat=True, planes='eq')
+    if True:
+        enlilesque(ResArr, bonusTime=24, doSat=True, planes='both')
 
         
