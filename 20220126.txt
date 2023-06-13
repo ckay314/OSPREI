@@ -2,7 +2,7 @@ date:		20220126
 time:		20:30
 FCmagname:	HMICR2253
 SunRss:		2.5
-suffix:		test
+suffix:		time
 models:		All
 nRuns:		1
 PFSSscale:	1.
@@ -25,7 +25,6 @@ SWv:		325
 SWn:		25
 SWB:		-10
 SWT:		50000
-flagScales: 	False
 FRB:   2800
 FRT:	220000
 FRpol:		1
@@ -39,6 +38,7 @@ SatLon:		12.64
 SatR:		147.3
 doPUP:		True
 isSat:		True
+simYaw:		True
 ObsDataFile: 	20220126_pspdata.dat
 satPath:	20220126_pspcoord_hci.sat
 obsFRstart: 29.375
