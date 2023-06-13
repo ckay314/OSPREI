@@ -241,8 +241,8 @@ def calcYawTorque(CMElens, CMEpos, AW, vs, deltax, deltap, yaw, solRotRate, SWfs
     # Get radial distance at edges
     # Get xy in CME frame 
     rEdge = CMElens[1]
-    rxyL = rEdge*np.array([np.cos(AW), 0, np.sin(AW)])
-    rxyR = rEdge*np.array([np.cos(AW), 0, -np.sin(AW)])
+    rxyL = np.array([CMElens[2], 0, CMElens[1]])
+    rxyR = np.array([CMElens[2], 0, -CMElens[1]])
     
     # subtract front distance 
     rxyL[0] -= CMElens[0]
@@ -344,6 +344,8 @@ def initCMEparams(deltaAx, deltaCS, AW, AWp, CMElens, Mass, printNow=False):
     CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
     CMElens[1] = CMElens[2] * np.tan(AW) 
     # alpha is scaling of rr to rE - Lp
+    # (suspect this should have been updated for new parabola shape and never was...
+    # not a huge diff tho? same in update CME - CK 23/05/31)
     alpha = (CMElens[1]-CMElens[6])/CMElens[3]
     ndotz = 4*deltaAx / np.sqrt(1 + 16 * deltaAx**2)
     
@@ -1096,8 +1098,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             return makeFailArr(8888)
             
         if simYaw:
-            InoseY = 0.25 * rho * math.pi**2 * deltax * CMElens[6] * CMElens[4]**2 * (2*CMElens[6]**2 * (deltax**2 + 4*np.sqrt(1-deltax**2) +3) + 8*(deltax + np.sqrt(1-deltax**2))*CMElens[6]*CMElens[4] + 7*CMElens[4]**2)  
-            
             bb = CMElens[4]
             RR = CMElens[6]
             ee = np.sqrt(1 - deltax**2)

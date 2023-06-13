@@ -28,7 +28,7 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 # pick a number to seed the random number generator used by ensembles
-np.random.seed(20210422)
+np.random.seed(20220126)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -537,9 +537,9 @@ def checkInputs(printNonCrit=False):
         
     # Satellite Parameters ----------------------------------------------------------------
     hasSatPath = False
+    isMulti = False
     if 'satPath' in input_values:
         hasSatPath = True
-        isMulti = False
         if input_values['satPath'][-4:] == 'sats':
             isMulti = True
         
@@ -1501,7 +1501,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
             print ('ANTEATR-PARADE forces unstable')
             outprint = str(i)
             outprint = outprint.zfill(4) + '   '
-            outstuff = np.zeros(20)+8888
+            outstuff = np.zeros(23)+8888
             for iii in outstuff:
                 outprint = outprint +'{:6.3f}'.format(iii) + ' '
             ANTEATRfile.write(outprint+'\n')
@@ -1796,7 +1796,7 @@ def thankslambdas(satfiles, satPos0, dObj, nSats):
         
     return satPaths
 
-def satPathWrapper(satPath):
+def satPathWrapper(satPath, checkSatlen=True):
     satNames = []
     satPos0  = []
     satfiles = []
@@ -1804,7 +1804,7 @@ def satPathWrapper(satPath):
     if satPath[-5:] == '.sats':
         satFile = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
         nSats = len(satFile)
-        if nSats > 10:
+        if (nSats > 10) and checkSatlen:
             sys.exit('Can only run 10 or fewer satellites')
         if len(satFile[0]) not in [5,6,9]:
             sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')

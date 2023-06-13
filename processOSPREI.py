@@ -168,8 +168,12 @@ def txt2obj(GCStime):
         if OSP.doPUP:
             PUPfile = OSP.Dir+'/PUPresults'+OSP.thisName+'.dat'
             PUPdata = np.genfromtxt(PUPfile, dtype=float, encoding='utf8')
-            PUPids = PUPdata[:,0].astype(int)
-            unPUPids = np.unique(PUPdata[:,0].astype(int))
+            try:
+                PUPids = PUPdata[:,0].astype(int)
+                unPUPids = np.unique(PUPdata[:,0].astype(int))
+            except:
+                PUPids = []
+                unPUPids = []
             
         global nHits, nFails
         nHits = 0
@@ -276,7 +280,7 @@ def txt2obj(GCStime):
         nSat = 1
         if 'satPath' in OSP.input_values:
             satPath = OSP.input_values['satPath']
-            satPaths = OSP.satPathWrapper(satPath)
+            satPaths = OSP.satPathWrapper(satPath, checkSatlen=False)
             satNames = satPaths[-1]
             nSat = len(satNames)
             # assume single sat cases are unnamed
@@ -1292,10 +1296,10 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
     for key in ResArr.keys():
         lw, co, zord = 2, 'DarkGray', 2
         if key == 0:
-            lw, co, zord = 4, 'b', 11
+            lw, co, zord = 4, 'r', 11
         elif bfCase is not None:
             if key == bfCase:
-                lw, co, zord = 4, 'lightblue', 11
+                lw, co, zord = 4, 'DarkMagenta', 11
         if ResArr[key].FIDOtimes[satID] is not None: #not ResArr[key].miss:
             if OSP.noDate:
                 dates = ResArr[key].FIDOtimes[satID]
@@ -1312,7 +1316,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
             axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
             axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
             axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
             if OSP.isSat or plotn:
                 axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
             else:
@@ -1330,7 +1334,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                 axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
-                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, '--', linewidth=lw, color=co, zorder=zord)
                 if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:
@@ -1357,7 +1361,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                     axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
-                    axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
+                    axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, ':', linewidth=lw, color=co, zorder=zord)
                     if OSP.isSat or plotn:
                         axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
                     else:
@@ -1382,11 +1386,16 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         maxdate = base + datetime.timedelta(days=(OSP.obsFRend[satID]-1)) + datetime.timedelta(hours=lesstight)      
     
     axes[0].set_ylabel('B (nT)')
-    axes[1].set_ylabel('B$_x$ (nT)')
-    axes[2].set_ylabel('B$_y$ (nT)')
-    axes[3].set_ylabel('B$_z$ (nT)')
+    if OSP.isSat:
+        axes[1].set_ylabel('B$_R$ (nT)')
+        axes[2].set_ylabel('B$_T$ (nT)')
+        axes[3].set_ylabel('B$_N$ (nT)')
+    else:
+        axes[1].set_ylabel('B$_x$ (nT)')
+        axes[2].set_ylabel('B$_y$ (nT)')
+        axes[3].set_ylabel('B$_z$ (nT)')
     axes[4].set_ylabel('v (km/s)')
-    axes[5].set_ylabel('T (K)')
+    axes[5].set_ylabel('T (MK)')
     if OSP.isSat or plotn:
         axes[6].set_ylabel('n (cm$^{-3}$)')
     else:
@@ -1407,19 +1416,20 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         axes[4].set_xlim([startplot, endplot])
         
         if setTrange:
-            axes[5].set_ylim([0,1e6])
+            axes[5].set_ylim([0,1])
     
     if (ObsData[0][0] is not None):
-        axes[0].plot(ObsData[satID][0,:], ObsData[satID][1,:], linewidth=4, color='r')
-        axes[1].plot(ObsData[satID][0,:], ObsData[satID][2,:], linewidth=4, color='r')
-        axes[2].plot(ObsData[satID][0,:], ObsData[satID][3,:], linewidth=4, color='r')
-        axes[3].plot(ObsData[satID][0,:], ObsData[satID][4,:], linewidth=4, color='r')
-        axes[4].plot(ObsData[satID][0,:], ObsData[satID][6,:], linewidth=4, color='r')
-        axes[5].plot(ObsData[satID][0,:], ObsData[satID][7,:], linewidth=4, color='r')    
+        obscol = 'k'
+        axes[0].plot(ObsData[satID][0,:], ObsData[satID][1,:], linewidth=4, color=obscol)
+        axes[1].plot(ObsData[satID][0,:], ObsData[satID][2,:], linewidth=4, color=obscol)
+        axes[2].plot(ObsData[satID][0,:], ObsData[satID][3,:], linewidth=4, color=obscol)
+        axes[3].plot(ObsData[satID][0,:], ObsData[satID][4,:], linewidth=4, color=obscol)
+        axes[4].plot(ObsData[satID][0,:], ObsData[satID][6,:], linewidth=4, color=obscol)
+        axes[5].plot(ObsData[satID][0,:], ObsData[satID][7,:]/1e6, linewidth=4, color=obscol)    
         if OSP.isSat or plotn:
-            axes[6].plot(ObsData[satID][0,:], ObsData[satID][5,:], linewidth=4, color='r')
+            axes[6].plot(ObsData[satID][0,:], ObsData[satID][5,:], linewidth=4, color=obscol)
         elif hasKp:
-            axes[6].plot(ObsData[satID][0,:], ObsData[satID][8,:], linewidth=4, color='r')
+            axes[6].plot(ObsData[satID][0,:], ObsData[satID][8,:], linewidth=4, color=obscol)
 
         # check if have obs starts/stop
         givenDates = [0, 0, 0]
@@ -2838,7 +2848,7 @@ def getISmetrics(ResArr, satID=0):
     
     
             
-def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, planes='both'):
+def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, planes='both', vel0=300, vel1=650):
     # assume we are plotting the seed case but will change if specified in call
     thisCME = ResArr[key]
     
@@ -3031,7 +3041,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             else:
                 axR = Lon2R(angs[i]/dtor)
             minR = (axR - 1.5*CMElens[3])/215
-            maxR = (axR + 1.5*CMElens[3])/215
+            maxR = (axR + 1.5*CMElens[3]+sheathwid)/215
             mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
             for j in mightBin:
                 # check if actually in CME
@@ -3075,7 +3085,6 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             ax = [ax, ax]
         
         #vel0,vel1 = 300,750 # slow push limits
-        vel0,vel1 = 300,650
         levels = np.linspace(vel0, vel1, 30)    
         if doMer:
             CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno )
@@ -3090,11 +3099,14 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         if doSat:
             for i in range(nSat):
                 # only include sat in meridonal plot if fairly close to that plane
+                colors = ['r', '#880E4F', '#C2185B', '#EC407A', '#F48FB1', '#FF6F00', '#FFA000', '#FFC107', '#FFE082']
+                #col = colors[i]
+                col = 'cyan'
                 if doMer:
                     if np.abs(satLons[i]) < 10:
-                        ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color='cyan')     
+                        ax[0].plot(satLats[i]*dtor, satRs[i], 'o', color=col, markeredgecolor='w', markersize=5)     
                 if doEq:   
-                    ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color='cyan')  
+                    ax[1].plot(satLons[i]*dtor, satRs[i], 'o', color=col, markeredgecolor='w', markersize=10)  
         if doMer:
             ax[0].set_xticklabels([])
             ax[0].set_rticks([0.2, 0.4, 0.6, 0.8, 1, 1.2])
@@ -3132,7 +3144,10 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                 cbar_ax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
             cbar = fig.colorbar(CS, cax=cbar_ax, orientation='horizontal')
             cbar.set_label('v (km/s)')
-            cbar.set_ticks(np.arange(vel0,vel1+1,100))
+            dv = 100
+            if vel1-vel0 > 400:
+                dv=200
+            cbar.set_ticks(np.arange(vel0,vel1+1,dv))
             #plt.subplots_adjust(left=0.01,right=0.95,top=0.93,bottom=0.05, wspace=0.05)
         
         if doEq and doMer:
@@ -3222,7 +3237,7 @@ if __name__ == '__main__':
 
     # Ensemble plots
     if nEns > 1:
-        '''if OSP.doFC:
+        if OSP.doFC:
             # Make CPA plot
             makeCPAhist(ResArr)
             
@@ -3256,10 +3271,10 @@ if __name__ == '__main__':
         
         # Contour plot
         for i in range(nSat):
-            makeContours(ResArr, satID=i)'''
+            makeContours(ResArr, satID=i)
     
     # Also slow now
-    '''for i in range(nSat):
+    for i in range(nSat):
         if OSP.obsFRstart[i] not in [None, 9999.]:
             print ('----------------------- Sat:' , satNames[i], '-----------------------')
             if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
@@ -3270,9 +3285,9 @@ if __name__ == '__main__':
             print ('')
             print ('Missing FR start for ', satNames[i], ' so no metrics')
             print ('')
-            print ('')'''
+            print ('')
     
-    if True:
-        enlilesque(ResArr, bonusTime=24, doSat=True, planes='both')
+    if False:
+        enlilesque(ResArr, bonusTime=24, doSat=True, planes='eq')
 
         
