@@ -1174,7 +1174,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # ------Set up state vectors at the end of a time step--------------
         # ------------------------------------------------------------------
         # CME array
-        CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap, deltaCSAx, cnm, rho/1.67e-24, np.log10(temCME), B0*1e5, yaw, yawv/dtor*3600, (0.5 * yawAcc *3600**2) / dtor, HSSreg]
+        CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap,  rho/1.67e-24, np.log10(temCME), B0*1e5, yaw, yawv/dtor*3600, HSSreg]
         fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), yaw, yawv/dtor*3600, (0.5 * yawAcc *3600**2) / dtor, HSSreg]
         
         # PUP/sheath array

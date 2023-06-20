@@ -11,10 +11,10 @@ CMEAWp:		18
 CMEM: 		10
 CMEdelAx:   0.6
 CMEdelCS:   0.6
-SWCd:		1.
 FRB:   3200
 FRT:	750000
 FRpol:		1
 SatLon: 0
 SatLat: 0
 SatR: 213
+SatRot: 0
