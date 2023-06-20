@@ -9,8 +9,8 @@ from scipy.interpolate import CubicSpline
 
 # Import all the OSPREI files, make this match your system
 mainpath = '/Users/ckay/OSPREI/' #MTMYS
-codepath = mainpath + 'codes/'
-magpath  ='/Users/ckay/PickleJar/'
+codepath = mainpath + 'coreCode/'
+magpath  ='/Users/ckay/OSPREI/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
 from ForeCAT import *
