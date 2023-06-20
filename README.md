@@ -70,5 +70,5 @@ OSPREI is full specified using an text file where each input is assigned using s
 - `doYaw` - Include yaw rotation in interplanetary space. This is only worth including if using a non-uniform background (i.e. MEOW-HiSS) otherwise the forces are balanced and there is no torque/rotation.
 - `ObsDataFile` - Name of a text file containing observational data to compare to in the figures.
 
-Of the non-required input parameters, we strongly suggest at least making educated guesses for CMEAWp, CMEM, FRBscale, FRTscale, FRpol, and the solar wind properties rather than resorting to defaults. These CME properties likely scale with CME size/speed so it is likely better to use values larger than the defaults for fast CMEs and smaller than for slow CMEs.
+Of the non-required input parameters, we strongly suggest at least making educated guesses for CMEAWp, CMEM, FRpol, and the solar wind properties rather than resorting to defaults. The default estimates for FRB and FRT based on CMEv seem to be working well, but have not been rigorously tested yet.
 
