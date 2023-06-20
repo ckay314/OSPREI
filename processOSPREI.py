@@ -939,7 +939,7 @@ def makeDragless(ResArr):
     axes[6].set_xlabel('Distance (R$_S$)')
     axes[0].set_xlim([rStart, rEnd])
     axes[6].set_yscale('log')
-    plt.subplots_adjust(hspace=0.1,left=0.08,right=0.93,top=0.98,bottom=0.1)
+    plt.subplots_adjust(hspace=0.1, wspace=0.27,left=0.1,right=0.93,top=0.98,bottom=0.1)
     
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.'+figtag)
     plt.close() 
@@ -1418,7 +1418,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
         if setTrange:
             axes[5].set_ylim([0,1])
     
-    if (ObsData[0][0] is not None):
+    if hasObs:
         obscol = 'k'
         axes[0].plot(ObsData[satID][0,:], ObsData[satID][1,:], linewidth=4, color=obscol)
         axes[1].plot(ObsData[satID][0,:], ObsData[satID][2,:], linewidth=4, color=obscol)
@@ -3182,9 +3182,11 @@ if __name__ == '__main__':
           
     ResArr = txt2obj(GCStime)
      
-    global ObsData
+    global ObsData, hasObs
+    hasObs = False
     ObsData = [None]
     if OSP.ObsDataFile is not None:
+        hasObs = True
         if nSat == 1:
             ObsData = [readInData(OSP.ObsDataFile)]
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]

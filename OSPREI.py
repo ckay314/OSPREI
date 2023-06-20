@@ -66,7 +66,7 @@ def setupOSPREI():
     doMH    = False
     simYaw  = False
     isSat   = False
-    obsFRstart, obsFRend, obsShstart = None, None, None
+    obsFRstart, obsFRend, obsShstart = [None], [None], [None]
     mass = 5.
     # Read in values from the text file
     for i in range(len(allinputs)):
