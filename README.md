@@ -55,8 +55,8 @@ OSPREI is full specified using an text file where each input is assigned using s
 - `SWv` - The background solar wind speed at the location of the satellite. All solar wind properties have defaults corresponding to the average OMNI values at 1 AU over about a decade. *[400 km/s]*
 - `SWn` - The background solar wind density at the location of the satellite. *[5 cm^-3]*
 - `SWB` - The background solar wind magnetic field strength at the location of the satellite. *[6.9 nT]*
-- `FRBscale` - The ratio of the magnetic field strength of the CME flux rope (at the central axis) relative to the background solar wind at the start of the ANTEATR simulation. It can be positive or negative to control the direction of the axial field relative to the CME geometry. *[2]*
-- `FRTscale` - The ratio of the temperature of the CME relative to the background solar wind at the start of the ANTEATR simulation. *[2]*
+- `FRB` - The magnetic field strength of the CME flux rope (at the central axis). If flagScales is set to True then it is relative to the background solar wind at the start of the ANTEATR simulation. It can be positive or negative to control the direction of the axial field relative to the CME geometry. *If not provided it is scaled from the CME v.*
+- `FRT` - The temperature of the CME. If flagScales is set to True then it is relative to the background solar wind at the start of the ANTEATR simulation. *If not provided it is scaled from the CME v.*
 - `FRpol` - The handedness or polarity of the CME flux rope (1 or -1 for right or left-handed). *[1]*
 - `Gamma` - The adiabatic index of the flux rope, which allows the thermal expansion to vary between isothermal (1) and adiabatic (1.67). *[1.33]*
 - `IVDf` - Parameter controlling the initial velocity decomposition, or how a propagation speed translates into expansion speeds, at the beginning of ANTEATR. If set to 0 then there is self-similar expansion, if set to 1 then it convects out with the solar wind. *[0.5]*
@@ -64,7 +64,10 @@ OSPREI is full specified using an text file where each input is assigned using s
 - `SatLon` - The longitude of the satellite or other body of interest. *[0°]*
 - `SatR` - The radial distance of the satellite or other body of interest. *[213 Rs]*
 - `SatRot` - The orbital speed of the satellite or other body of interest. *[2.8e-6 rad/s]*
-- `includeSIT` - Whether or not to include the sheath in front of the flux rope in FIDO. It does require a CME moving faster than the background solar wind at the time of arrival. Can only be set to True or False. *[False]*
+- `SatPath` - A text file with either the path of a single satellite (use .sat) or a list of satellite positions for the multi sat version (use .sats).
+- `includePUP` - Whether or not to include the sheath in front of the flux rope in FIDO. It does require a CME moving faster than the background solar wind at the time of arrival. Can only be set to True or False. *[False]*
+- `doMH` - Include the MEOW-HiSS model for a time-dependent HSS in the background SW. If True then MHarea and MHdist need to be provided.
+- `doYaw` - Include yaw rotation in interplanetary space. This is only worth including if using a non-uniform background (i.e. MEOW-HiSS) otherwise the forces are balanced and there is no torque/rotation.
 - `ObsDataFile` - Name of a text file containing observational data to compare to in the figures.
 
 Of the non-required input parameters, we strongly suggest at least making educated guesses for CMEAWp, CMEM, FRBscale, FRTscale, FRpol, and the solar wind properties rather than resorting to defaults. These CME properties likely scale with CME size/speed so it is likely better to use values larger than the defaults for fast CMEs and smaller than for slow CMEs.
