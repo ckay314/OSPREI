@@ -4,7 +4,7 @@ FCmagname:	HMI2253synop
 SunRss:		2.5
 suffix:		demo
 models:		All
-nRuns:		10
+nRuns:		1
 PFSSscale:	1.
 CMEr:     	1.1
 CMElat:		-18
