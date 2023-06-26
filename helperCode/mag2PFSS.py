@@ -7,9 +7,9 @@ import numpy as np
 import pickle
 
 global mainpath, codepath, magpath
-mainpath = '/Users/ckay/OSPREI/' 
+mainpath = '/Users/ckay/newOSPREI/' 
 codepath = mainpath + 'codes/'
-magpath  = '/Users/ckay/OSPREI/PickleJar/' 
+magpath  = '/Users/ckay/newOSPREI/PickleJar/' 
 
 global nHarmonics, rSS
 nHarmonics = 90
