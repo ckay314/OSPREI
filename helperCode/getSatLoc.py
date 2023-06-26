@@ -121,7 +121,7 @@ def getEarthClon(date):
     # calcuate the correction term
     aa,bb,cc,dd,ee,ff,gg,hh,ii = 1.91759, -0.130809, -0.0825392, -0.175091, 365.271, 0.267977, -24812.2, -0.00529779, -0.00559338
     cor = ff + diff/gg + aa * np.sin(2*np.pi*diff/ee) + bb * np.sin(4*np.pi*diff/ee) + hh * np.sin(6*np.pi*diff/ee) + cc * np.cos(2*np.pi*diff/ee) + dd * np.cos(4*np.pi*diff/ee) + ii * np.cos(6*np.pi *diff/ee)
-    return est1+cor
+    return (est1+cor)%360
     
 #fname, clon =print(getSatLoc('psp', 2022.123, 2022.156, outName='temp'))
 fname, clon = getSatLoc('psp', '2022/01/26 20:30', '2022/02/05 00:23', outName='temp', fracYr=False)
