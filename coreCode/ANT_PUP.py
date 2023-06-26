@@ -1174,6 +1174,8 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         # ------Set up state vectors at the end of a time step--------------
         # ------------------------------------------------------------------
         # CME array
+        if HSSreg > 0:
+            HSSreg = 6 - HSSreg
         CMEstuff = [t/3600., CMElens[0]/7e10, vs[0]/1e5, AW*radeg, AWp*radeg, deltax, deltap,  rho/1.67e-24, np.log10(temCME), B0*1e5, yaw, yawv/dtor*3600, HSSreg]
         fullCMEstuff = [t/3600./24., CMElens[0]/rsun, AW*180/pi,  AWp*180/pi, CMElens[5]/rsun, CMElens[3]/rsun, CMElens[4]/rsun, CMElens[6]/rsun, CMElens[2]/rsun, vs[0]/1e5, vs[1]/1e5, vs[5]/1e5, vs[3]/1e5, vs[4]/1e5, vs[6]/1e5, vs[2]/1e5, rho/1.67e-24, B0*1e5, cnm, np.log10(temCME), yaw, yawv/dtor*3600, (0.5 * yawAcc *3600**2) / dtor, HSSreg]
         
@@ -1185,6 +1187,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         PUPstuff = []
         if doPUP:
             PUPstuff = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Tratio, Bsh, thetaBsh, vtSh, inint1]
+            PUPscreen = [r, vShock, Ma, sheath_wid, sheath_dur, sheath_mass/1e15, sheath_dens, np.log10(Tratio*SWfront[4]), Bsh, inint1]
         
         # Forces
         if saveForces:
@@ -1209,7 +1212,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             if not silent:
                 print2screen(CMEstuff)       
                 if doPUP:
-                    print2screen(PUPstuff, prefix='      ') 
+                    print2screen(PUPscreen, prefix='      ') 
                  
                                         
             # print to file (if doing)
@@ -1273,7 +1276,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                                     if doPUP:
                                         # need to update init
                                         PUPstuff[12] = inint[satID]
-                                        print2screen(PUPstuff, prefix='      ')                                 
+                                        print2screen(PUPscreen, prefix='      ')                                 
                                 if writeFile:
                                     print2file(fullCMEstuff, f1, '{:8.5f}')
                                     print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
@@ -1360,7 +1363,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                         if not silent:
                             print2screen(CMEstuff)
                             if doPUP:
-                                print2screen(PUPstuff, prefix='      ')                 
+                                print2screen(PUPscreen, prefix='      ')                 
                     
                                                         
                     # Exit point for first contact case, otherwise keeps looping

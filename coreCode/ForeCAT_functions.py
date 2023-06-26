@@ -237,11 +237,19 @@ def printstep(CME):
     vdef = np.sqrt(np.sum((CME.vdefLL+CME.vdragLL)**2))/1e5
     # outdata is [t, lat, lon, tilt, vCME, vDef, AW, A, B]
     outdata = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg, CME.deltaAx, CME.deltaCS, CME.deltaCSAx, CME.FRBtor, CME.vs[4]/1e5]
+    outless = [CME.t, CME.points[CC.idcent][1,0], CME.points[CC.idcent][1,1], thislon, tilt, vCME, vdef, CME.AW*radeg, CME.AWp*radeg]
     outprint = ''
-    for i in outdata:
-        outprint = outprint +'{:7.3f}'.format(i) + ' '  
-    if printData: print (outprint)  
-    if saveData: outfile.write(outprint+'\n')
+    if printData: 
+        outprint = ''
+        for i in outless:
+            outprint = outprint +'{:7.3f}'.format(i) + ' '
+        print (outprint)  
+    
+    if saveData: 
+        outprint = ''
+        for i in outdata:
+            outprint = outprint +'{:7.3f}'.format(i) + ' '
+        outfile.write(outprint+'\n')
     
 
 def calc_drag(CME):

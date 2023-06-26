@@ -7,9 +7,9 @@ import numpy as np
 import pickle
 
 global mainpath, codepath, magpath
-mainpath = '/Users/ckay/OSPREI/' 
+mainpath = '/Users/ckay/newOSPREI/' 
 codepath = mainpath + 'codes/'
-magpath  = '/Users/ckay/PickleJar/' 
+magpath  = '/Users/ckay/newOSPREI/PickleJar/' 
 
 global nHarmonics, rSS
 nHarmonics = 90
@@ -408,7 +408,6 @@ if __name__ == '__main__':
         tempname = (input_file.replace('GONG',''))
     # pull out the unique identifier for this case (no obs or .fits)
     IDname = tempname.replace('.fits', '')
-
     fits4har = input_file
     if 'sync' in IDname:
         # assume if CL is in IDname we have already ran
@@ -416,11 +415,11 @@ if __name__ == '__main__':
         if 'CL' not in IDname:
             fits4har = sync2carr(input_file)
             IDname = IDname + 'CL'
-    
     # make it ignore div by zero in logs, complains about unused part of array
     np.seterr(divide = 'ignore', invalid = 'ignore') 
     
     # turn magnetogram into harmonic coefficients
+    print (obs, IDname)
     coeff_file = harmonics(obs, IDname, nHarmonics)
 
     # make the PFSS pickles

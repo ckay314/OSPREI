@@ -222,7 +222,7 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
     axes[0].set_xlim([1,2.5])
     axes[-1].set_xlabel('Time (days)')
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
-    plt.savefig(OSP.Dir+'/YawfastIS.png')    
+    plt.savefig(OSP.Dir+'/figMultiComp.png')    
     #plt.show()
 
 

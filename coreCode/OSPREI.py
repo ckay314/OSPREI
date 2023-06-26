@@ -8,9 +8,9 @@ from scipy.interpolate import CubicSpline
 
 
 # Import all the OSPREI files, make this match your system
-mainpath = '/Users/ckay/OSPREI/' #MTMYS
+mainpath = '/Users/ckay/newOSPREI/' #MTMYS
 codepath = mainpath + 'coreCode/'
-magpath  ='/Users/ckay/OSPREI/PickleJar/'
+magpath  ='/Users/ckay/newOSPREI/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
 from ForeCAT import *
@@ -65,7 +65,7 @@ def setupOSPREI():
     doPUP   = False
     doMH    = False
     simYaw  = False
-    isSat   = False
+    isSat   = True
     obsFRstart, obsFRend, obsShstart = [None], [None], [None]
     mass = 5.
     # Read in values from the text file
@@ -610,11 +610,11 @@ def checkInputs(printNonCrit=False):
             if (SWB < 0.1) or  (SWB > 50):
                 sys.exit('Solar wind magnetic field strength (SWB) must be in [0.1, 50] nT if satR is near 1 AU') 
         else:
-            input_values['SWB'] = str(6)
+            input_values['SWB'] = str(6.9)
         
         if 'SWT' in input_values:
             SWT = float(input_values['SWT'])
-            if (SWT < 0.1) or  (SWT > 50):
+            if (SWT < 1e4) or  (SWT > 5e5):
                 sys.exit('Solar wind temperature (SWT) must be in [1e4, 5e5] K if satR is near 1 AU') 
         else:
             input_values['SWT'] = str(75000)
@@ -1376,7 +1376,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
         isSilent = False
-        if actualPath:            
+        if actualPath:      
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
         else:
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
@@ -1469,7 +1469,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
             # For ANTEATR, save CME id number (necessary? matches other file formats)
             # total time, velocity at impact, nose distance, Elon at impact, Elon at 213 Rs
             
-            # CME: 0 t, 1 r, 2 vFront, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 yaw, 13 yaw v, 14 reg, 15 vEdge 16 vCent 17  vrr 18 vrp 19 vLr 20 vLp 21 vXCent]
+            # old->CME: 0 t, 1 r, 2 vFront, 3 AW, 4 AWp, 5 delAx, 6 delCS, 7 delCA, 8 B, 9 Cnm, 10 n, 11 Temp, 12 yaw, 13 yaw v, 14 reg, 15 vEdge 16 vCent 17  vrr 18 vrp 19 vLr 20 vLp 21 vXCent]
             for j in range(len(ATresults[0])):
                 outprint = str(i)
                 outprint = outprint.zfill(4) + '   '
@@ -1810,7 +1810,6 @@ def satPathWrapper(satPath, checkSatlen=True):
             sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')
             
         # reset havePaths bc need to check if multi simple sats
-        havePaths = False
         try:
             a = float(satFile[0][4])
         except:
@@ -1830,6 +1829,7 @@ def satPathWrapper(satPath, checkSatlen=True):
             else:
                 satfiles.append(thisSat[4])
     else:
+        #havePaths = False
         nSats = 1
         satNames.append('sat1')
         satPos0.append([satPos[0], satPos[1], satPos[2]*7e10, 0])

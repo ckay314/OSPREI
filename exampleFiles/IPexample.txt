@@ -21,11 +21,11 @@ FRT:	750000
 FRpol:		1
 Gamma:		1.33
 IVDf1:		.5
-doMH:		False
+doMH:		True
 MHarea:		1500
 MHdist:		0.25
-doPUP:		False
-simYaw:		False
+doPUP:		True
+simYaw:		True
 SatLon: 0
 SatLat: 0
 SatR: 213
