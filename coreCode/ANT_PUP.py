@@ -713,17 +713,18 @@ def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
     xCS = delCS * rbar * np.cos(thetaP)
     yCS = rbar * np.sin(thetaP)
     thisr = np.sqrt(xCS**2 + yCS**2) 
-    vCS = thisr * vExps[3] / delCS
-    nCS = np.array([np.cos(thetaP)/delCS, np.sin(thetaP), 0.])
-    normN2 = np.sqrt(np.sum(nCS**2))
-    nCS = nCS / normN2
+    vCS = [xCS * vExps[3]/delCS, yCS*vExps[4], 0] # accounts for dist from cent
+    vCSmag = np.sqrt(vCS[0]**2 +vCS[1]**2)
+    nCS = np.array([vCS[0]/vCSmag, vCS[1]/vCSmag, 0])
     rotAng = np.arccos(np.dot(nAx, nCS))*np.sign(thetaT)
     if np.abs(rotAng) > np.pi/2:
         rotAng = np.arccos(np.dot(nAx, -nCS))*np.sign(thetaT)
     #nCSatAx = np.array([nCS[0] * np.cos(thetaT), nCS[1], nCS[0] * np.sin(thetaT)])
-    nCSatAx = np.array([nCS[0] * np.cos(np.abs(rotAng)), nCS[1], nCS[0] * np.sin(rotAng)])
-    vCSVec = vCS * nCSatAx
+    #nCSatAx = np.array([nCS[0] * np.cos(np.abs(rotAng)), nCS[1], nCS[0] * np.sin(rotAng)])
+    #vCSVec = vCS * nCSatAx
+    vCSVec = np.array([vCS[0] * np.cos(np.abs(rotAng)), vCS[1], vCS[0] * np.sin(rotAng)])
     vCMEframe = np.array([vExps[2], 0., 0.]) + vAxVec + vCSVec
+    #print ('           ', vCS/1e5, thetaP*180/3.14, nCS, xCS, yCS)
     return vCMEframe, vCSVec
 
 def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, Elat, Elon, CMElat, CMElon, CMEtilt, vs, yaw, comp=1.):
@@ -829,9 +830,14 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         satPos = {}
         satfs = {}
         if nSats == 1:
-            satNames = ['sat1']
-            satPos['sat1'] = satPosIn[0]
-            satfs['sat1'] = satfsIn[0]            
+            try:
+                satNames = satPosIn[1]
+                satPos[satPosIn[1][0]] = satPosIn[0]
+                satfs[satPosIn[1][0]] = satfsIn[0]
+            except:
+                satNames = ['sat1']
+                satPos['sat1'] = satPosIn[0]
+                satfs['sat1'] = satfsIn[0]            
         elif nSats == 2:
             sys.exit('Need to provide list of sat names if using multiple sateliites')
         elif nSats == 0:
@@ -1302,8 +1308,16 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                                 pdirSAT = -pdirSAT
                         
                             BinSitu = Bsh * np.cos(thetaBsh*math.pi/180.) * ndirSAT + Bsh * np.sin(thetaBsh*math.pi/180.) * pdirSAT 
-                        
-                            FIDOstuff[satID] = [t/3600., BinSitu[0], BinSitu[1], BinSitu[2], vs[0]/1e5, sheath_dens, np.log10(Tratio*SWfront[4]),0]
+                            # calculate v that is appropriate for that FR location
+                            vCMEframe, vExpCME = getvCMEframe(1, thisPsi, thisParat, deltax, deltap, vs)
+                            #print ('          ',thisParat*180/3.14, vCMEframe, vExpCME)
+                            # rotate to s/c frame
+                            temp0 = roty(vCMEframe, -yaw)
+                            temp = rotx(temp0, -(90.-CMEtilt))
+                            temp2 = roty(temp, CMElat - satPos[satID][0]) 
+                            vInSitu = rotz(temp2, CMElon - satPos[satID][1])
+                            
+                            FIDOstuff[satID] = [t/3600., BinSitu[0], BinSitu[1], BinSitu[2], vInSitu[0]/1e5, sheath_dens, np.log10(Tratio*SWfront[4]),0]
                             if writeFile: print2file(FIDOstuff[satID],  f4s[satID], '{:8.5f}')
                         
                             if not silent:
@@ -1341,7 +1355,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, comp=comp)''' 
                         # Print to screen so we know where we are in the FR
                         if not silent:
-                            print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
+                            print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159), vInSitu[0]/1e5, printthis[0]/1e5, vs[3]/1e5, vs[4]/1e5)
                         # save to file
                         comp = 1 # had used this before but turning off for now but keeping code intact
                         FIDOstuff[satID] = [t/3600., BSC[0]*1e5, BSC[1]*1e5, BSC[2]*1e5, vInSitu[0]/1e5, rho/1.67e-24 * comp, np.log10(temCME), 1]

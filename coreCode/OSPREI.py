@@ -8,9 +8,9 @@ from scipy.interpolate import CubicSpline
 
 
 # Import all the OSPREI files, make this match your system
-mainpath = '/Users/ckay/newOSPREI/' #MTMYS
+mainpath = '/Users/ckay/OSPREI/' #MTMYS
 codepath = mainpath + 'coreCode/'
-magpath  ='/Users/ckay/newOSPREI/PickleJar/'
+magpath  ='/Users/ckay/OSPREI/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
 from ForeCAT import *
@@ -1806,7 +1806,12 @@ def satPathWrapper(satPath, checkSatlen=True):
         nSats = len(satFile)
         if (nSats > 10) and checkSatlen:
             sys.exit('Can only run 10 or fewer satellites')
-        if len(satFile[0]) not in [5,6,9]:
+        nItems = len(satFile[0])
+        if len(satFile.shape) == 1:
+            nItems = len(satFile)
+            nSats = 1
+            satFile = [satFile] # nest to make looping over Sats happy
+        if nItems not in [5,6,9]:
             sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')
             
         # reset havePaths bc need to check if multi simple sats

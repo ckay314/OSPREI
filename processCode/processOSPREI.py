@@ -284,8 +284,8 @@ def txt2obj(GCStime):
             satNames = satPaths[-1]
             nSat = len(satNames)
             # assume single sat cases are unnamed
-            if nSat == 1:
-                satNames = ['']
+            #if nSat == 1:
+            #    satNames = ['']
         satNames = np.array(satNames)
         
         FIDOdata = [[] for i in range(nSat)]
@@ -3232,15 +3232,18 @@ if __name__ == '__main__':
             temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
             for i in range(nSat):
-                satNames.append(temp[i][0])
+                if nSat !=1:
+                    satNames.append(temp[i][0])
+                else:
+                    satNames.append(temp[i])
                 if len(temp[0]) >= 6:
                     ObsData[i] = readInData(temp[i][5])
+                    hasObs = True
                 if len(temp[0]) == 9:
                     OSP.obsFRstart[i] = float(temp[i][7])
                     OSP.obsFRend[i] = float(temp[i][8])
                     OSP.obsShstart[i] = float(temp[i][6])
 
-    
     global nEns
     nEns = len(ResArr.keys())
 
