@@ -769,7 +769,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]]]
     satfsIn = satfs
     satPosIn = Epos
-        
+       
     CMElat     = invec[0]
     CMElon     = invec[1]
     CMEtilt    = invec[2]    
