@@ -287,6 +287,8 @@ def txt2obj(GCStime):
             #if nSat == 1:
             #    satNames = ['']
         satNames = np.array(satNames)
+        if (nSat == 1) and (satNames[0]=='sat1'):
+            satNames = np.array([''])
         
         FIDOdata = [[] for i in range(nSat)]
         ids = [[] for i in range(nSat)]
@@ -951,7 +953,7 @@ def makeDragless(ResArr):
         axes[8].set_ylabel('Yaw ('+degree+')')
     axes[7].set_ylim([3,6.5])
     axes[6].set_ylim([1,5e4])
-    if OSP.simYaw:
+    if OSP.simYaw and (nEns>1):
         axes[8].set_ylim([-5*fityaws[1],5*fityaws[1]])
     axes[4].set_xlabel('Distance (R$_S$)')
     axes[6].set_xlabel('Distance (R$_S$)')
@@ -2832,8 +2834,8 @@ def getISmetrics(ResArr, satID=0):
     print (outprint)         
     
     totTimeErr = np.sum(timingErr, axis=1)
-    #want2use = [0,4,5,6] # no B vec
-    want2use = [0,1,2,3,4,5,6] # all
+    want2use = [0,4,5,6] # no B vec
+    #want2use = [0,1,2,3,4,5,6] # all
     #want2use = [1,2,3] # b vec only
     canuse = []
     for i in range(7):
