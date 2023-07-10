@@ -164,7 +164,6 @@ def txt2obj(GCStime):
         # might have some missing if it misses
         ANTids = ANTdata[:,0].astype(int)
         unANTids = np.unique(ANTdata[:,0].astype(int))
-        
         if OSP.doPUP:
             PUPfile = OSP.Dir+'/PUPresults'+OSP.thisName+'.dat'
             PUPdata = np.genfromtxt(PUPfile, dtype=float, encoding='utf8')
@@ -197,6 +196,7 @@ def txt2obj(GCStime):
             if int(ANTdata[myidxs[0],1]) == 8888:
                 thisRes.fail = True
                 nFails += 1
+                ResArr[thisRes.myID] = thisRes
             else:
                 nHits += 1
                 if not OSP.doFIDO:
@@ -273,7 +273,8 @@ def txt2obj(GCStime):
                         thisRes.PUPinit = PUPdata[myPUPidxs,12]
                                         
                 ResArr[thisRes.myID] = thisRes
-    
+
+
     if OSP.doFIDO:
         global nSat, satNames
         satNames = ['']
@@ -299,7 +300,6 @@ def txt2obj(GCStime):
             FIDOdata[i] = np.genfromtxt(FIDOfile, dtype=float, encoding='utf8')
             ids[i] = FIDOdata[i][:,0].astype(int)
             unFIDOids[i] = np.unique(ids[i])
-
         
         if OSP.doPUP:
             SITdata = [[] for i in range(nSat)]
@@ -318,8 +318,8 @@ def txt2obj(GCStime):
                         SITids[i] = []
                         
         # Reset FIDO data to hold correct number of sats
-        for i in range(len(ResArr)):
-            thisRes = ResArr[i]
+        for key in ResArr.keys():
+            thisRes = ResArr[key]
             thisRes.FIDOtimes  = [None for i in range(nSat)]
             thisRes.FIDOmiss   = [True for i in range(nSat)]
             thisRes.FIDOBxs    = [[] for i in range(nSat)]
@@ -359,7 +359,7 @@ def txt2obj(GCStime):
             thisRes.SITmaxB = [0 for i in range(nSat)]
             thisRes.SITmaxKp = [0 for i in range(nSat)]
             
-            ResArr[i] = thisRes             
+            ResArr[key] = thisRes             
                         
         for k in range(nSat):    
             for i in unFIDOids[k]:
@@ -1772,7 +1772,7 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
 
     out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRB':'B (nT)', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRT':'T [K]',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRB':'B (nT)', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRT':'T [K]',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
     
     configID = 0
     if OSP.doFC: configID += 100
@@ -1819,74 +1819,74 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
             else:
                 failIDs.append(key)
         elif configID == 100: goodIDs.append(key)
-        
-        for item in outDict[configID]:
-            if item == 'CMElat':
-                OSPres[item].append(ResArr[key].FClats[-1])
-            if item == 'CMElon':
-                OSPres[item].append(ResArr[key].FClonsS[-1])
-            if item == 'CMEtilt':
-                OSPres[item].append(ResArr[key].FCtilts[-1])
-            if item == 'CMEAW':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTAWs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCAWs[-1])
-            if item == 'CMEAWp':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTAWps[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCAWps[-1])
-            if item == 'CMEdelAx':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTdelAxs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCdelAxs[-1])
-            if item == 'CMEdelCS':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTdelCSs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCdelCSs[-1])
-            if item == 'CMEvF':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTvFs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCvFs[-1])
-            if item == 'CMEvExp':
-                if OSP.doANT and (key in goodIDs):
-                    OSPres[item].append(ResArr[key].ANTvCSrs[-1])
-                else:
-                    OSPres[item].append(ResArr[key].FCvCSrs[-1])
+        if (not ResArr[key].FIDOmiss[satID]):
+            for item in outDict[configID]:
+                if item == 'CMElat':
+                    OSPres[item].append(ResArr[key].FClats[-1])
+                if item == 'CMElon':
+                    OSPres[item].append(ResArr[key].FClonsS[-1])
+                if item == 'CMEtilt':
+                    OSPres[item].append(ResArr[key].FCtilts[-1])
+                if item == 'CMEAW':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTAWs[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCAWs[-1])
+                if item == 'CMEAWp':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTAWps[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCAWps[-1])
+                if item == 'CMEdelAx':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTdelAxs[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCdelAxs[-1])
+                if item == 'CMEdelCS':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTdelCSs[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCdelCSs[-1])
+                if item == 'CMEvF':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTvFs[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCvFs[-1])
+                if item == 'CMEvExp':
+                    if OSP.doANT and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTvCSrs[-1])
+                    else:
+                        OSPres[item].append(ResArr[key].FCvCSrs[-1])
             
-            if (key in goodIDs) and (key not in failIDs):
-                if item == 'TT':
-                    if OSP.doFIDO:
+                if (key in goodIDs) and (key not in failIDs):
+                    if item == 'TT':
+                        if OSP.doFIDO:
+                            if ResArr[key].FIDOtimes[satID] is not None:
+                                OSPres[item].append(ResArr[key].FIDOtimes[satID][0])    
+                        else:
+                            OSPres[item].append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)                    
+                    if item == 'Dur':
+                        if OSP.doFIDO:
+                            if ResArr[key].FIDOtimes[satID] is not None:
+                                OSPres[item].append(ResArr[key].FIDO_FRdur[satID])
+                        else:
+                            OSPres[item].append(ResArr[key].ANTdur[satID])
+                    if item == 'n':
+                        OSPres[item].append(ResArr[key].ANTns[-1])   
+                    if item == 'logT':
+                        OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
+                    if item == 'Kp':
+                        if OSP.doFIDO:
+                            if ResArr[key].FIDOtimes[satID] is not None:
+                                OSPres[item].append(np.max(ResArr[key].FIDOKps[satID]))
+                        else:
+                            OSPres[item].append(ResArr[key].ANTKp0[satID])
+                    if item == 'B':
                         if ResArr[key].FIDOtimes[satID] is not None:
-                            OSPres[item].append(ResArr[key].FIDOtimes[satID][0])    
-                    else:
-                        OSPres[item].append(ResArr[key].ANTtimes[-1]+ResArr[key].FCtimes[-1]/60/24.)                    
-                if item == 'Dur':
-                    if OSP.doFIDO:
+                            OSPres[item].append(np.max(ResArr[key].FIDOBs[satID]))                                
+                    if item == 'Bz':
                         if ResArr[key].FIDOtimes[satID] is not None:
-                            OSPres[item].append(ResArr[key].FIDO_FRdur[satID])
-                    else:
-                        OSPres[item].append(ResArr[key].ANTdur[satID])
-                if item == 'n':
-                    OSPres[item].append(ResArr[key].ANTns[-1])   
-                if item == 'logT':
-                    OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
-                if item == 'Kp':
-                    if OSP.doFIDO:
-                        if ResArr[key].FIDOtimes[satID] is not None:
-                            OSPres[item].append(np.max(ResArr[key].FIDOKps[satID]))
-                    else:
-                        OSPres[item].append(ResArr[key].ANTKp0[satID])
-                if item == 'B':
-                    if ResArr[key].FIDOtimes[satID] is not None:
-                        OSPres[item].append(np.max(ResArr[key].FIDOBs[satID]))                                
-                if item == 'Bz':
-                    if ResArr[key].FIDOtimes[satID] is not None:
-                        OSPres[item].append(np.min(ResArr[key].FIDOBzs[satID]))
+                            OSPres[item].append(np.min(ResArr[key].FIDOBzs[satID]))
 
     print ('Number of hits: ', len(goodIDs)) 
     print ('Mean, Standard Deviation, Min, Max')
@@ -2060,7 +2060,7 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
         if not (OSP.isSat or plotn):
             obsIdx[-1] = 8
         for i in range(7):
-            thisParam = ObsData[satID][obsIdx[i],:].astype(np.float)
+            thisParam = ObsData[satID][obsIdx[i],:].astype(float)
             thisParam =  thisParam[~np.isnan(thisParam.astype(float))]
             try:
                 thismin, thismax = np.min(thisParam), np.max(thisParam)
@@ -2662,9 +2662,9 @@ def hourify(tARR, vecin):
     vecout[0] = vecin[0]
     return vecout
 
-def getISmetrics(ResArr, satID=0):
+def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     hasSheath = False
-    if isinstance(OSP.obsShstart[satID], float): 
+    if isinstance(OSP.obsShstart[satID], float) and not ignoreSheath: 
         hasSheath = True
         obstSh = OSP.obsShstart[satID]
     obstFR1, obstFR2 = OSP.obsFRstart[satID], OSP.obsFRend[satID]
@@ -2834,9 +2834,9 @@ def getISmetrics(ResArr, satID=0):
     print (outprint)         
     
     totTimeErr = np.sum(timingErr, axis=1)
-    want2use = [0,4,5,6] # no B vec
+    #want2use = [0,4,5,6] # no B vec
     #want2use = [0,1,2,3,4,5,6] # all
-    #want2use = [1,2,3] # b vec only
+    want2use = [1,2,3] # b vec only
     canuse = []
     for i in range(7):
         if (i in want2use) and (i in haveObsidx):
@@ -3368,6 +3368,7 @@ if __name__ == '__main__':
             if OSP.obsFRstart[i] not in [None, 9999.]:
                 print ('----------------------- Sat:' , satNames[i], '-----------------------')
                 if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
+                    # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
                     getISmetrics(ResArr, satID=i)
                 print ('')
                 print('')

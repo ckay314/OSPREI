@@ -13,6 +13,11 @@ codepath = mainpath + 'coreCode/'
 magpath  ='/Users/ckay/OSPREI/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
+# Can add other folders as needed if you store anything somewhere else
+# (e.g. satFiles)
+# only necessary if folders aren't in same place as where you run
+#sys.path.append(os.path.abspath('/User/ckay/OSPREI/exampleFiles'))
+
 from ForeCAT import *
 import CME_class as CC
 from ForeCAT_functions import readinputfile, calc_dist, calc_SW
@@ -28,7 +33,7 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 # pick a number to seed the random number generator used by ensembles
-np.random.seed(20220126)
+np.random.seed(20220923)
 
 def setupOSPREI():
     # Initial OSPREI setup ---------------------------------------------|
@@ -52,7 +57,7 @@ def setupOSPREI():
     global suffix, nRuns
     # these are values its convenient to read early for processOSPREI
     global time, satPos, Sat_rot, ObsDataFile, mass, useFCSW, flagScales, flag1DSW, doPUP, doMH, isSat, simYaw
-    global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath
+    global obsFRstart, obsFRend, obsShstart, vSW, MHarea, MHdist, satPath, FRpol
     suffix = ''
     nRuns  = 1
     satPos = [0,0,213]
@@ -68,6 +73,7 @@ def setupOSPREI():
     isSat   = True
     obsFRstart, obsFRend, obsShstart = [None], [None], [None]
     mass = 5.
+    FRpol = 1
     # Read in values from the text file
     for i in range(len(allinputs)):
         temp = allinputs[i]
@@ -130,6 +136,9 @@ def setupOSPREI():
         elif temp[0][:-1] == 'satPath':  
             satPath = temp[1]
             isSat = True
+        # dunno why this was missing
+        elif temp[0][:-1] == 'FRpol':
+             FRpol = int(temp[1])
     
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
@@ -1359,7 +1368,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         gamma = CME.gamma
         invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma, CME.yaw]
         SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
-        
+
         # check if given SW 1D profiles
         if flag1DSW:
             SWvec = SWfile
@@ -1377,9 +1386,9 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         # high fscales = more convective like
         isSilent = False
         if actualPath:      
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
         else:
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
             
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!
