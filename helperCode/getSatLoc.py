@@ -106,7 +106,7 @@ def getSatLoc(satName, start, stop, pad=30, fracYr=True, outName=None):
         else:
             # linear interpolation
             hlonHGI = hdata[idx,4] + (fracDoY - hdata[idx,1]) * (hdata[idx-1,4] - hdata[idx,4]) / (hdata[idx-1,1] - hdata[idx,1])
-        print (hlonHGI)
+        #print (hlonHGI)
         # convert to sat clon
         clon = (clonEarth + (hlonHGI - elonHGI))%360
     
@@ -124,6 +124,7 @@ def getEarthClon(date):
     return (est1+cor)%360
     
 #fname, clon =print(getSatLoc('psp', 2022.123, 2022.156, outName='temp'))
-fname, clon = getSatLoc('psp', '2022/01/26 20:30', '2022/02/05 00:23', outName='temp', fracYr=False)
+fname, clon = getSatLoc('solo', '2022/03/11 01:06', '2022/03/14 00:00', outName='20220310', fracYr=False)
+print (fname, clon)
     
     
