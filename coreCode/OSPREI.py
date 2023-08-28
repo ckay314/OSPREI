@@ -33,14 +33,16 @@ dtor  = 0.0174532925   # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
 # pick a number to seed the random number generator used by ensembles
-np.random.seed(20220923)
+np.random.seed(20220310)
 
-def setupOSPREI():
+def setupOSPREI(logInputs=True):
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
     # ------------------------------------------------------------------|
     global input_values, allinputs, date, noDate
     input_values, allinputs = FC.readinputfile()
+    if logInputs:
+        add2inputlog(input_values)
     checkInputs()
     
     noDate = False
@@ -199,6 +201,31 @@ def setupOSPREI():
     print( 'ANTEATR: ', doANT)
     print( 'FIDO:    ', doFIDO)
     print('')
+
+def add2inputlog(input_values):
+    # Enable Reproducibility with the Input Keeper Assistant - ERIKA mode
+    # make the line we want to add
+    outline = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") + ',  '
+    for item in input_values:
+        outline += (item+': '+str(input_values[item]) + ', ')
+    outline = outline[:-2]
+    
+    # check if file exists to start
+    logFile = 'inputs.log'
+    # get the date to find the right output folder
+    try:
+        date = input_values['date']
+    except:
+        date = 'NoDate'
+    # write in an existing file or start a new one    
+    if os.path.isfile(mainpath+date+'/'+logFile):
+        fOut = open(mainpath+date+'/'+logFile, 'a')
+        fOut.write('\n'+outline)
+        fOut.close()
+    else:
+        fOut = open(mainpath+date+'/'+logFile, 'w')
+        fOut.write(outline)
+        fOut.close()
 
 def checkInputs(printNonCrit=False):    
     # Run through all the input parameters and check that everything is in appropriate range
@@ -526,7 +553,7 @@ def checkInputs(printNonCrit=False):
             else:
                 print('Using ', Bcent, ' nT for FRB')
                 input_values['FRB'] = str(Bcent)
-    
+
         if 'FRT' in input_values:
             FRT = float(input_values['FRT'])
             if (FRT < 5e4) or  (FRT > 3e6):
@@ -1012,7 +1039,7 @@ def makeSatPaths(fname, tzero, Clon0=0):
     delts = []
     for i in range(len(data)):
         thisdatestr = str(data[i][0])+' '+str(data[i][1])
-        thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M:%S')
+        thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M')
         delts.append((thisdate - tzero).total_seconds())
     satrs   = np.array(data[:,2]).astype(float) * 1.49e13 / rsun # convert to cm then rsun
     satlats = np.array(data[:,3]).astype(float)
