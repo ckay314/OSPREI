@@ -35,7 +35,7 @@ radeg = 57.29577951    # radians to degrees
 # pick a number to seed the random number generator used by ensembles
 np.random.seed(20220310)
 
-def setupOSPREI(logInputs=True):
+def setupOSPREI(logInputs=False):
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
     # ------------------------------------------------------------------|
@@ -1885,7 +1885,7 @@ def satPathWrapper(satPath, checkSatlen=True):
     return satPaths
 
 def runOSPREI():
-    setupOSPREI()
+    setupOSPREI(logInputs=False)
     
     if nRuns > 1: setupEns()
 
