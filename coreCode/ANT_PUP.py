@@ -275,8 +275,10 @@ def calcYawTorque(CMElens, CMEpos, AW, vs, deltax, deltap, yaw, solRotRate, SWfs
     dtMHL = -dlonLSide * solRotRate 
     dtMHR = -dlonRSide * solRotRate
     
-    SWatsatL  = getSWvals(rLside, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHL)
-    SWatsatR  = getSWvals(rRside, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHR)
+    rLsideProj = np.sqrt(rxyL4[1]**2 + rxyL4[0]**2)
+    rRsideProj = np.sqrt(rxyR4[1]**2 + rxyR4[0]**2)
+    SWatsatL  = getSWvals(rLsideProj, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHL)
+    SWatsatR  = getSWvals(rRsideProj, SWfs, doMH=doMH, returnReg=False, deltatime=dtMHR)
 
     # Get velocity at front of each side
     vEdgeL, vExpL = getvCMEframe(1, math.pi/2, 0, deltax, deltap, vs) 
