@@ -42,8 +42,6 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
     B0 = phiflux * Cnm * (delCS**2 + 1) / avgR / Ltot / delCS**2 *1e5
     Bcent = delCS * tau * B0
-    print (Bcent)
-    
     
     vSheath = 0.129 * v + 376
     vIS = (vSheath + 51.73) / 1.175
@@ -53,5 +51,5 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     
     return AW/dtor, AWp/dtor, mass, TIP, Bcent
     
-outs = getProps(21.5, 1950, 60, 20, 0.7, 1)
+outs = getProps(21.5, 677, 60, 20, 0.75, 1)
 print (outs)

@@ -1,0 +1,71 @@
+Here is an example of walking through collecting inputs for the 2011 August 04 CME.
+
+Make a new .txt file. Either create something from scratch or copy an older .txt to a new name. Copying is easier because you don’t need to rewrite all the input names, but you need to make sure it includes the tags you want and not anything extra. I copied IPexMin.txt from the example files to 20110804IP.txt 
+
+Open 20110804IP.txt and we will start filling in inputs. I start by pulling as much information from CCMC’s DONKI as possible. Go to
+
+https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/
+
+and select “Coronal Mass Ejection”  from the Space Weather Activity Type drop down menu. Put 2011-08-04 for both the start and stop date and search. One entry should pop up on the next page. It is listed at the time 04:12 so this is our CME.
+
+Let’s run only the interplanetary part of OSPREI. We want to start it at the time this CME reaches 21.5 Rs, which we see is at 05:45 on the same day as the eruption. In 20110804IP.txt add “date: 20110804” and “time: 05:45” to the file. You can keep the suffix at “demo” or change it to whatever you want to label this run as. nRuns and CMEr should stay at 1 and 21.5 for now. If you want to include the CME-driven sheath add “doPUP: True”
+
+Looking at the DONKI entry we see a reconstructed latitude of 14 deg and longitude of 40 deg. This is the Stonyhurst longitude, which is fine for running the IP only version. Switch CMElat to 14 and CMElon to 40. We can also set CMEvr to 1950 and CMEAW to 60.
+
+For now, we can delete the CMEAWp, CMEM, CMEdelAx, CMEdelCS, FRB, FRT rows. We will start running with these at default values. The only remaining CME parameters to set are the CMEtilt and the FRpol. Pull up an EUV image of the event. My go to is SDO and I find the movies here
+
+https://sdo.gsfc.nasa.gov/data/aiahmi/browse/movie.php
+
+and typically look at 171 A, or sometimes 193, or even 304. This event is toward the limb so it’s not the best viewing angle but it’s all we have for this case (STEREO would be worse, but could be useful for some cases). It’s mostly an educated guess, but based on the orientation of the filament/flare loops/reconnection arcade I’d start with a tilt of -45 for this CME (measured relative to solar west). This is just a guess of the orientation at the start of the eruption, if we had coronagraph reconstruction that would be better. This case is a very fast CME so at least it’s likely there little to no rotation in the corona.
+
+Identifying the handedness is also tricky for this case. If you can see any forward-S or forward-J shapes within the filament or the flare ribbons this is a signature of a right handed event. Backward-S and J correspond to left handed. I cannot identify anything with any particularly confidence so I’ll start with left-handed based on the Bothmer Schwenn relationship (statistically north tends to be left and south right, but only about 70% accurate). Erika Palmerio’s paper is a good reference for sorting out handedness.
+
+https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2020SW002654
+
+We can also look at the HMI magnetogram on the SDO site. This AR has the negative polarity leading, so based on our orientation of ~ -45 deg I’d expect the axial field to point from northeast to southwest. This is the same direction as the tilt “points” (think about rotating a vector that initially pointed toward west -45 deg, the arrow head is in the correct direction). It it was the opposite we’d want FRB to have a negative sign. 
+
+Within helperCode there is (now) a file calcDefInputs.py which will calculate the default inputs used by OSPREI and print them to screen. It requires as inputs the start distance in Rs, the speed in km/s, the AW in deg, the perp AW in deg (defaults to 1/3 of AW), the axial aspect ratio (defaults to 0.7), and the cross section aspect ratio (defaults to 1). If we give it (21.5, 1950, 60, 20, 0.7, 0.1) it returns 60.0, 20.0, 10.3842, 1332906.4194205618, 4387.026279500206 which are the AW, AWp, CME mass (in 10^15 g), FRT (in K), and FRB (in nT). If we needed to swap the direction of the toroidal axis we could add “FRB: 4387 nT” to the .txt file, but we do not need to for this case.
+
+The last thing we need to set is the Earth’s location. Since we’re using Stonyhurst the SatLon is 0, SatR is 213 (Rs) if you want to compare to L1, or 215 if you want Earth itself. We do need the actual latitude of the Earth as that varies over the year. My go to source is
+
+https://stereo-ssc.nascom.nasa.gov/cgi-bin/make_where_gif
+
+and I put in the correct date and start time (start of OSPREI so time CME is at 21.5 Rs), generate the plot, then take the HEEQ latitude of the Earth (5.980) and use that for SatLat.
+
+We now have all the inputs needed to run OSPREI, so call it using 20110804.txt as input.  It will run and print results to the screen. You can then run processOSPREI with the same .txt file and it will produce figures. We see an impact
+
+
+If we want to compare with data we can pull OMNI data from 
+
+https://omniweb.gsfc.nasa.gov/form/dx1.html
+
+set the start and stop date to something reasonable around the time of impact, I went from 20110805 to 20110807, and select IMF Magnitude Avg, Bx, By, and Bz (GSE), Proton Temperature, Proton Density, and Flow Speed. You can do a quick check to make sure you have the full in situ signatures by plotting it online (plot data selected at the top, which is what is defaults to). If everything looks good page back and switch to list data and copy the data (no header stuff) into a new text file. Unfortunately, OMNI doesn’t print things in the exact order we want, and we need to switch GSE to RTN. This can be done quickly via command line as
+
+awk '{print $1, $2, $3, $4, -$5, -$6, $7, $9, $10, $8}' obsdata/20110804omni.dat > obsdata/20110804omniSWAP.dat
+
+Add “ObsDataFile: obsdata/20110804omniSWAP.dat” to the .txt file (modify the filename if needed) and rerun processOSPREI. The in situ (IS) figure will now include the observed data for comparison. You can see we get a decent (not perfect but not bad) fit to observations without any tuning of the inputs. 
+
+We can also run an ensemble if we want. Change nRuns to the number of ensemble members (I usually do 100 or 200 for a real run, less is fine for testing purposes). Make a new file 20110804.ens and we put the parameters and their ranges in here. We can only ensemble things that are directly passed, so add
+
+CMEM: 10.38
+CMEAWp: 20
+CMEdelAx:   0.7
+CMEdelCS:   1
+FRB:	10431
+FRT:		1330000
+
+to the original .txt file (these are just the default values we used). Within the .ens file add
+
+CMElat:		5
+CMElon:		5
+CMEtilt:    	15
+CMEvr:		200
+CMEdelAx:   0.2
+CMEdelCS:   0.2
+CMEM:		3
+CMEAW:		10
+CMEAWp:	 5
+FRB:		1000
+FRT:			300000
+
+These values are somewhat arbitrary, but reasonable for this case. If you want, set the np.random.seed in the top of OSPREI.py to 20110804, which will just ensure reproducibility but makes it so that OSPREI doesn’t vary the ensemble in the exact same way for every single case we ever run with it. Run OSPREI again, it’ll take about a minute per simulation (more or less depending on your computing power). If you run processOSPREI after there will be new figures showing the ensemble information.

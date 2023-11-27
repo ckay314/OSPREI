@@ -15,7 +15,6 @@ from matplotlib.ticker import FuncFormatter
 global dtor
 dtor = math.pi / 180.
 
-
 # make label text size bigger
 plt.rcParams.update({'font.size':14})
 figtag = '.png'
@@ -23,6 +22,8 @@ figtag = '.png'
 # Set up the path variable
 # I like keeping all the code in a single folder called code
 # but you do you (and update this to match whatever you do)
+sys.path.append(os.path.abspath('/Users/ckay/OSPREI/coreCode')) 
+
 import OSPREI as OSP
 mainpath = OSP.mainpath
 sys.path.append(os.path.abspath(OSP.codepath)) #MTMYS
@@ -35,15 +36,16 @@ import empHSS as emp
 import processOSPREI as proOSP
 
 # SWpadB set manually to make sure long enough for all cases, cutoff using xlim
-def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDates=False, setTrange=False):
-    
+def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDates=False, setTrange=False, satNum=0, ObsData=None, names=None, stp=None, endp=None, outname=None):
+
     fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
     mindate = None
     maxdate = None
     ResArr = allRes[0]
 
-    lw, co, zord = 6, '#332288', 11
-    cos = ['r', '#FBB917', '#FF6700', '#88CCEE', 'b', 'maroon']
+    lw, co, zord = 4.5, '#332288', 11
+    #cos = ['r', '#FBB917', '#FF6700', '#88CCEE', 'b', 'maroon']
+    cos = ['#882255', '#332288', '#88CCEE', '#44AA99']
     zos = [15, 10, 11, 12, 13, 14]
     counter = -1
     for ResArr in allRes:        
@@ -52,7 +54,7 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
         zord = zos[counter] 
         
         key = 0  
-        whichSat = 0  
+        whichSat = satNum  
         if ResArr[key].FIDOtimes[whichSat] is not None: #not ResArr[key].miss:
             if OSP.noDate:
                 dates = ResArr[key].FIDOtimes[whichSat]
@@ -152,11 +154,12 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
     if not OSP.noDate:
         # Set up date format
         maxduration = (maxdate - mindate).days+(maxdate - mindate).seconds/3600./24.
-        # THESES ARE HARDCODED FOR PSPS
-        #startplot = mindate -datetime.timedelta(hours=3)
-        #endplot = maxdate +datetime.timedelta(hours=3)
-        startplot = datetime.datetime(2022, 1, 28, 0, 0)
-        endplot = datetime.datetime(2022, 2, 1, 0, 0)
+        startplot = mindate -datetime.timedelta(hours=3)
+        endplot = maxdate +datetime.timedelta(hours=3)
+        if stp:
+            startplot = datetime.datetime(stp[0], stp[1], stp[2], stp[3], stp[4])
+        if endp:
+            endplot = datetime.datetime(endp[0], endp[1], endp[2], endp[3], endp[4])
         hr0 = 0
         if startplot.hour > 12: hr0=12
         pltday0 = datetime.datetime(startplot.year, startplot.month, startplot.day, hr0, 0)
@@ -170,7 +173,7 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
             axes[5].set_ylim([0,1e6])
         
     obsCol = 'k'#'#882255'
-    obslw = 6
+    obslw = 7
     if ObsData is not None:
         axes[0].plot(ObsData[0,:], ObsData[1,:], linewidth=obslw, color=obsCol)
         axes[1].plot(ObsData[0,:], ObsData[2,:], linewidth=obslw, color=obsCol)
@@ -179,21 +182,21 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
         axes[4].plot(ObsData[0,:], ObsData[6,:], linewidth=obslw, color=obsCol)
         axes[5].plot(ObsData[0,:], ObsData[7,:]/1e5, linewidth=obslw, color=obsCol)    
         if OSP.isSat or plotn:
-            axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=4, color=obsCol)
+            axes[6].plot(ObsData[0,:], ObsData[5,:], linewidth=obslw, color=obsCol)
         elif hasKp:
-            axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=4, color=obsCol)
+            axes[6].plot(ObsData[0,:], ObsData[8,:], linewidth=obslw, color=obsCol)
 
         # check if have obs starts/stop
         givenDates = [0, 0, 0]
-        if isinstance(OSP.obsShstart, float): 
-            if OSP.obsShstart < 366:
-                givenDates[0] = base + datetime.timedelta(days=(OSP.obsShstart-1))
-        if isinstance(OSP.obsFRstart, float): 
-            if OSP.obsFRstart < 366:
-                givenDates[1] = base + datetime.timedelta(days=(OSP.obsFRstart-1))
-        if isinstance(OSP.obsFRend, float): 
-            if OSP.obsFRend < 366:
-                givenDates[2] = base + datetime.timedelta(days=(OSP.obsFRend-1))
+        if isinstance(OSP.obsShstart[satNum], float): 
+            if OSP.obsShstart[satNum] < 366:
+                givenDates[0] = base + datetime.timedelta(days=(OSP.obsShstart[satNum]-1))
+        if isinstance(OSP.obsFRstart[satNum], float): 
+            if OSP.obsFRstart[satNum] < 366:
+                givenDates[1] = base + datetime.timedelta(days=(OSP.obsFRstart[satNum]-1))
+        if isinstance(OSP.obsFRend[satNum], float): 
+            if OSP.obsFRend[satNum] < 366:
+                givenDates[2] = base + datetime.timedelta(days=(OSP.obsFRend[satNum]-1))
         for ax in axes:
             yl = ax.get_ylim()
             for aDate in givenDates:
@@ -208,7 +211,8 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
                 ticks2hide = np.array(range(len(yticks)-1))[::2]
                 for j in ticks2hide:
                     yticks[j].label1.set_visible(False)
-    if True:
+                                    
+    if False:
         dx =-0.0
         plt.gcf().text(0.3+dx, 0.955, 'L23', fontsize=14, weight="bold", color=cos[1])
         plt.gcf().text(0.37+dx, 0.955, 'K23', fontsize=14, weight="bold", color=cos[2])
@@ -218,67 +222,36 @@ def makeISplot(allRes, SWpadF=30, SWpadB = 40, bfCase=None, plotn=False, tightDa
         plt.gcf().text(0.72+dx, 0.955, 'K23$^{SDHR}$', fontsize=14, weight="bold", color=cos[0])
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)[:8]+'_multiIS'+figtag)    
-    #plt.show()
+    if outname:
+        plt.savefig(OSP.Dir+'/'+outname)  
+    else:  
+        plt.show()
 
 
 # Modify this to loop as needed
-if True:
-    OSP.setupOSPREI()    
-    ResArr = proOSP.txt2obj(0)
-    OGname = OSP.thisName
-    OGdoPUP = OSP.doPUP
-
-    OSP.thisName = '20220126build0'
-    OSP.doPUP = False
-    ResArr2 = proOSP.txt2obj(0)
-
-    OSP.thisName = '20220126build1'
-    OSP.doPUP = True
-    ResArr3 = proOSP.txt2obj(0)
-
-    OSP.thisName = '20220126build2'
-    ResArr4 = proOSP.txt2obj(0)
-
-    OSP.thisName = '20220126build3'
-    ResArr5 = proOSP.txt2obj(0)
-
-    OSP.thisName = '20220126build4'
-    ResArr6 = proOSP.txt2obj(0)
-
-    allRes = [ResArr, ResArr2, ResArr3, ResArr4, ResArr5, ResArr6]
-    alldoPUPs = [True,  False, True, True, True, True]
-
-if False:
-    OSP.setupOSPREI()    
-    ResArr = proOSP.txt2obj(0)
-    OGname = OSP.thisName
-    OGdoPUP = OSP.doPUP
-
-    OSP.thisName = '20220126F10'
-    OSP.doPUP = True
-    ResArr2 = proOSP.txt2obj(0)
-
-    OSP.thisName = '20220126F20'
-    OSP.doPUP = True
-    ResArr3 = proOSP.txt2obj(0)
-
-    allRes = [ResArr, ResArr2, ResArr3]
-    alldoPups = [True, True, True]
 
 # slow Push case
-if False:   
+if True:   
     OSP.setupOSPREI()    
     ResArr = proOSP.txt2obj(0)
     OGname = OSP.thisName
     OGdoPUP = OSP.doPUP
 
-    OSP.thisName = 'slownoPush'
+    OSP.thisName = '20220311solovbf'
     OSP.doPUP = True
     ResArr2 = proOSP.txt2obj(0)
     
-    allRes = [ResArr, ResArr2]
-    alldoPups = [True, True]
+    OSP.thisName = '20220311mem157'
+    OSP.doPUP = True
+    ResArr3 = proOSP.txt2obj(0)
+
+    OSP.thisName = '20220311mem4'
+    OSP.doPUP = True
+    ResArr4 = proOSP.txt2obj(0)
+    
+    
+    allRes = [ResArr, ResArr2, ResArr3, ResArr4]
+    alldoPups = [True, True, True, True]
 
 
 # set back to first
@@ -288,9 +261,34 @@ OSP.thisName = OGname
 global ObsData
 ObsData = None
 if OSP.ObsDataFile is not None:
-    ObsData = proOSP.readInData(OSP.ObsDataFile)
-    
+    ObsData = [proOSP.readInData(OSP.ObsDataFile)]
+
+# if have multi sats
+elif 'satPath' in OSP.input_values:
+    satNames = []
+    satPath = OSP.input_values['satPath']
+    if (satPath[-4:] == 'sats'):
+        temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+        nSat = len(temp)
+        ObsData = [[None] for i in range(nSat)]
+        OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
+        for i in range(nSat):
+            if nSat !=1:
+                satNames.append(temp[i][0])
+            else:
+                satNames.append(temp[i])
+            if len(temp[0]) >= 6:
+                ObsData[i] = proOSP.readInData(temp[i][5])
+                hasObs = True
+            if len(temp[0]) == 9:
+                OSP.obsFRstart[i] = float(temp[i][7])
+                OSP.obsFRend[i] = float(temp[i][8])
+                OSP.obsShstart[i] = float(temp[i][6])
     
 # Make multi IS plot
-makeISplot(allRes)
+thisSat = 0
+makeISplot(allRes, satNum=thisSat, ObsData = ObsData[thisSat], stp=[2022,3,11,8,0], endp=[2022,3,13,2,0], outname='IS_SolO.png')
+
+thisSat = 1
+makeISplot(allRes, satNum=thisSat, ObsData = ObsData[thisSat], stp=[2022,3,13,0,0], endp=[2022,3,15,16,0], outname='IS_Earth.png')
 
