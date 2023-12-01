@@ -1039,7 +1039,10 @@ def makeSatPaths(fname, tzero, Clon0=0):
     delts = []
     for i in range(len(data)):
         thisdatestr = str(data[i][0])+' '+str(data[i][1])
-        thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M')
+        if len(thisdatestr) == 19:
+            thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M:%S')
+        elif len(thisdatestr) == 16:
+            thisdate = datetime.datetime.strptime(thisdatestr, '%Y-%m-%d %H:%M')
         delts.append((thisdate - tzero).total_seconds())
     satrs   = np.array(data[:,2]).astype(float) * 1.49e13 / rsun # convert to cm then rsun
     satlats = np.array(data[:,3]).astype(float)
@@ -1836,7 +1839,7 @@ def satPathWrapper(satPath, checkSatlen=True):
     satNames = []
     satPos0  = []
     satfiles = []
-    havePaths = True
+    #havePaths = True
     if satPath[-5:] == '.sats':
         satFile = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
         nSats = len(satFile)
@@ -1850,15 +1853,14 @@ def satPathWrapper(satPath, checkSatlen=True):
         if nItems not in [5,6,9]:
             sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')
             
-        # reset havePaths bc need to check if multi simple sats
-        try:
-            a = float(satFile[0][4])
-        except:
-            havePaths = True    
-            
+        if '.' in satFile[0][4]:
+            havePaths = True
+        else:
+            havePaths = False
+             
         if havePaths:
             for i in range(nSats):
-                if satFile[i][4][-4:] != '.sat':
+                if (satFile[i][4][-4:] != '.sat'):
                     sys.exit('Need to provide satellite files as .sat')
                     
         for i in range(nSats):
@@ -1870,12 +1872,15 @@ def satPathWrapper(satPath, checkSatlen=True):
             else:
                 satfiles.append(thisSat[4])
     else:
-        #havePaths = False
         nSats = 1
         satNames.append('sat1')
         satPos0.append([satPos[0], satPos[1], satPos[2]*7e10, 0])
-        satfiles.append(satPath)    
-            
+        satfiles.append(satPath) 
+        if '.' in satPath:
+            havePaths = True
+        else:
+            havePaths = False
+
     if havePaths:
         satPaths = thankslambdas(satfiles, satPos0, dObj, nSats)
     else:
@@ -1885,7 +1890,7 @@ def satPathWrapper(satPath, checkSatlen=True):
     return satPaths
 
 def runOSPREI():
-    setupOSPREI(logInputs=False)
+    setupOSPREI(logInputs=True)
     
     if nRuns > 1: setupEns()
 

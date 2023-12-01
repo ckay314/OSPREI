@@ -21,11 +21,9 @@ FRT:	750000
 FRpol:		1
 Gamma:		1.33
 IVDf1:		.5
-doMH:		True
+doMH:		False
 MHarea:		1500
 MHdist:		0.25
-doPUP:		True
-simYaw:		True
-SatLon: 0
-SatLat: 0
-SatR: 213
+doPUP:		False
+simYaw:		False
+satPath:	exampleFiles/IPexample.sats

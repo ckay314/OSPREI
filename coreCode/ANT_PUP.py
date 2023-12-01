@@ -1357,7 +1357,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             BSC, vInSitu, printthis = getFIDO(axDist, maxDistFR, B0sign*B0, CMEH, tau, cnm, deltax, deltap, CMElens, thisPsi, thisParat, satPos[satID][0], satPos[satID][1], CMElat, CMElon, CMEtilt, vs, comp=comp)''' 
                         # Print to screen so we know where we are in the FR
                         if not silent:
-                            print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159), vInSitu[0]/1e5, printthis[0]/1e5, vs[3]/1e5, vs[4]/1e5)
+                            print ('      ', satID, '{:8.5f}'.format(axDist/maxDistFR), '{:8.5f}'.format(thisPsi*180/3.14159), '{:8.5f}'.format(thisParat*180/3.14159))
                         # save to file
                         comp = 1 # had used this before but turning off for now but keeping code intact
                         FIDOstuff[satID] = [t/3600., BSC[0]*1e5, BSC[1]*1e5, BSC[2]*1e5, vInSitu[0]/1e5, rho/1.67e-24 * comp, np.log10(temCME), 1]
@@ -1467,7 +1467,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 print ('Transit Time:     ', outSum[satID][0])
                 print ('Final Velocity:   ', outSum[satID][1], outSum[satID][2])
                 print ('CME nose dist:    ', outSum[satID][3])
-                print ('Sat. longitude:  ', outSum[satID][4])
+                print ('Sat. longitude:   ', outSum[satID][4])
                 print ('Est. Duration:    ', outSum[satID][5])
             print ('')
 

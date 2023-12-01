@@ -1,6 +1,6 @@
 date:		20220126
 time:		20:30
-FCmagname:	HMI2253synop
+FCmagname:	HMI20220126syncCL
 SunRss:		2.5
 suffix:		demo
 models:		All
