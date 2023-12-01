@@ -2835,8 +2835,8 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     
     totTimeErr = np.sum(timingErr, axis=1)
     #want2use = [0,4,5,6] # no B vec
-    #want2use = [0,1,2,3,4,5,6] # all
-    want2use = [1,2,3] # b vec only
+    want2use = [0,1,2,3,4,5,6] # all
+    #want2use = [1,2,3] # b vec only
     canuse = []
     for i in range(7):
         if (i in want2use) and (i in haveObsidx):
@@ -3325,7 +3325,7 @@ if __name__ == '__main__':
             makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
 
     # Ensemble plots
-    if nEns > 1:
+    '''if nEns > 1:
         if OSP.doFC:
             # Make CPA plot
             makeCPAhist(ResArr)
@@ -3360,7 +3360,7 @@ if __name__ == '__main__':
         
         # Contour plot
         for i in range(nSat):
-            makeContours(ResArr, satID=i)
+            makeContours(ResArr, satID=i)'''
     
     # Also slow now
     for i in range(nSat):
@@ -3369,7 +3369,7 @@ if __name__ == '__main__':
                 print ('----------------------- Sat:' , satNames[i], '-----------------------')
                 if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
                     # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
-                    getISmetrics(ResArr, satID=i)
+                    getISmetrics(ResArr, satID=i, ignoreSheath=True)
                 print ('')
                 print('')
             else:
