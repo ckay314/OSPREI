@@ -6,7 +6,6 @@ import os
 import datetime
 from scipy.interpolate import CubicSpline
 
-
 # Import all the OSPREI files, make this match your system
 mainpath = '/Users/ckay/OSPREI/' #MTMYS
 codepath = mainpath + 'coreCode/'
@@ -353,7 +352,8 @@ def checkInputs(printNonCrit=False):
     else:
         if printNonCrit:
             print ('Calculating CME mass from velocity since not explicitly given')
-        CMEM = 0.005756 * float(input_values['CMEvr']) -0.84
+        # Updated to LLAMACoRe v1.0 relation
+        CMEM = 0.010 * float(input_values['CMEvr']) +0.16
         if CMEM > 0:
             input_values['CMEM'] = str(CMEM)
         else:
