@@ -229,6 +229,7 @@ def add2inputlog(input_values):
         fOut.write('\n'+outline)
         fOut.close()
     else:
+        os.makedirs(mainpath+date+'/', exist_ok=True)
         fOut = open(mainpath+date+'/'+logFile, 'w')
         fOut.write(outline)
         fOut.close()

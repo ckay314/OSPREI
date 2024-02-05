@@ -325,7 +325,7 @@ def makedapickle(coeff_file, obs, IDname, nHarmonics, rSS, nameOut=None):
     # Open up files for output and dump the pickles 
     # get name from input file
     if nameOut:
-        pickle_file = nameOut
+        pickle_file = 'PFSS_'+nameOut
     else:
         pickle_file = 'PFSS_'+obs+IDname
     # Lower half pickle
