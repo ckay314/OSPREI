@@ -12,8 +12,10 @@ import datetime
 #YEAR DAY  RAD_AU  HGI_LAT  HGI_LON
 #1990   1    0.98    -3.0    24.5
 
-earthHGI = np.genfromtxt('/Users/ckay/OSPREI/helioweb/planets/earth.lst', dtype=float, skip_header=1)
-earthCar = np.genfromtxt('/Users/ckay/OSPREI/helioweb/planets/earthCar.lst', dtype=float, skip_header=1)
+myPaths = np.genfromtxt('myPaths.txt', dtype=str)
+heliopath = myPaths[:,3]
+earthHGI = np.genfromtxt(heliopath+'planets/earth.lst', dtype=float, skip_header=1)
+earthCar = np.genfromtxt(heliopath+'planets/earthCar.lst', dtype=float, skip_header=1)
 
 
 def getSatLoc(satName, start, stop, pad=30, fracYr=True, outName=None, satpath0='helioweb/'):

@@ -6,10 +6,17 @@ import os
 import datetime
 from scipy.interpolate import CubicSpline
 
+# Import path names from file
+myPaths = np.genfromtxt('myPaths.txt', dtype=str)
+mainpath = myPaths[0,1]
+codepath = myPaths[1,1]
+magpath  = myPaths[2,1]
+
+# Previous hardcoded version
 # Import all the OSPREI files, make this match your system
-mainpath = '/Users/ckay/OSPREI/' #MTMYS
-codepath = mainpath + 'coreCode/'
-magpath  ='/Users/ckay/OSPREI/PickleJar/'
+#mainpath = '/Users/ckay/OSPREI/' #MTMYS
+#codepath = mainpath + 'coreCode/'
+#magpath  ='/Users/ckay/OSPREI/PickleJar/'
 sys.path.append(os.path.abspath(codepath)) 
 
 # Can add other folders as needed if you store anything somewhere else

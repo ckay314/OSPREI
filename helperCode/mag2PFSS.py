@@ -7,9 +7,11 @@ import numpy as np
 import pickle
 
 global mainpath, codepath, magpath
-mainpath = '/Users/ckay/OSPREI/' 
-codepath = mainpath + 'codes/'
-magpath  = '/Users/ckay/OSPREI/PickleJar/' 
+# Import path names from file
+myPaths = np.genfromtxt('myPaths.txt', dtype=str)
+mainpath = myPaths[0,1]
+codepath = myPaths[1,1]
+magpath  = myPaths[2,1]
 
 global nHarmonics, rSS
 nHarmonics = 90
