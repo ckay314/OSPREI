@@ -22,7 +22,8 @@ nTheta = 361 # default 361 -> half deg resolution
 nPhi = 720  # default 720 -> half deg resolution
 
 
-def sync2carr(input_file):
+def sync2carr(input_file,  nameOut=None):
+        # should have same name as before + .fits
         new_file = input_file[:-5]+'CL'+'.fits'
         myfits = fits.open(magpath+input_file)  
         
@@ -47,10 +48,12 @@ def sync2carr(input_file):
 
         # put the new array in the old ones place in the fits and save it
         myfits[0].data[:,:] = myfits2
-        myfits.writeto(magpath+new_file, output_verify='ignore', overwrite=True) 
-        return new_file
+        if not nameOut:
+            nameOut = new_file
+        myfits.writeto(magpath+nameOut, output_verify='ignore', overwrite=True) 
+        return nameOut
         
-def harmonics(obs, IDname, nHarmonics, isSinLat=True):
+def harmonics(obs, IDname, nHarmonics, isSinLat=True, nameIn=None, nameOut=None):
     # Script that takes in a magnetogram and produces the harmonic
     # coefficients needed for the PFSS model.
     # The algorithm was originally largely based on the IDL script
@@ -66,7 +69,10 @@ def harmonics(obs, IDname, nHarmonics, isSinLat=True):
     # which was used extensively as a reference for this script
     
     # read in the magnetogram using the date provided
-    myfits = fits.open(magpath+obs+IDname+'.fits') 
+    if nameIn:
+        myfits = fits.open(magpath+nameIn) 
+    else:
+        myfits = fits.open(magpath+obs+IDname+'.fits') 
     orig_data = myfits[0].data
 
     # Determine the size of the magnetogram
@@ -142,7 +148,11 @@ def harmonics(obs, IDname, nHarmonics, isSinLat=True):
             PmlTheta[i,:,:] = SinThetas[i]*lpmn(nHarmonics,nHarmonics,CosThetas[i])[0]*np.power(-1,mls[:,:,0])*np.exp(logconvPml)
 
     # Open a file to save the output    
-    f1 = open(magpath+obs+IDname+'coeffs.dat', 'w') #MTMYS
+    if nameOut:
+        fileOut = nameOut
+    else:
+        fileOut = obs+IDname+'coeffs.dat'
+    f1 = open(magpath+fileOut, 'w') #MTMYS
 
     # Calculate the harmonic coefficients using the arrays we have and the
     # magnetogram data and save to file
@@ -156,7 +166,7 @@ def harmonics(obs, IDname, nHarmonics, isSinLat=True):
             f1.write('%4i %4i %15.8f %15.8f' % (l, m, np.sum(sumforG) * (2*l+1.)/(nTheta*nPhi), np.sum(sumforH) * (2*l+1.)/(nTheta*nPhi))+ '\n') 
     f1.close()
 
-    return obs+IDname+'coeffs.dat'
+    return fileOut
     
 
 # ----------------- PFSS stuff-----------------------------------------------
@@ -253,7 +263,7 @@ def SPH2CARTvec(colat, lon, vr, vt, vp):
     vz = np.cos(colat) * vr - np.sin(colat) * vt
     return [vx,vy,vz]
 
-def makedapickle(obs, IDname, nHarmonics, rSS):
+def makedapickle(coeff_file, obs, IDname, nHarmonics, rSS, nameOut=None):
     # Main function for calculating the magnetic field for the full volume
     # Set up coefficients and conversion array
     setupMLarrs(nHarmonics)
@@ -312,7 +322,10 @@ def makedapickle(obs, IDname, nHarmonics, rSS):
     
     # Open up files for output and dump the pickles 
     # get name from input file
-    pickle_file = 'PFSS_'+obs+IDname
+    if nameOut:
+        pickle_file = nameOut
+    else:
+        pickle_file = 'PFSS_'+obs+IDname
     # Lower half pickle
     fa = open(magpath+pickle_file+'a3.pkl', 'wb')
     pickle.dump(dataa,fa,-1)
@@ -423,7 +436,7 @@ if __name__ == '__main__':
     coeff_file = harmonics(obs, IDname, nHarmonics)
 
     # make the PFSS pickles
-    pickle_file = makedapickle(obs, IDname, nHarmonics, rSS)
+    pickle_file = makedapickle(coeff_file, obs, IDname, nHarmonics, rSS)
     
     # get distance from the HCS
     calcHCSdist(pickle_file)
