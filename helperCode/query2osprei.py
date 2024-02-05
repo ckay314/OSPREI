@@ -2,7 +2,7 @@ import numpy as np
 import os, sys
 myPaths = np.genfromtxt('myPaths.txt', dtype=str)
 mainpath = myPaths[0,1]
-sys.path.append(os.path.abspath(mainPath+'helperCode')) 
+sys.path.append(os.path.abspath(mainpath+'helperCode')) 
 from getSatLoc import getSatLoc, getEarthClon 
 import datetime
 import mag2PFSS as m2P
@@ -26,7 +26,7 @@ for i in range(len(data[:,0])):
 # ------------------------------------------------
 # Need to do this early on bc of inputs that depend on satellite distance
 sat = inputs['satellite'] # can be PSP, STA, STB, Earth, SolO
-trajDir = '/Users/ckay/OSPREI/helioweb/' #UPDATE FOR CCMC SERVER
+trajDir = myPaths[3,1]
 if sat == 'Earth':
     satfile = trajDir + 'planets/earth.lst'
     satName = 'earth'
