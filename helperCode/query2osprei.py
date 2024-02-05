@@ -12,7 +12,7 @@ import mag2PFSS as m2P
 # ---------- Read in the query files -------------
 # ------------------------------------------------
 # Set to skip top line "Control File"
-data = np.genfromtxt('queryOutputMin.txt', dtype=str, skip_header=1)
+data = np.genfromtxt('queryOutput.txt', dtype=str, skip_header=1)
 # Turn into a dictionary and rm : from names
 inputs = {}
 for i in range(len(data[:,0])):
@@ -307,6 +307,31 @@ if runPFSS:
 # For testing
 #pickle_file = 'temp'
 #runPFSS = True
+
+# Determine if ensembling
+if int(allIns['nRuns']) > 1:
+    f2 = open('runScript_'+allIns['suffix']+'.ens', 'w')
+    if 'delta_CMElat' in inputs.keys():
+        f2.write('CMElat: '+inputs['delta_CMElat'] + '\n')
+    if 'delta_CMElon' in inputs.keys():
+        f2.write('CMElon: '+inputs['delta_CMElon'] + '\n')
+    if 'delta_CMEtilt' in inputs.keys():
+        f2.write('CMEtilt: '+inputs['delta_CMEtilt'] + '\n')
+    if 'delta_CMEvr' in inputs.keys():
+        f2.write('CMEvr: '+inputs['delta_CMEvr'] + '\n')
+    if 'delta_CMEyaw' in inputs.keys():
+        f2.write('CMEyaw: '+inputs['delta_CMEyaw'] + '\n')
+    if 'delta_CMEAW' in inputs.keys():
+        f2.write('CMEAW: '+inputs['delta_CMEAW'] + '\n')
+    if 'delta_CMEAWp' in inputs.keys():
+        f2.write('CMEAWp: '+inputs['delta_CMEAWp'] + '\n')
+    if 'delta_CMEdelAx' in inputs.keys():
+        f2.write('CMEdelAx: '+inputs['delta_CMEdelAx'] + '\n')
+    if 'delta_CMEdelCS' in inputs.keys():
+        f2.write('CMEdelCS: '+inputs['delta_CMEdelCS'] + '\n')
+    if 'delta_CMEM' in inputs.keys():
+        f2.write('CMEM: '+inputs['delta_CMEM'] + '\n')   
+    f2.close()
 
 # Reprint input file with everything explicitly listed
 f1 = open('runScript_'+allIns['suffix']+'.txt', 'w')
