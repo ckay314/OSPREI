@@ -1,6 +1,8 @@
 import numpy as np
 import os, sys
-sys.path.append(os.path.abspath('/Users/ckay/OSPREI/helperCode')) 
+myPaths = np.genfromtxt('myPaths.txt', dtype=str)
+mainpath = myPaths[0,1]
+sys.path.append(os.path.abspath(mainPath+'helperCode')) 
 from getSatLoc import getSatLoc, getEarthClon 
 import datetime
 import mag2PFSS as m2P

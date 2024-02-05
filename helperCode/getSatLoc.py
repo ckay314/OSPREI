@@ -13,7 +13,7 @@ import datetime
 #1990   1    0.98    -3.0    24.5
 
 myPaths = np.genfromtxt('myPaths.txt', dtype=str)
-heliopath = myPaths[:,3]
+heliopath = myPaths[3,1]
 earthHGI = np.genfromtxt(heliopath+'planets/earth.lst', dtype=float, skip_header=1)
 earthCar = np.genfromtxt(heliopath+'planets/earthCar.lst', dtype=float, skip_header=1)
 
