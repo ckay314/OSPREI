@@ -3278,9 +3278,9 @@ if __name__ == '__main__':
         
     # if have multi sats
     elif 'satPath' in OSP.input_values:
-        satNames = []
         satPath = OSP.input_values['satPath']
         if (satPath[-4:] == 'sats'):
+            satNames = []
             ObsData = [[None] for i in range(nSat)]
             temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
