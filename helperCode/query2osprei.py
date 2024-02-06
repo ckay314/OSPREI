@@ -278,7 +278,7 @@ runPFSS = False
 if inputs['models'] in ['All', 'FC']:
     runPFSS = True
 
-#runPFSS = False # rm when no longer testing!!!     
+runPFSS = False # rm when no longer testing!!!     
 if runPFSS:
     # Grab the appropriate magnetogram - this needs to be changed to CCMC specifics
     magObs = inputs['Magnetogram']
@@ -307,8 +307,8 @@ if runPFSS:
     m2P.calcHCSdist(pickle_file)     
 
 # For testing
-#pickle_file = 'temp'
-#runPFSS = True
+pickle_file = 'PFSS_temp'
+runPFSS = True
 
 # Determine if ensembling
 if int(allIns['nRuns']) > 1:
@@ -321,8 +321,6 @@ if int(allIns['nRuns']) > 1:
         f2.write('CMEtilt: '+inputs['delta_CMEtilt'] + '\n')
     if 'delta_CMEvr' in inputs.keys():
         f2.write('CMEvr: '+inputs['delta_CMEvr'] + '\n')
-    if 'delta_CMEyaw' in inputs.keys():
-        f2.write('CMEyaw: '+inputs['delta_CMEyaw'] + '\n')
     if 'delta_CMEAW' in inputs.keys():
         f2.write('CMEAW: '+inputs['delta_CMEAW'] + '\n')
     if 'delta_CMEAWp' in inputs.keys():
@@ -339,6 +337,8 @@ if int(allIns['nRuns']) > 1:
 f1 = open('runScript_'+allIns['suffix']+'.txt', 'w')
 # need to add PFSS pickle to inputfile
 if runPFSS:
+    if pickle_file[:5] == 'PFSS_':
+        pickle_file = pickle_file[5:]
     f1.write('FCmagname:   '+ pickle_file + '\n')
     f1.write('Magnetogram:   '+ inputs['Magnetogram'] + '\n')
 # write everything else to file    
