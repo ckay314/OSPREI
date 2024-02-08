@@ -18,7 +18,7 @@ earthHGI = np.genfromtxt(heliopath+'planets/earth.lst', dtype=float, skip_header
 earthCar = np.genfromtxt(heliopath+'planets/earthCar.lst', dtype=float, skip_header=1)
 
 
-def getSatLoc(satName, start, stop, pad=30, fracYr=True, outName=None, satpath0='helioweb/'):
+def getSatLoc(satName, start, stop, pad=30, fracYr=True, outName=None, satpath0=heliopath):
     #satpath0 = 'helioweb/'
     planetlist = ['earth', 'jupiter', 'mars', 'mercury', 'neptune', 'pluto', 'saturn', 'uranus', 'venus']
     satlist = ['bepicolombo', 'cassini', 'dawn', 'galileo', 'helios1', 'helios2', 'juno', 'maven', 'messenger', 'msl', 'newhorizons', 'osirisrex', 'psp', 'rosetta', 'solo', 'spitzer', 'stereoa', 'stereob', 'ulysses']

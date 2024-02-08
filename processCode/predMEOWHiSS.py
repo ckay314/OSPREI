@@ -71,6 +71,11 @@ def predfromCH(HSSsize, gridscale=False, userAmb=None, plotdefAmb=True, t0=None,
     # meant to read in OMNI data - year, DoY, hr, Bx, By, Bz, T, n, v, flow lon, flow lat
     if omniname:
         omnidata = np.genfromtxt(omniname, dtype=float)
+        # check B for garbage data
+        badIdx = np.where(omnidata[:,3] == 999.9)[0]
+        for idx in badIdx[::-1]: # reversed so removing from end
+            omnidata = np.delete(omnidata, idx, 0)        
+        
         vr = omnidata[:,8] * np.cos(omnidata[:,9]*dtor) * np.cos(omnidata[:,10]*dtor)
         vlon = omnidata[:,8] * np.cos(omnidata[:,9]*dtor) * np.sin(omnidata[:,10]*dtor)
         omniSW = [omnidata[:,7], vr, omnidata[:,3], omnidata[:,4], omnidata[:,6], vlon]
@@ -145,8 +150,15 @@ def predfromCH(HSSsize, gridscale=False, userAmb=None, plotdefAmb=True, t0=None,
     
     # if given both stop and start then calculate the accuracy
     if obsstart and obsstop:
-         MHidx = np.where((MHtimes >= obsstart) & (MHtimes <= obsstop))[0]       
+         MHidx = np.where((MHtimes >= obsstart) & (MHtimes <= obsstop))[0]     
          obsidx = np.where((obstimes >= obsstart) & (obstimes <= obsstop))[0]   
+         # check if we removed a bad time
+         subobstimes = obstimes[obsidx]
+         for idx in MHidx[::-1]:
+             if not MHtimes[idx] in subobstimes:
+                 nxtIdx = np.where(MHidx == idx)
+                 MHidx = np.delete(MHidx, nxtIdx,0)
+         
          for i in range(6):
             outline = labels[i].ljust(20)
             if userAmb:
@@ -185,13 +197,15 @@ def predfromCH(HSSsize, gridscale=False, userAmb=None, plotdefAmb=True, t0=None,
 #predfromCH(28, gridscale=True)  
 
 # Sep 2016  
-predfromCH(34, gridscale=True, userAmb=[8, 330, 2.5, 3.5, 50000], t0='2016/09/16 13:30', omniname='omniSep2016.dat', plotstart='2016/09/18 13:30', plotstop='2016/09/23 18:30', obsstart='2016/09/19 04:00', obsstop='2016/09/22 22:00', savename='MHpred_Sep16.png')
+#predfromCH(34, gridscale=True, userAmb=[8, 330, 2.5, 3.5, 50000], t0='2016/09/16 13:30', omniname='omniSep2016.dat', plotstart='2016/09/18 13:30', plotstop='2016/09/23 18:30', obsstart='2016/09/19 04:00', obsstop='2016/09/22 22:00', savename='MHpred_Sep16.png')
 
 # July 2017 
-predfromCH(52, gridscale=True, userAmb=[6, 330, 2, -2, 40000, 1e-5], t0='2017/07/05 19:30', omniname='omniJul2017.dat', plotstart='2017/07/07 12:00', plotstop='2017/07/14 12:00', obsstart='2017/07/09 23:00', obsstop='2017/07/12 18:00', savename='MHpred_Jul17.png')
+#predfromCH(52, gridscale=True, userAmb=[6, 330, 2, -2, 40000, 1e-5], t0='2017/07/05 19:30', omniname='omniJul2017.dat', plotstart='2017/07/07 12:00', plotstop='2017/07/14 12:00', obsstart='2017/07/09 23:00', obsstop='2017/07/12 18:00', savename='MHpred_Jul17.png')
 
 # Aug 2017 
-predfromCH(50, gridscale=True, userAmb=[4.5, 350, -2, -3, 40000, 1e-5], t0='2017/07/31 20:00', omniname='omniAug2017.dat', plotstart='2017/08/02 12:00', plotstop='2017/08/09 12:00', obsstart='2017/08/03 10:00', obsstop='2017/08/08 04:00', savename='MHpred_Aug17.png')
+#predfromCH(50, gridscale=True, userAmb=[4.5, 350, -2, -3, 40000, 1e-5], t0='2017/07/31 20:00', omniname='omniAug2017.dat', plotstart='2017/08/02 12:00', plotstop='2017/08/09 12:00', obsstart='2017/08/03 10:00', obsstop='2017/08/08 04:00', savename='MHpred_Aug17.png')
 
 # Nov 2017 
-predfromCH(26, gridscale=True, userAmb=[10, 330, -1, -1.5, 30000, 1e-5], t0='2017/11/17 14:00', omniname='omniNov2017.dat', plotstart='2017/11/20 02:00', plotstop='2017/11/24 20:00', obsstart='2017/11/20 12:00', obsstop='2017/11/24 13:00', savename='MHpred_Nov17.png')
+#predfromCH(26, gridscale=True, userAmb=[10, 330, -1, -1.5, 30000, 1e-5], t0='2017/11/17 14:00', omniname='omniNov2017.dat', plotstart='2017/11/20 02:00', plotstop='2017/11/24 20:00', obsstart='2017/11/20 12:00', obsstop='2017/11/24 13:00', savename='MHpred_Nov17.png')
+
+
