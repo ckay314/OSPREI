@@ -13,13 +13,18 @@ global dtor, radeg
 dtor  = 0.0174532925  # degrees to radians
 radeg = 57.29577951    # radians to degrees
 
-def readinputfile():
+def readinputfile(inputPassed='noFile'):
     # Get the CME number
     global fprefix
-    if len(sys.argv) < 2: 
+    if (len(sys.argv) < 2) & (inputPassed == 'noFile'): 
         #sys.exit("Need an input file")
         print('No input file given!')
         sys.exit()
+    elif inputPassed != 'noFile':
+        input_file =  inputPassed
+        inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
+        fprefix = input_file[:-4]
+        input_values = get_inputs(inputs)
     else:
         input_file = sys.argv[1]
         inputs = np.genfromtxt(input_file, dtype=str, encoding='utf8')
@@ -29,7 +34,7 @@ def readinputfile():
 
 def get_inputs(inputs):
     # this contains all the ForeCAT things but everything else used by OSPREI
-    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEyaw', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW', 'IVDf1', 'IVDf2', 'IVDf','time', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRpol', 'FRT', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'models', 'ObsDataFile', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart', 'simYaw', 'SWR', 'satellite', 'Magnetogram'] # satellite and Magnetogram for CCMC and just ignored but allowed
+    possible_vars = ['CMElat', 'CMElon', 'CMEtilt', 'CMEyaw', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr', 'FCtprint', 'date', 'FCmagname', 'FCrmax', 'FCRotCME', 'FCNtor', 'FCNpol', 'L0', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunR', 'SunRotRate', 'SunRss', 'PFSSscale', 'saveData', 'printData', 'useFCSW', 'IVDf1', 'IVDf2', 'IVDf','time', 'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRtau', 'FRCnm', 'FRpol', 'FRT', 'Gamma','suffix', 'nRuns', 'SatLat', 'SatLon', 'SatR', 'SatRot', 'models', 'ObsDataFile', 'SWfile', 'flagScales', 'doPUP', 'satPath', 'MHarea', 'MHdist', 'doMH', 'isSat', 'obsFRstart', 'obsFRend', 'obsShstart', 'simYaw', 'SWR', 'satellite', 'Magnetogram', 'MagFile'] # satellite, Magnetogram, MagFile for CCMC and just ignored but allowed
     # if matches add to dictionary
     input_values = {}
     # Set up defaults that we have to have to run and might be wanted for ensembles
