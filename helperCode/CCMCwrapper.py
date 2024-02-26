@@ -31,8 +31,8 @@ for i in range(len(data[:,0])):
 preProcessIt(inputs)
 
 runName = 'runScript_'+inputs['suffix']+'.txt'
-#runOSPREI(inputPassed=runName)
-#runproOSP(inputPassed=runName)
+runOSPREI(inputPassed=runName)
+runproOSP(inputPassed=runName)
 
 
 # package the results
