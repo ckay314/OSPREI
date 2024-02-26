@@ -3246,8 +3246,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Enlilesque'+countstr+'.'+figtag)
         plt.close()
     
-        
-if __name__ == '__main__':
+def runproOSP(inputPassed='noFile'):
     # set whether to save the figures as png or pdf
     # set only to 'png' or 'pdf'
     global figtag
@@ -3255,7 +3254,7 @@ if __name__ == '__main__':
     
     # Get all the parameters from text files and sort out 
     # what we actually ran
-    OSP.setupOSPREI()
+    OSP.setupOSPREI(inputPassed=inputPassed)
     
     # check and see if we were given a time for GCS observations 
     # to shift Clon of satellite from start to GCS time and do 
@@ -3382,4 +3381,5 @@ if __name__ == '__main__':
     if False:
         enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=1200)
 
-        
+if __name__ == '__main__':
+    runproOSP()

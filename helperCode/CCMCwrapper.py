@@ -9,6 +9,7 @@ magpath  = myPaths[2,1]
 
 sys.path.append(os.path.abspath(mainpath)) 
 sys.path.append(os.path.abspath(codepath)) 
+sys.path.append(os.path.abspath(mainpath='processCode/')) 
 
 from OSPREI import runOSPREI
 from processOSPREI import runproOSP
