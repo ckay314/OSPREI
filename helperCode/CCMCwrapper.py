@@ -77,6 +77,7 @@ runproOSP(inputPassed=runName)
 
 
 # package the results
+os.system('cp '+runName +' '+mainpath+inputs['date']+'/')
 os.chdir(mainpath+inputs['date']+'/')
 os.system('tar -czf '+inputs['suffix']+'.tgz *'+inputs['suffix']+'*')
 os.system('mv '+inputs['suffix']+'.tgz'+' ' +mainpath)
