@@ -2,6 +2,7 @@ import numpy as np
 import os, sys
 myPaths = np.genfromtxt('myPaths.txt', dtype=str)
 mainpath = myPaths[0,1]
+magpath  = myPaths[2,1]
 sys.path.append(os.path.abspath(mainpath+'helperCode')) 
 from getSatLoc import getSatLoc, getEarthClon 
 import datetime
@@ -267,37 +268,42 @@ def preProcessIt(inputs):
     if inputs['models'] in ['All', 'FC']:
         runPFSS = True
 
-    runPFSS = False # rm when no longer testing!!!     
+    #runPFSS = False # rm when no longer testing!!!     
     if runPFSS:
         # Grab the appropriate magnetogram - this needs to be changed to CCMC specifics
         magObs = inputs['Magnetogram']
-        #magFile = 'HMI2253synop.fits'
         magFile = inputs['MagFile']
-        print (m2P.magpath+magFile)
-    
-        # set isSinLat based on magnetogram source
-        # Gong is not sinLat, don't know about WSA setting
-        isSinLat = False
-        if magObs in ['HMI']:
-            isSinLat = True
-        
-        # Skipping synchronic to synoptic step bc don't think we have those magentograms
-    
-        # calculate the harmonic coeffs
-        # make it ignore div by zero in logs, complains about unused part of array
-        np.seterr(divide = 'ignore', invalid = 'ignore') 
-        coeff_file = m2P.harmonics(magObs, '', 90, nameIn=magFile, nameOut='tempHarmonics.dat')   
-    
-        # make the PFSS pickles
         rSS = float(allIns['SunRss'])
-        pickle_file = m2P.makedapickle(coeff_file, magObs, '', 90, rSS, nameOut='temp')
+        magName = magFile.replace('.fits','') + '_Rss' + allIns['SunRss']
     
-        # get the distance from the HCS
-        m2P.calcHCSdist(pickle_file)     
-
+        #magName = 'HMI2253synop' # for testing, comment out
+        # check if the file already exists before running
+        if not os.path.isfile(magpath+ 'PFSS_'+magName+'b3.pkl'):
+            # set isSinLat based on magnetogram source
+            # Gong is not sinLat, don't know about WSA setting
+            isSinLat = False
+            if magObs in ['HMI']:
+                isSinLat = True
+        
+            # Adjust magnetogram to Carrington 0-360 longitude (most have newest data on left)
+    
+            # calculate the harmonic coeffs
+            # make it ignore div by zero in logs, complains about unused part of array
+            np.seterr(divide = 'ignore', invalid = 'ignore') 
+            coeff_file = m2P.harmonics(magObs, '', 90, nameIn=magFile, nameOut='tempHarmonics.dat')   
+    
+            # make the PFSS pickles
+            pickle_file = m2P.makedapickle(coeff_file, magObs, '', 90, rSS, nameOut=magName)
+    
+            # get the distance from the HCS
+            m2P.calcHCSdist(pickle_file)   
+        else:
+            pickle_file = 'PFSS_'+magName  
+    
+    #print (Sd)
     # For testing
-    pickle_file = 'PFSS_temp'
-    runPFSS = True
+    #pickle_file = 'PFSS_temp'
+    #runPFSS = True
 
     # Determine if ensembling
     if int(allIns['nRuns']) > 1:

@@ -24,7 +24,7 @@ nTheta = 361 # default 361 -> half deg resolution
 nPhi = 720  # default 720 -> half deg resolution
 
 
-def sync2carr(input_file,  nameOut=None):
+def sync2carrHMI(input_file,  nameOut=None):
         # should have same name as before + .fits
         new_file = input_file[:-5]+'CL'+'.fits'
         myfits = fits.open(magpath+input_file)  
@@ -428,7 +428,7 @@ if __name__ == '__main__':
         # assume if CL is in IDname we have already ran
         # sync2carr so don't do it again
         if 'CL' not in IDname:
-            fits4har = sync2carr(input_file)
+            fits4har = sync2carrHMI(input_file)
             IDname = IDname + 'CL'
     # make it ignore div by zero in logs, complains about unused part of array
     np.seterr(divide = 'ignore', invalid = 'ignore') 
