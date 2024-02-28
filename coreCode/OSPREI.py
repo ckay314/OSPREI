@@ -784,6 +784,8 @@ def checkInputs(printNonCrit=False):
         if doMH in ['True', 'False']:
             if doMH == 'True':
                 doMH = True
+            elif doMH == 'False':
+                doMH = False
         else:
             sys.exit('Flag for MEOW-HiSS (doMH) must be either True or False')
     
