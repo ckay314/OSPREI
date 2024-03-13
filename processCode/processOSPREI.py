@@ -3199,7 +3199,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                 mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
                 for j in mightBin:
                     # check if actually in CME
-                    thispos = np.array([rs[j]*215, 0, angs[i%nTheta]/dtor])
+                    thispos = np.array([rs[j]*215, 0, angs[i%(nTheta-1)]/dtor])
                     CMEpos = np.array([CMElat, 0, CMEtilt])
                     vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                     rbar = vpmag/maxrFR
