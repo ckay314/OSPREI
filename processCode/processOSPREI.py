@@ -2972,9 +2972,11 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
     
 
     # initialize grid
-    nTheta = 361
-    nRs = 121
+    nTheta = (360*2)+1
+    #nTheta = 361 
+    nRs = 121 
     angs = np.radians(np.linspace(-180, 180, nTheta))
+    dTheta = 360. / (nTheta -1)
     if OSP.doMH:
         CHangs = np.where(np.abs(angs) <= CHang)
     rs = np.linspace(0, 1.2, nRs)
@@ -2984,6 +2986,16 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
     CMElat  = thisCME.FClats[-1]
     CMElon  = thisCME.FClons[-1] 
     CMEtilt = thisCME.FCtilts[-1]
+    # keep it from being perfectly vertical/horizontal and breaking things
+    if CMEtilt == 0:
+        CMEtilt = 0.00001
+    elif CMEtilt == 90:
+        CMEtilt = 89.99999
+    elif CMEtilt == -90:
+        CMEtilt = -89.99999
+    isVert = False
+    if np.abs(CMEtilt) > 60.:
+        isVert = True
     tANT0 = thisCME.ANTtimes[0]
     
     # figure out time res
@@ -2991,7 +3003,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
     r0 = int(thisCME.ANTrs[0]/dR)*dR
     rend = int(thisCME.ANTrs[-1]/dR)*dR
     npics = int((rend-r0)/dR)+1
-    
+
     for iii in range(npics+bonusTime):
         if iii < npics:
             idx = np.min(np.where(thisCME.ANTrs >=r0 + iii*dR ))
@@ -3027,11 +3039,6 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                             satRs.append(satPaths[i][2]/215.)
                     else:
                         satRs.append(satPaths[i][2]/215./7e10)
-            
-            #satRf, satLatf, satLonf = OSP.makeSatPaths(OSP.satPath, OSP.dObj, Clon0=OSP.satPos[1])
-            #satLon = satLonf(thistime*24*3600) - CMElon
-            #satR   = satRf(thistime*24*3600) / 215.
-            #satLat   = satLatf(thistime*24*3600)
     
         # set up background SW w/o CME
         try:
@@ -3042,7 +3049,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             if doMer:
                 valuesMer = vSW * np.ones(valuesMer.shape)
             if doEq:
-                valuesEq = vSW * np.ones(valuesMer.shape)
+                valuesEq = vSW * np.ones(valuesEq.shape)
         else:
             for j in range(len(rs)):
                 # Meridional Slice
@@ -3085,13 +3092,13 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         CMElens[5] = deltaAx * CMElens[6]
         CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
         CMElens[1] = CMElens[2] * np.tan(CMEAW*dtor)
-        # get the axis
-        nFR = 31 # axis resolution
-        thetas = np.linspace(-np.pi/2, np.pi/2, nFR)    
-        sns = np.sign(thetas)    
-        xFR = CMElens[2] + deltaAx * CMElens[6] * np.cos(thetas)
-        zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(thetas)) + np.sqrt(1 - np.cos(np.abs(thetas)))) 
 
+        # get the axis
+        nFR = 51 # axis resolution
+        thetaFR = np.linspace(-np.pi/2, np.pi/2, nFR)    
+        sns = np.sign(thetaFR)    
+        xFR = CMElens[2] + deltaAx * CMElens[6] * np.cos(thetaFR)
+        zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(thetaFR)) + np.sqrt(1 - np.cos(np.abs(thetaFR)))) 
         # Rotate out of CME frame
         axvec = [xFR,0,zFR]
         axvec = roty([xFR-CMEr,0,zFR], -yaw)
@@ -3104,38 +3111,50 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         axLons = np.arctan2(xyzpos[1], xyzpos[0]) / dtor
         axRs = np.sqrt(xyzpos[0]**2 + xyzpos[1]**2 + xyzpos[2]**2)
         Lon2R = CubicSpline(axLons,axRs,bc_type='natural')
+        Lat2R = CubicSpline(axLats,axRs,bc_type='natural')
  
-    
-        # Get min/max lon to tighten range to check if inCME
-        dLon = 50
-        minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
-        idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
-        idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
-        # if highly vertical then lon width actually set by AWp
-        minLon = np.min([minLon, int(CMElon - 0.5*CMEAWp)])
-        maxLon = np.max([maxLon, int(CMElon + 0.5*CMEAWp)])
+        # Meridional check in CME
+        if doMer:
+            # Get min/max lon to tighten range to check if inCME
+            dLat = 50
+            minLat, maxLat = int(np.min(axLats))-dLat, int(np.max(axLats))+dLat
+            idx1 =  np.where(angs/dtor >= np.floor(np.min(axLats)))[0][0]
+            idx2 = np.where(angs/dtor >= np.ceil(np.max(axLats)))[0][0]
+            # if horiz then lon width actually set by AWp
+            if not isVert:
+                minLat = int(CMElat - 0.5*CMEAWp)
+                maxLat = int(CMElat + 0.5*CMEAWp)
+                if maxLat > 180:
+                    maxLat -= 360.
+                idx1 =  np.where(angs/dtor >= np.floor(minLat))[0][0]
+                idx2 = np.where(angs/dtor >= np.ceil(maxLat))[0][0]
+            
+        
+            idx_min = np.min(np.where(angs >= minLat*dtor))
+            idx_max = np.max(np.where(angs <= maxLat*dtor))+1
 
-        idx_min = np.min(np.where(angs >= minLon*dtor))
-        idx_max = np.max(np.where(angs <= maxLon*dtor))+1
-
-        for i in np.arange(idx_min-dLon, idx_max+dLon, 1):
-            if i < idx1:
-                axR = Lon2R(angs[idx1]/dtor)
-            elif i > idx2:
-                axR = Lon2R(angs[idx2]/dtor)
-            else:
-                axR = Lon2R(angs[i]/dtor)
-            minR = (axR - 1.5*CMElens[3])/215
-            maxR = (axR + 1.5*CMElens[3]+sheathwid)/215
-            mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
-            for j in mightBin:
-                # check if actually in CME
-                if doMer:
+            for i in np.arange(idx_min-dLat, idx_max+dLat, 1):
+                if not isVert:
+                    axR = Lat2R(0)
+                else:
+                    if i < idx1:
+                        axR = Lat2R(angs[idx1]/dtor)
+                    elif i > idx2:
+                        axR = Lat2R(angs[idx2]/dtor)
+                    else:
+                        axR = Lat2R(angs[i]/dtor)
+            
+                minR = (axR - 1.5*CMElens[3])/215
+                maxR = (axR + 1.5*CMElens[3]+sheathwid)/215
+                mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
+                for j in mightBin:
+                    # check if actually in CME
                     # Meridional
-                    thispos = np.array([rs[j]*215, angs[i%360]/dtor, merLon])
+                    thispos = np.array([rs[j]*215, angs[i]/dtor, merLon])
                     CMEpos = np.array([CMElat, 0, CMEtilt])
                     vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                     rbar = vpmag/maxrFR
+                    #print (thispos, rbar, CMElens, deltaAx, deltaCS)
                     if rbar <= 1:
                         # get velocity if in CME
                         vCMEframe, vCSVec = getvCMEframe(rbar, thisPsi, parat, deltaAx, deltaCS, vExps)
@@ -3143,9 +3162,44 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                         isCMEMer[i,j] = 1.
                     elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR):#(rs[j]*215. > CMElens[0]):
                         valuesMer[i,j] = vExps[0]
-                if doEq:    
-                    # Equatorial
-                    thispos = np.array([rs[j]*215, 0, angs[i%360]/dtor])
+        
+        # Equatorial check in CME
+        if doEq:
+            # Get min/max lon to tighten range to check if inCME
+            dLon = 50
+            minLon, maxLon = int(np.min(axLons))-dLon, int(np.max(axLons))+dLon
+            idx1 =  np.where(angs/dtor >= np.floor(np.min(axLons)))[0][0]
+            idx2 = np.where(angs/dtor >= np.ceil(np.max(axLons)))[0][0]
+            # if highly vertical then lon width actually set by AWp
+            if isVert:
+                minLon = int(- 0.5*CMEAWp)
+                maxLon = int(0.5*CMEAWp)
+                if maxLon > 180:
+                    maxLon -= 360.
+                idx1 =  np.where(angs/dtor >= np.floor(minLon))[0][0]
+                idx2 = np.where(angs/dtor >= np.ceil(maxLon))[0][0]
+            
+        
+            idx_min = np.min(np.where(angs >= minLon*dtor))
+            idx_max = np.max(np.where(angs <= maxLon*dtor))+1
+
+            for i in np.arange(idx_min-dLon, idx_max+dLon, 1):
+                if isVert:
+                    axR = Lon2R(0)
+                else:
+                    if i < idx1:
+                        axR = Lon2R(angs[idx1]/dtor)
+                    elif i > idx2:
+                        axR = Lon2R(angs[idx2]/dtor)
+                    else:
+                        axR = Lon2R(angs[i]/dtor)
+            
+                minR = (axR - 1.5*CMElens[3])/215
+                maxR = (axR + 1.5*CMElens[3]+sheathwid)/215
+                mightBin = np.where((rs >= minR) & (rs <= maxR))[0]
+                for j in mightBin:
+                    # check if actually in CME
+                    thispos = np.array([rs[j]*215, 0, angs[i%nTheta]/dtor])
                     CMEpos = np.array([CMElat, 0, CMEtilt])
                     vpmag, maxrFR, thisPsi, parat = whereAmI(thispos, CMEpos, CMElens, deltaAx, deltaCS, yaw=yaw)
                     rbar = vpmag/maxrFR
@@ -3156,7 +3210,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
                         isCMEEq[i,j] = 1.
                     elif (vpmag  < maxrFR + sheathwid) & (thispos[0] > axR): #(rs[j]*215. > CMElens[0]):
                         valuesEq[i,j] = vExps[0]
-               
+
         if doMer and doEq:
             if doColorbar:        
                 fig, ax = plt.subplots(1,2, subplot_kw=dict(projection='polar'), figsize=(11,5))
@@ -3175,11 +3229,12 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno, extend='both' )
             ax[0].contour(theta, r, isCMEMer, [0.1,1], colors='w')
             ax[0].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
-            
+            #ax[0].scatter(axLats*dtor, axRs/215)
         if doEq:
             CS = ax[1].contourf(theta, r, valuesEq, levels=levels, cmap=cm.inferno, extend='both')
             ax[1].contour(theta, r, isCMEEq, [0.1,1], colors='w')
             ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
+            #ax[1].scatter(axLons*dtor, axRs/215)
             
         if doSat:
             for i in range(nSat):
@@ -3300,7 +3355,7 @@ def runproOSP(inputPassed='noFile'):
     nEns = len(ResArr.keys())
 
     # Plots we can make for single CME simulations
-    if OSP.doFC:
+    '''if OSP.doFC:
         # Make CPA plot
         makeCPAplot(ResArr)
         # Make the AW, delta, v plot
@@ -3376,10 +3431,10 @@ def runproOSP(inputPassed='noFile'):
                 print ('')
                 print ('Missing FR start for ', satNames[i], ' so no metrics')
                 print ('')
-                print ('')
+                print ('')'''
     
-    if False:
-        enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=1200)
+    if True:
+        enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=500)
 
 if __name__ == '__main__':
     runproOSP()
