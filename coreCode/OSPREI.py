@@ -882,6 +882,10 @@ def genEnsMem(runnum=0):
         # The lambda functions will auto adjust to new global values in them
         if item == 'CMElat':
             new_pos[0] = np.random.normal(loc=float(input_values['CMElat']), scale=EnsInputs['CMElat'])
+            if new_pos[0] >= 90:
+                new_pos[0] = 89.99
+            elif new_pos[0] <= -90:
+                new_pos[0] = -89.99
             outstr += '{:4.2f}'.format(new_pos[0]) + ' '
         if item == 'CMElon':
             new_pos[1] = np.random.normal(loc=float(input_values['CMElon']), scale=EnsInputs['CMElon'])
