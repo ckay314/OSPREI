@@ -364,6 +364,7 @@ def checkInputs(printNonCrit=False):
         CMEM = 0.010 * float(input_values['CMEvr']) +0.16
         if CMEM > 0:
             input_values['CMEM'] = str(CMEM)
+            print ('Using '+str(CMEM) +' x10^15 g for CMEM')
         else:
             sys.exit('Cannot calc CME mass from vr, vr too small (<146 km/s) and produces negative mass with given regression')
     
@@ -555,7 +556,7 @@ def checkInputs(printNonCrit=False):
             KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
             phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
             B0 = phiflux * Cnm * (delCS**2 + 1) / avgR / Ltot / delCS**2 *1e5
-            Bcent = delCS * tau * B0
+            Bcent = delCS * tau * B0 
             if (Bcent < 500) or  (Bcent > 10000):
                 sys.exit('Cannot calculate a reasonable default flux rope B using empirical scaling. Please provide FRB')
             else:
@@ -637,7 +638,7 @@ def checkInputs(printNonCrit=False):
     if not hasSatPath and (np.abs(satR-215) < 15.):
         if 'SWn' in input_values:
             SWn = float(input_values['SWn'])
-            if (SWn < 0) or  (SWn > 10):
+            if (SWn < 0) or  (SWn > 50):
                 sys.exit('Solar wind number density (SWn) must be in [0.1, 50] cm^-3 if satR is near 1 AU') 
         else:
             input_values['SWn'] = str(7.5)
@@ -651,7 +652,7 @@ def checkInputs(printNonCrit=False):
             
         if 'SWB' in input_values:
             SWB = float(input_values['SWB'])
-            if (SWB < 0.1) or  (SWB > 50):
+            if (np.abs(SWB) < 0.1) or  (np.abs(SWB) > 50):
                 sys.exit('Solar wind magnetic field strength (SWB) must be in [0.1, 50] nT if satR is near 1 AU') 
         else:
             input_values['SWB'] = str(6.9)
@@ -1207,6 +1208,7 @@ def makeCMEarray():
     if 'SWn'    in input_values: CME.nSW = float(input_values['SWn'])
     if 'SWv'    in input_values: CME.vSW = float(input_values['SWv'])
     if 'SWB'    in input_values: CME.BSW = float(input_values['SWB'])
+    if 'SWT'    in input_values: CME.TSW = float(input_values['SWT'])
     if 'MHarea'    in input_values: CME.MHarea = float(input_values['MHarea'])
     if 'MHdist'    in input_values: CME.MHdist = float(input_values['MHdist'])
     if 'CMEyaw'    in input_values: CME.yaw = float(input_values['CMEyaw'])
@@ -1429,6 +1431,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
         isSilent = False
+
         if actualPath:      
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
         else:
