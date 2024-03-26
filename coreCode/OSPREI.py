@@ -41,6 +41,9 @@ radeg = 57.29577951    # radians to degrees
 # pick a number to seed the random number generator used by ensembles
 np.random.seed(20220310)
 
+# turn off all printing
+allSilent = True
+
 def setupOSPREI(logInputs=False, inputPassed='noFile'):
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
@@ -173,14 +176,16 @@ def setupOSPREI(logInputs=False, inputPassed='noFile'):
         dObj = datetime.datetime(yr, mon, day,hrs,mins)
         dNewYear = datetime.datetime(yr, 1, 1, 0,0)
         DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
-        print('Simulation starts at '+dObj.strftime('%Y %b %d %H:%M '))
+        if not allSilent:
+            print('Simulation starts at '+dObj.strftime('%Y %b %d %H:%M '))
                         
     global thisName
     if noDate:
         thisName = suffix
     else:
         thisName = date+suffix
-    print('Running '+str(nRuns)+' OSPREI simulation(s) for '+thisName)
+    if not allSilent:
+        print('Running '+str(nRuns)+' OSPREI simulation(s) for '+thisName)
 
     # See if we have a directory for output, create if not
     # I save things in individual folders, but you can dump it whereever
@@ -201,12 +206,12 @@ def setupOSPREI(logInputs=False, inputPassed='noFile'):
             input_values['CMEr'] = 21.5
         else:
             input_values['CMEr'] = satPos[2]
-            
-    print( 'Running: ')
-    print( 'ForeCAT: ', doFC)
-    print( 'ANTEATR: ', doANT)
-    print( 'FIDO:    ', doFIDO)
-    print('')
+    if not allSilent:        
+        print( 'Running: ')
+        print( 'ForeCAT: ', doFC)
+        print( 'ANTEATR: ', doANT)
+        print( 'FIDO:    ', doFIDO)
+        print('')
 
 def add2inputlog(input_values):
     # Enable Reproducibility with the Input Keeper Assistant - ERIKA mode
@@ -364,7 +369,8 @@ def checkInputs(printNonCrit=False):
         CMEM = 0.010 * float(input_values['CMEvr']) +0.16
         if CMEM > 0:
             input_values['CMEM'] = str(CMEM)
-            print ('Using '+str(CMEM) +' x10^15 g for CMEM')
+            if not allSilent:
+                print ('Using '+str(CMEM) +' x10^15 g for CMEM')
         else:
             sys.exit('Cannot calc CME mass from vr, vr too small (<146 km/s) and produces negative mass with given regression')
     
@@ -560,7 +566,8 @@ def checkInputs(printNonCrit=False):
             if (Bcent < 500) or  (Bcent > 10000):
                 sys.exit('Cannot calculate a reasonable default flux rope B using empirical scaling. Please provide FRB')
             else:
-                print('Using ', Bcent, ' nT for FRB')
+                if not allSilent:
+                    print('Using ', Bcent, ' nT for FRB')
                 input_values['FRB'] = str(Bcent)
 
         if 'FRT' in input_values:
@@ -576,7 +583,8 @@ def checkInputs(printNonCrit=False):
             if (FRT < 5e4) or  (FRT > 2e6):
                 sys.exit('Cannot calculate a reasonable default flux rope T using empirical scaling. Please provide FR T')
             else:
-                print('Using ', FRT, ' K for FRT')
+                if not allSilent:
+                    print('Using ', FRT, ' K for FRT')
                 input_values['FRT'] = str(FRT)
         
         
@@ -1430,7 +1438,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         # SW polarity in or out - THINK THIS WAS FLIPPED FOR ISSI/PROPOSAL CASE?
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
-        isSilent = False
+        isSilent = allSilent
 
         if actualPath:      
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
@@ -1483,12 +1491,14 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                     CMEn     = ATresults[10][hitIdx]
                     logT     = ATresults[11][hitIdx]
                     
-                    print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(thisSum[5])+' hr')
+                    if not allSilent:
+                        print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(thisSum[5])+' hr')
                     
-                    if not noDate:
-                        dImp = dObj + datetime.timedelta(days=TotTime)
-                        print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
-                    print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
+                    if not allSilent:
+                        if not noDate:
+                            dImp = dObj + datetime.timedelta(days=TotTime)
+                            print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+                        print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
                                       
                     # Record FIDO/PUP results specific to each satellite
                     if doFIDO:

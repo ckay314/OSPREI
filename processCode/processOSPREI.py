@@ -1368,7 +1368,9 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                 else:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 #axes[4].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=2, color='DarkGray')
-            
+                print('ATs: ', dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
+            else:
+                print('ATs: ', dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
             # plot SW outside of sh+FR
             if len(ResArr[key].FIDO_SWidx[satID]) > 0:
                 if len(ResArr[key].FIDO_shidx[satID]) != 0:
@@ -3301,7 +3303,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Enlilesque'+countstr+'.'+figtag)
         plt.close()
     
-def runproOSP(inputPassed='noFile'):
+def runproOSP(inputPassed='noFile', onlyIS=False):
     # set whether to save the figures as png or pdf
     # set only to 'png' or 'pdf'
     global figtag
@@ -3329,6 +3331,7 @@ def runproOSP(inputPassed='noFile'):
         if nSat == 1:
             ObsData = [readInData(OSP.ObsDataFile)]
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
+            satNames = ['sat1']
         
     # if have multi sats
     elif 'satPath' in OSP.input_values:
@@ -3353,88 +3356,95 @@ def runproOSP(inputPassed='noFile'):
 
     global nEns
     nEns = len(ResArr.keys())
-
-    # Plots we can make for single CME simulations
-    '''if OSP.doFC:
-        # Make CPA plot
-        makeCPAplot(ResArr)
-        # Make the AW, delta, v plot
-        # Non-forecast plot
-        #makeADVplot(ResArr)    # haven't checked post FIDO integration into ANT
-
-    if OSP.doANT:
-        if OSP.doPUP:
-            # make IP plot including sheath stuff
-            try:
-                makePUPplot(ResArr) #Fix this
-            except:
-                print ('Assuming no sheath, not plotting PUP')
-        # Make drag profile
-        makeDragless(ResArr)
-        # Non-forecast version with more params
-        #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
     
-    if OSP.doFIDO:
+    if onlyIS:
         # Make in situ plot
         for i in range(nSat):
             makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+    
+    else:
 
-    # Ensemble plots
-    if nEns > 1:
+        # Plots we can make for single CME simulations
         if OSP.doFC:
             # Make CPA plot
-            makeCPAhist(ResArr)
-            
-        if OSP.doANT:
-            # Make arrival time hisogram 
-            for i in range(nSat):
-                makeAThisto(ResArr, satID=i)
-                
-        if OSP.doFIDO:
-            # FIDO histos- duration, minBz
-            # Non-forecast version with more params
-            # Run it anyway in case we don't have a sheath and 
-            # missing params from forecast version
-            for i in range(nSat):
-                makeFIDOhistos(ResArr, satID=i)
-            if OSP.doPUP:
-                # Non-forecast version with more params
-                #makeSIThistos(ResArr)
-                for i in range(nSat):
-                    makeallIShistos(ResArr, satID=i)
-            # Kp probability timeline
-            for i in range(nSat):
-                makeAllprob(ResArr, satID=i)
+            makeCPAplot(ResArr)
+            # Make the AW, delta, v plot
+            # Non-forecast plot
+            #makeADVplot(ResArr)    # haven't checked post FIDO integration into ANT
 
-        # Slow plots -- worth commenting out if running quick tests
-        # and not looking specifically at these
-        
-        # Ensemble input-output plot
-        for i in range(nSat):
-            makeEnsplot(ResArr,critCorr=0.5, satID=i)
-        
-        # Contour plot
-        for i in range(nSat):
-            makeContours(ResArr, satID=i)
+        if OSP.doANT:
+            if OSP.doPUP:
+                # make IP plot including sheath stuff
+                try:
+                    makePUPplot(ResArr) #Fix this
+                except:
+                    print ('Assuming no sheath, not plotting PUP')
+            # Make drag profile
+            makeDragless(ResArr)
+            # Non-forecast version with more params
+            #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
     
-    # Also slow now
-    for i in range(nSat):
-        if hasObs:
-            if OSP.obsFRstart[i] not in [None, 9999.]:
-                print ('----------------------- Sat:' , satNames[i], '-----------------------')
-                if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
-                    # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
-                    getISmetrics(ResArr, satID=i, ignoreSheath=False)
-                print ('')
-                print('')
-            else:
-                print ('')
-                print ('Missing FR start for ', satNames[i], ' so no metrics')
-                print ('')
-                print ('')'''
+        if OSP.doFIDO:
+            # Make in situ plot
+            for i in range(nSat):
+                makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+
+        # Ensemble plots
+        if nEns > 1:
+            if OSP.doFC:
+                # Make CPA plot
+                makeCPAhist(ResArr)
+            
+            if OSP.doANT:
+                # Make arrival time hisogram 
+                for i in range(nSat):
+                    makeAThisto(ResArr, satID=i)
+                
+            if OSP.doFIDO:
+                # FIDO histos- duration, minBz
+                # Non-forecast version with more params
+                # Run it anyway in case we don't have a sheath and 
+                # missing params from forecast version
+                for i in range(nSat):
+                    makeFIDOhistos(ResArr, satID=i)
+                if OSP.doPUP:
+                    # Non-forecast version with more params
+                    #makeSIThistos(ResArr)
+                    for i in range(nSat):
+                        makeallIShistos(ResArr, satID=i)
+                # Kp probability timeline
+                for i in range(nSat):
+                    makeAllprob(ResArr, satID=i)
+
+            # Slow plots -- worth commenting out if running quick tests
+            # and not looking specifically at these
+        
+            # Ensemble input-output plot
+            for i in range(nSat):
+                makeEnsplot(ResArr,critCorr=0.5, satID=i)
+        
+            # Contour plot
+            for i in range(nSat):
+                makeContours(ResArr, satID=i)
     
-    if True:
-        enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=500)
+        # Also slow now
+        for i in range(nSat):
+            if hasObs:
+                if OSP.obsFRstart[i] not in [None, 9999.]:
+                    print ('----------------------- Sat:' , satNames[i], '-----------------------')
+                    if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
+                        # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
+                        getISmetrics(ResArr, satID=i, ignoreSheath=False)
+                    print ('')
+                    print('')
+                else:
+                    print ('')
+                    print ('Missing FR start for ', satNames[i], ' so no metrics')
+                    print ('')
+                    print ('')
+    
+        if False:
+            enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=500)
 
 if __name__ == '__main__':
     runproOSP()
