@@ -42,7 +42,7 @@ radeg = 57.29577951    # radians to degrees
 np.random.seed(20220310)
 
 # turn off all printing
-allSilent = True
+allSilent = False
 
 def setupOSPREI(logInputs=False, inputPassed='noFile'):
     # Initial OSPREI setup ---------------------------------------------|
@@ -1140,7 +1140,7 @@ def goForeCAT(makeRestart=False):
                 FC.PFSSscale = CME.BSW / BSS
 
         # Run ForeCAT
-        CME, path = runForeCAT(CME, rmax, path=True)
+        CME, path = runForeCAT(CME, rmax, path=True, silent=allSilent)
         
         # add a few useful 1 AU SW parameters to the CME object
         if useFCSW:
