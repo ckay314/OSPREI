@@ -274,7 +274,9 @@ def preProcessIt(inputs):
         magObs = inputs['Magnetogram']
         magFile = inputs['MagFile']
         rSS = float(allIns['SunRss'])
-        magName = magFile.replace('.fits.gz','') + '_Rss' + allIns['SunRss']
+        magName = magFile.replace('.fits','') + '_Rss' + allIns['SunRss']
+        if '.gz' in magName:
+            magName = magName.replace('.gz','')
     
         #magName = 'HMI2253synop' # for testing, comment out
         # check if the file already exists before running

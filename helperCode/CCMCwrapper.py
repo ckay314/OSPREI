@@ -9,8 +9,8 @@ magpath  = myPaths[2,1]
 
 sys.path.append(os.path.abspath(mainpath)) 
 sys.path.append(os.path.abspath(codepath)) 
-sys.path.append(os.path.abspath(mainpath+'processCode/')) 
-sys.path.append(os.path.abspath(mainpath+'helperCode/')) 
+sys.path.append(os.path.join(codepath[:-8],'processCode/')) 
+sys.path.append(os.path.join(codepath[:-8],'helperCode/')) 
 
 from OSPREI import runOSPREI
 from processOSPREI import runproOSP
@@ -24,7 +24,7 @@ input_file = sys.argv[1]
 # ---------- Read in the query files -------------
 # ------------------------------------------------
 # Set to skip top line "Control File"
-data = np.genfromtxt(input_file, dtype=str, skip_header=1)
+data = np.genfromtxt(input_file, dtype=str)
 # Turn into a dictionary and rm : from names
 inputs = {}
 for i in range(len(data[:,0])):
