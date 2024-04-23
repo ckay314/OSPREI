@@ -288,7 +288,9 @@ def preProcessIt(inputs):
                 isSinLat = True
         
             # Adjust magnetogram to Carrington 0-360 longitude (most have newest data on left)
-    
+            if magObs in ['Gong']:
+                magFile = m2P.sync2carrGONG(magFile)
+
             # calculate the harmonic coeffs
             # make it ignore div by zero in logs, complains about unused part of array
             np.seterr(divide = 'ignore', invalid = 'ignore') 

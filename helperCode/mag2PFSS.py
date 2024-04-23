@@ -54,7 +54,24 @@ def sync2carrHMI(input_file,  nameOut=None):
             nameOut = new_file
         myfits.writeto(magpath+nameOut, output_verify='ignore', overwrite=True) 
         return nameOut
-        
+
+def sync2carrGONG(input_file):
+    # assuming these are the mrzqs with one deg resolution and the lon number
+    # in the title is the corresponding lon of the left side
+    myfits = fits.open(magpath+input_file)  
+    data = myfits[0].data
+    newdata = np.zeros(data.shape)
+    nameOut = input_file[:-5]+'SHIFT'+input_file[-5:]    
+    
+    lonShift = int(input_file[-8:-5])
+    endIdx = 359-lonShift +1
+    newdata[:, lonShift:] = data[:,:endIdx]
+    newdata[:, :lonShift] = data[:,endIdx:]
+    
+    myfits[0].data = newdata
+    myfits.writeto(magpath+nameOut, output_verify='ignore', overwrite=True) 
+    return nameOut
+            
 def harmonics(obs, IDname, nHarmonics, isSinLat=True, nameIn=None, nameOut=None):
     # Script that takes in a magnetogram and produces the harmonic
     # coefficients needed for the PFSS model.
