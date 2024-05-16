@@ -557,7 +557,9 @@ def checkInputs(printNonCrit=False):
         if 'FRB' in input_values:
             FRB = float(input_values['FRB'])
             if (np.abs(FRB) < 500) or  (np.abs(FRB) > 10000):
-                sys.exit('Flux rope |B| (FRB) must be in [500, 10000] nT') 
+                if float(input_values['CMEr']) < 30.:
+                    sys.exit('Flux rope |B| (FRB) must be in [500, 10000] nT') 
+                
         else:
             KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
             phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
@@ -1630,11 +1632,14 @@ def goFIDO(satPathIn=False):
     FIDOfiles = []
     # Will either open one for each given name or a single one if don't have sat names    
     for satName in satNames:
+        if (len(satNames) == 1) and (satName == 'sat1'):
+            satName = ''
+        
         # reset the generic 'sat1' to nothing if only doing 1 case with temp name
         FIDOfile = open(Dir+'/FIDOresults'+thisName+satName+'.dat', 'w')
         FIDOfiles.append(FIDOfile)
     FIDOfiles = np.array(FIDOfiles)
-
+    
     # ANTEATR takes inputs
     # invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, nSW, vSW, BSW, Cd, tau, cnm]         <-this is outdated
     # SatVars0 = [Satlat, Satlon, Satradius] -> technically doesn't have to be Earth!
@@ -1747,7 +1752,7 @@ def goFIDO(satPathIn=False):
         
         # Package up invec, run ANTEATR        
         gamma = CME.gamma
-        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma]
+        invec = [CMElat, CMElon, tilt, vr, mass, cmeAW, cmeAWp, deltax, deltap, CMEr0, FRB, Cd, tau, cnm, FRT, gamma, CME.yaw]
         SWvec = [CME.nSW, CME.vSW, np.abs(CME.BSW), CME.TSW]
         
         # check if given SW 1D profiles

@@ -162,8 +162,15 @@ def txt2obj(GCStime):
         ANTdata = np.genfromtxt(ANTfile, dtype=float, encoding='utf8')
         # get the unique ANTEATR ideas (only one row per id here)
         # might have some missing if it misses
-        ANTids = ANTdata[:,0].astype(int)
-        unANTids = np.unique(ANTdata[:,0].astype(int))
+        if (8888. in ANTdata):
+            print ('Skipping ANTEATR figures because forces were unstable')
+            print ('Try decreasing AWp. Forces tend to break if AWp is too large relative to AW.')
+            ANTids = []
+            unANTids = []
+            OSP.doANT = False
+        else:
+            ANTids = ANTdata[:,0].astype(int)
+            unANTids = np.unique(ANTdata[:,0].astype(int))
         if OSP.doPUP:
             PUPfile = OSP.Dir+'/PUPresults'+OSP.thisName+'.dat'
             PUPdata = np.genfromtxt(PUPfile, dtype=float, encoding='utf8')
@@ -294,13 +301,20 @@ def txt2obj(GCStime):
         FIDOdata = [[] for i in range(nSat)]
         ids = [[] for i in range(nSat)]
         unFIDOids = [[] for i in range(nSat)]
+        
         for i in range(nSat):
             satName = satNames[i]
             FIDOfile = OSP.Dir+'/FIDOresults'+OSP.thisName+satName+'.dat'
             FIDOdata[i] = np.genfromtxt(FIDOfile, dtype=float, encoding='utf8')
-            ids[i] = FIDOdata[i][:,0].astype(int)
-            unFIDOids[i] = np.unique(ids[i])
-        
+            # Check that contact actually happens and prints to a file otherwise
+            # don't try to plot FIDO data
+            if (8888 in FIDOdata[0]) or (9999 in FIDOdata[0]) or not FIDOdata[0]:
+                print('No contact so not plotting FIDO data')
+                OSP.doFIDO = False
+            else:
+                ids[i] = FIDOdata[i][:,0].astype(int)
+                unFIDOids[i] = np.unique(ids[i])
+                 
         if OSP.doPUP:
             SITdata = [[] for i in range(nSat)]
             SITids  = [[] for i in range(nSat)]
@@ -369,13 +383,53 @@ def txt2obj(GCStime):
                     thisRes = ResArr[i]
                     if thisRes.fail:
                         skipit = True   
-                elif (i not in ResArr.keys()):
+                elif (OSP.doFC) or (OSP.doANT) and (i not in ResArr.keys()):
                     skipit = True     
                 else:
                     thisRes = EnsRes(OSP.thisName)
+                    thisRes.myID = i
+                    thisRes.FIDOtimes  = [None for i in range(nSat)]
+                    thisRes.FIDOmiss   = [True for i in range(nSat)]
+                    thisRes.FIDOBxs    = [[] for i in range(nSat)]
+                    thisRes.FIDOBys    = [[] for i in range(nSat)]
+                    thisRes.FIDOBzs    = [[] for i in range(nSat)]
+                    thisRes.FIDOBs     = [[] for i in range(nSat)]
+                    thisRes.FIDOvs     = [[] for i in range(nSat)]
+                    thisRes.FIDOns     = [[] for i in range(nSat)]
+                    thisRes.FIDOtems   = [[] for i in range(nSat)]
+                    thisRes.FIDOKps    = [[] for i in range(nSat)]
+                    thisRes.regions    = [[] for i in range(nSat)]
+                    thisRes.FIDO_shidx = [[] for i in range(nSat)]
+                    thisRes.FIDO_FRidx = [[] for i in range(nSat)]
+                    thisRes.FIDO_SWidx = [[] for i in range(nSat)]
+                    thisRes.FIDO_FRdur = [0 for i in range(nSat)]
+                    thisRes.FIDO_shdur = [0 for i in range(nSat)]
+                    thisRes.FIDO_FRexp = [0 for i in range(nSat)]
+                    thisRes.ANTshidx   = [[] for i in range(nSat)]
+                    thisRes.ANTFRidx   = [None for i in range(nSat)]
+                    thisRes.ANTdur = [0 for i in range(nSat)]
+                    thisRes.ANTKp0 = [0 for i in range(nSat)]
+                    thisRes.FIDOnormrs = [[] for i in range(nSat)]
+                    thisRes.isSheath   = [[] for i in range(nSat)]
+                    thisRes.hasSheath  = [False for i in range(nSat)]   
+                    thisRes.FIDO_shidx = [[] for i in range(nSat)]
+            
+                    thisRes.SITidx = [[] for i in range(nSat)]
+                    thisRes.SITdur = [0 for i in range(nSat)]
+                    thisRes.SITcomp = [0 for i in range(nSat)]
+                    thisRes.SITMach = [0 for i in range(nSat)]
+                    thisRes.SITn    = [0 for i in range(nSat)]
+                    thisRes.SITvSheath = [0 for i in range(nSat)]
+                    thisRes.SITB    = [0 for i in range(nSat)]   
+                    thisRes.SITvShock = [0 for i in range(nSat)] 
+                    thisRes.SITtemp = [0 for i in range(nSat)]
+                    thisRes.SITminBz = [0 for i in range(nSat)]
+                    thisRes.SITmaxB = [0 for i in range(nSat)]
+                    thisRes.SITmaxKp = [0 for i in range(nSat)]            
+                    ResArr[i] = thisRes
                 
                 if not skipit:
-                    # Set as an impact not a miss (might not have run ANTEATR)
+                    # Set as an impact not a miss (might not have run ANTEATR)                    
                     thisRes.FIDOmiss[k] = False
                     myidxs = np.where(ids[k]==i)[0]
                     thisRes.FIDOtimes[k] = FIDOdata[k][myidxs,1]
@@ -931,16 +985,17 @@ def makeDragless(ResArr):
             axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
     else:
         thisIdx = ResArr[0].ANTFRidx[0]
-        axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b') 
-        if OSP.simYaw:
-            axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon') 
+        if thisIdx:
+            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+            axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+            axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+            axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+            axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b') 
+            if OSP.simYaw:
+                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon') 
 
                   
     # Labels
