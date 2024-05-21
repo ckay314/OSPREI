@@ -102,6 +102,9 @@ class EnsRes:
  
 def txt2obj(GCStime):
     ResArr = {}
+    global nHits, nFails
+    nHits = 0
+    nFails = 0
     
     if not OSP.noDate:
         global yr, mon, day, DoY
@@ -181,9 +184,6 @@ def txt2obj(GCStime):
                 PUPids = []
                 unPUPids = []
             
-        global nHits, nFails
-        nHits = 0
-        nFails = 0
         
         for i in unANTids:
             # Check if we already have set up the objects
@@ -280,12 +280,12 @@ def txt2obj(GCStime):
                         thisRes.PUPinit = PUPdata[myPUPidxs,12]
                                         
                 ResArr[thisRes.myID] = thisRes
-
-
+               
     if OSP.doFIDO:
-        global nSat, satNames
+        global nSat, satNames, hitsSat 
         satNames = ['']
         nSat = 1
+        
         if 'satPath' in OSP.input_values:
             satPath = OSP.input_values['satPath']
             satPaths = OSP.satPathWrapper(satPath, checkSatlen=False)
@@ -297,6 +297,9 @@ def txt2obj(GCStime):
         satNames = np.array(satNames)
         if (nSat == 1) and (satNames[0]=='sat1'):
             satNames = np.array([''])
+        # need to track if we actually have any cases impact that satellite
+        # if not, easiest to just turn off plotting
+        hitsSat = [False for i in range(nSat)]
         
         FIDOdata = [[] for i in range(nSat)]
         ids = [[] for i in range(nSat)]
@@ -305,15 +308,18 @@ def txt2obj(GCStime):
         for i in range(nSat):
             satName = satNames[i]
             FIDOfile = OSP.Dir+'/FIDOresults'+OSP.thisName+satName+'.dat'
-            FIDOdata[i] = np.genfromtxt(FIDOfile, dtype=float, encoding='utf8')
-            # Check that contact actually happens and prints to a file otherwise
-            # don't try to plot FIDO data
-            if (8888 in FIDOdata[0]) or (9999 in FIDOdata[0]) or not FIDOdata[0]:
-                print('No contact so not plotting FIDO data')
-                OSP.doFIDO = False
-            else:
-                ids[i] = FIDOdata[i][:,0].astype(int)
-                unFIDOids[i] = np.unique(ids[i])
+            file_size = os.path.getsize(FIDOfile)
+            if file_size != 0:
+                FIDOdata[i] = np.genfromtxt(FIDOfile, dtype=float, encoding='utf8')
+                # Check that contact actually happens and prints to a file otherwise
+                # don't try to plot FIDO data
+                if (len(FIDOdata[i].shape)==1) or (len(FIDOdata[i][:,0]) == int(FIDOdata[i][-1,0]+1)):
+                    print('No contact so not plotting FIDO data')
+                    OSP.doFIDO = False
+                else:
+                    ids[i] = FIDOdata[i][:,0].astype(int)
+                    unFIDOids[i] = np.unique(ids[i])
+                    hitsSat[i] = True
                  
         if OSP.doPUP:
             SITdata = [[] for i in range(nSat)]
@@ -330,6 +336,16 @@ def txt2obj(GCStime):
                         SITdata[i] = SITdata[i].reshape([1,-1])
                     else:
                         SITids[i] = []
+                        
+        if (not OSP.doFC) and (not OSP.doANT):
+            for i in unFIDOids[0]:
+                thisRes = EnsRes(OSP.thisName)
+                thisRes.myID = i
+                # add in CME lat lon tilt
+                thisRes.FClats = [float(OSP.input_values['CMElat'])]
+                thisRes.FClons = [float(OSP.input_values['CMElon'])]
+                thisRes.FCtilts = [float(OSP.input_values['CMEtilt'])]
+                ResArr[i] = thisRes
                         
         # Reset FIDO data to hold correct number of sats
         for key in ResArr.keys():
@@ -372,11 +388,13 @@ def txt2obj(GCStime):
             thisRes.SITminBz = [0 for i in range(nSat)]
             thisRes.SITmaxB = [0 for i in range(nSat)]
             thisRes.SITmaxKp = [0 for i in range(nSat)]
-            
-            ResArr[key] = thisRes             
+            ResArr[key] = thisRes  
+                       
                         
         for k in range(nSat):    
-            for i in unFIDOids[k]:
+            for i in unFIDOids[k]:  
+                thisRes = ResArr[i] 
+                myidxs = np.where(ids[k]==i)[0] 
                 skipit = False
                 # Make sure we actually want to include this case
                 if (OSP.doFC) or (OSP.doANT) and (i in ResArr.keys()):
@@ -384,49 +402,9 @@ def txt2obj(GCStime):
                     if thisRes.fail:
                         skipit = True   
                 elif (OSP.doFC) or (OSP.doANT) and (i not in ResArr.keys()):
-                    skipit = True     
-                else:
-                    thisRes = EnsRes(OSP.thisName)
-                    thisRes.myID = i
-                    thisRes.FIDOtimes  = [None for i in range(nSat)]
-                    thisRes.FIDOmiss   = [True for i in range(nSat)]
-                    thisRes.FIDOBxs    = [[] for i in range(nSat)]
-                    thisRes.FIDOBys    = [[] for i in range(nSat)]
-                    thisRes.FIDOBzs    = [[] for i in range(nSat)]
-                    thisRes.FIDOBs     = [[] for i in range(nSat)]
-                    thisRes.FIDOvs     = [[] for i in range(nSat)]
-                    thisRes.FIDOns     = [[] for i in range(nSat)]
-                    thisRes.FIDOtems   = [[] for i in range(nSat)]
-                    thisRes.FIDOKps    = [[] for i in range(nSat)]
-                    thisRes.regions    = [[] for i in range(nSat)]
-                    thisRes.FIDO_shidx = [[] for i in range(nSat)]
-                    thisRes.FIDO_FRidx = [[] for i in range(nSat)]
-                    thisRes.FIDO_SWidx = [[] for i in range(nSat)]
-                    thisRes.FIDO_FRdur = [0 for i in range(nSat)]
-                    thisRes.FIDO_shdur = [0 for i in range(nSat)]
-                    thisRes.FIDO_FRexp = [0 for i in range(nSat)]
-                    thisRes.ANTshidx   = [[] for i in range(nSat)]
-                    thisRes.ANTFRidx   = [None for i in range(nSat)]
-                    thisRes.ANTdur = [0 for i in range(nSat)]
-                    thisRes.ANTKp0 = [0 for i in range(nSat)]
-                    thisRes.FIDOnormrs = [[] for i in range(nSat)]
-                    thisRes.isSheath   = [[] for i in range(nSat)]
-                    thisRes.hasSheath  = [False for i in range(nSat)]   
-                    thisRes.FIDO_shidx = [[] for i in range(nSat)]
-            
-                    thisRes.SITidx = [[] for i in range(nSat)]
-                    thisRes.SITdur = [0 for i in range(nSat)]
-                    thisRes.SITcomp = [0 for i in range(nSat)]
-                    thisRes.SITMach = [0 for i in range(nSat)]
-                    thisRes.SITn    = [0 for i in range(nSat)]
-                    thisRes.SITvSheath = [0 for i in range(nSat)]
-                    thisRes.SITB    = [0 for i in range(nSat)]   
-                    thisRes.SITvShock = [0 for i in range(nSat)] 
-                    thisRes.SITtemp = [0 for i in range(nSat)]
-                    thisRes.SITminBz = [0 for i in range(nSat)]
-                    thisRes.SITmaxB = [0 for i in range(nSat)]
-                    thisRes.SITmaxKp = [0 for i in range(nSat)]            
-                    ResArr[i] = thisRes
+                    skipit = True   
+                elif (FIDOdata[k][myidxs[0],1] == 8888.):
+                    skipit = True
                 
                 if not skipit:
                     # Set as an impact not a miss (might not have run ANTEATR)                    
@@ -499,6 +477,7 @@ def txt2obj(GCStime):
                             thisRes.SITmaxB[k] = np.max(thisRes.FIDOBs[k][thisRes.SITidx[k]])
                             thisRes.SITmaxKp[k] = np.max(thisRes.FIDOKps[k][thisRes.SITidx[k]])
                 ResArr[i] = thisRes
+                
 
     # if haven't run FC may have fewer CMEs in ResArr than total runs if have misses
     for j in range(OSP.nRuns):
@@ -865,7 +844,8 @@ def makeDragless(ResArr):
     nImp = 0
     hits = []
     for i in range(nEns):
-        if (not ResArr[i].FIDOmiss[0]) and (not ResArr[i].fail):
+        #if (not ResArr[i].FIDOmiss[0]) and (not ResArr[i].fail):
+        if (not ResArr[i].fail):
             nImp += 1
             hits.append(i)
     
@@ -916,7 +896,6 @@ def makeDragless(ResArr):
                 
             i += 1
         
-        
         for i in range(npts):
             means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
             stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
@@ -948,6 +927,7 @@ def makeDragless(ResArr):
         all_AWs, all_AWps, all_delAxs, all_delCSs, all_vFs, all_vCSrs, all_Btors, all_Ts, all_yaws = [], [], [], [], [], [], [], [], []
         for key in ResArr.keys():
             thisIdx = ResArr[key].ANTFRidx[0]
+            
             # with multi sat hits is not necessarily hit for all
             if thisIdx != None:
                 all_AWs.append(ResArr[key].ANTAWs[thisIdx])
@@ -960,42 +940,45 @@ def makeDragless(ResArr):
                 all_Ts.append(ResArr[key].ANTlogTs[thisIdx])
                 if OSP.simYaw:
                     all_yaws.append(ResArr[key].ANTyaws[thisIdx])
-        fitAWs = norm.fit(all_AWs)
-        fitAWps = norm.fit(all_AWps)
-        fitdelAxs = norm.fit(all_delAxs)
-        fitdelCSs = norm.fit(all_delCSs)
-        fitvFs = norm.fit(all_vFs)
-        fitvCSrs = norm.fit(all_vCSrs)
-        fitBtors = norm.fit(all_Btors)
-        fitTs    = norm.fit(all_Ts)
-        if OSP.simYaw:
-            fityaws = norm.fit(all_yaws)
-        
-        
-        axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:2.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
-        axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')     
-        if OSP.simYaw:
-            axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
-    else:
-        thisIdx = ResArr[0].ANTFRidx[0]
-        if thisIdx:
-            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-            axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-            axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-            axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-            axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b') 
+        if all_AWs != []:
+            fitAWs = norm.fit(all_AWs)
+            fitAWps = norm.fit(all_AWps)
+            fitdelAxs = norm.fit(all_delAxs)
+            fitdelCSs = norm.fit(all_delCSs)
+            fitvFs = norm.fit(all_vFs)
+            fitvCSrs = norm.fit(all_vCSrs)
+            fitBtors = norm.fit(all_Btors)
+            fitTs    = norm.fit(all_Ts)
             if OSP.simYaw:
-                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon') 
+                fityaws = norm.fit(all_yaws)
+
+            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+            axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:2.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+            try:
+                axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
+            except:
+                pass
+            axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+            axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+            axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')     
+            if OSP.simYaw:
+                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
+        else:
+            thisIdx = ResArr[0].ANTFRidx[0]
+            if thisIdx:
+                axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+                axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+                axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+                axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+                axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+                axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+                axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+                axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b') 
+                if OSP.simYaw:
+                    axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon') 
 
                   
     # Labels
@@ -3411,14 +3394,13 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
 
     global nEns
     nEns = len(ResArr.keys())
-    
     if onlyIS:
         # Make in situ plot
         for i in range(nSat):
-            makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+            if hitsSat[i]:
+                makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
     
     else:
-
         # Plots we can make for single CME simulations
         if OSP.doFC:
             # Make CPA plot
@@ -3434,15 +3416,17 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     makePUPplot(ResArr) #Fix this
                 except:
                     print ('Assuming no sheath, not plotting PUP')
+            
             # Make drag profile
             makeDragless(ResArr)
             # Non-forecast version with more params
             #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
-    
+
         if OSP.doFIDO:
             # Make in situ plot
             for i in range(nSat):
-                makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                if hitsSat[i]:
+                    makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
 
         # Ensemble plots
         if nEns > 1:
@@ -3453,7 +3437,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             if OSP.doANT:
                 # Make arrival time hisogram 
                 for i in range(nSat):
-                    makeAThisto(ResArr, satID=i)
+                    if hitsSat[i]:
+                        makeAThisto(ResArr, satID=i)    
+                    # Contour plot - not set up to run FIDO only so keep in here
+                    makeContours(ResArr, satID=i)
                 
             if OSP.doFIDO:
                 # FIDO histos- duration, minBz
@@ -3461,30 +3448,31 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                 # Run it anyway in case we don't have a sheath and 
                 # missing params from forecast version
                 for i in range(nSat):
-                    makeFIDOhistos(ResArr, satID=i)
+                    if hitsSat[i]:
+                        makeFIDOhistos(ResArr, satID=i)
                 if OSP.doPUP:
                     # Non-forecast version with more params
                     #makeSIThistos(ResArr)
                     for i in range(nSat):
-                        makeallIShistos(ResArr, satID=i)
+                        if hitsSat[i]:
+                            makeallIShistos(ResArr, satID=i)
                 # Kp probability timeline
                 for i in range(nSat):
-                    makeAllprob(ResArr, satID=i)
+                    if hitsSat[i]:
+                        makeAllprob(ResArr, satID=i)
 
             # Slow plots -- worth commenting out if running quick tests
             # and not looking specifically at these
         
             # Ensemble input-output plot
             for i in range(nSat):
-                makeEnsplot(ResArr,critCorr=0.5, satID=i)
+                if hitsSat[i]:
+                    makeEnsplot(ResArr,critCorr=0.5, satID=i)
         
-            # Contour plot
-            for i in range(nSat):
-                makeContours(ResArr, satID=i)
     
         # Also slow now
         for i in range(nSat):
-            if hasObs:
+            if hasObs and (hitsSat[i]):
                 if OSP.obsFRstart[i] not in [None, 9999.]:
                     print ('----------------------- Sat:' , satNames[i], '-----------------------')
                     if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
