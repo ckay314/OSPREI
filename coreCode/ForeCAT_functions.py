@@ -167,7 +167,7 @@ def getInps(input_values, flagDate=False):
     user_exp = lambda R_nose: aw0 + (awM-aw0)*(1. - np.exp(-(R_nose-1.)/awR))
     # check if we have AWp given, for now use ratio of AWp/AWmax to scale
     # expansion model until adding expansion forces
-    global AWratio
+    global AWratio, AWp
     try:
         AWp = float(input_values['CMEAWp'])
         AWratio = lambda R_nose: (AWp/awM)*(1. - np.exp(-(R_nose-1.)/awR))
