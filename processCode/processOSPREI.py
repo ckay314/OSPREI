@@ -12,6 +12,9 @@ import datetime
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
 
+import warnings
+warnings.filterwarnings("ignore")
+
 global dtor
 dtor = math.pi / 180.
 
@@ -1767,7 +1770,7 @@ def makeallIShistos(ResArr, satID=0):
     fitBz = norm.fit(all_Bz)
     fitKp = norm.fit(all_Kp)
     
-    if not OSP.noDate:
+    if (not OSP.noDate) &  (not math.isnan(fitAT[0])):
         base = datetime.datetime(yr, 1, 1, 0, 0)
         # add in FC time (if desired)
         date = base+datetime.timedelta(days=(fitAT[0]+DoY))
@@ -1939,11 +1942,16 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
     for i in range(nHoriz):
         for j in range(nVert):
             if len(OSPres[outDict[configID][j]]) == nEns:
-                col = np.abs(pearsonr(EnsVal[i,:], OSPres[outDict[configID][j]])[0])#*np.ones(nEns)
-                #axes[j,i].scatter(EnsVal[i,:], OSPres[outDict[configID][j]], c=cm.turbo(col))            
+                try:
+                    col = np.abs(pearsonr(EnsVal[i,:], OSPres[outDict[configID][j]])[0])#*np.ones(nEns)
+                except:
+                    col = 0 # add catch in case no variation and can't make correlation
             else:
-                col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])#*np.ones(len(goodIDs))
-                #axes[j,i].scatter(EnsVal[i,goodIDs], OSPres[outDict[configID][j]], c=cm.turbo(col))
+                try:
+                    col = np.abs(pearsonr(EnsVal[i,goodIDs], OSPres[outDict[configID][j]])[0])#*np.ones(len(goodIDs))
+                except:
+                    col = 0.
+
             corrs[j,i] = col
     # clean out any NaNs (might have for zero variation params)
     corrs[~np.isfinite(corrs)] = 0
@@ -2150,7 +2158,7 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
         plotStart = base + datetime.timedelta(days=(gridtimes[0]))
     allPerc = allArr/float(counter)*100
     
-    cmap1 = cm.get_cmap("turbo",lut=10)
+    cmap1 = plt.get_cmap("turbo",lut=10)
     cmap1.set_bad("w")
     allMasked = np.ma.masked_less(allPerc,0.01)
                      
@@ -2162,7 +2170,7 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
         # draw a grid because mask away a lot of it
         for x in gridtimes: axes[i].plot([x,x],[ys[0],ys[-1]], c='LightGrey')
         for y in ys: axes[i].plot([gridtimes[0],gridtimes[-1]],[y,y], c='LightGrey')
-        c = axes[i].pcolor(XX,YY,allMasked[i,:,:], cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
+        c = axes[i].pcolormesh(XX,YY,allMasked[i,:,:], cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
         
     # add in observations
     if ObsData[satID] is not None:
@@ -2187,23 +2195,27 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
     # add in ensemble seed
     if OSP.noDate:
         dates2 = ResArr[0].FIDOtimes[satID]
-    else:
+    elif ResArr[0].FIDOtimes[satID]:
         dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes[satID]])
         for i in range(len(dates2)):
              dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
+    else:
+        dates2 = None
     thiscol = ['w', 'b']
     lw = [6,3]
-    for i in range(2):
-        axes[0].plot(dates2, ResArr[0].FIDOBs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        axes[1].plot(dates2, ResArr[0].FIDOBxs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        axes[2].plot(dates2, ResArr[0].FIDOBys[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        axes[3].plot(dates2, ResArr[0].FIDOBzs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        axes[4].plot(dates2, ResArr[0].FIDOvs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        axes[5].plot(dates2, ResArr[0].FIDOtems[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        if OSP.isSat or plotn:
-            axes[6].plot(dates2, ResArr[0].FIDOns[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
-        else:
-            axes[6].plot(dates2, ResArr[0].FIDOKps[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+    
+    if dates2:
+        for i in range(2):
+            axes[0].plot(dates2, ResArr[0].FIDOBs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            axes[1].plot(dates2, ResArr[0].FIDOBxs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            axes[2].plot(dates2, ResArr[0].FIDOBys[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            axes[3].plot(dates2, ResArr[0].FIDOBzs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            axes[4].plot(dates2, ResArr[0].FIDOvs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            axes[5].plot(dates2, ResArr[0].FIDOtems[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            if OSP.isSat or plotn:
+                axes[6].plot(dates2, ResArr[0].FIDOns[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
+            else:
+                axes[6].plot(dates2, ResArr[0].FIDOKps[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
         
     axes[0].set_xlim(gridtimes[0],gridtimes[-1])
         
@@ -2617,7 +2629,7 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
         allGrid[counter,:,:,:] = subGrid
         counter += 1
     fig, axes = plt.subplots(2, 5, figsize=(11,6))
-    cmap1 = cm.get_cmap("plasma",lut=10)
+    cmap1 = plt.get_cmap("plasma",lut=10)
     cmap1.set_bad("k")
     # Reorder Axes
     axes = [axes[0,0], axes[0,1], axes[0,2], axes[0,3], axes[0,4], axes[1,0], axes[1,1], axes[1,2], axes[1,3], axes[1,4]]
@@ -2651,7 +2663,7 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
         cent, rng = np.mean(toPlotNow[nCMEs>0]), 1.5*np.std(toPlotNow[nCMEs>0])
         if i == 0: cent, rng = 50, 50
         toPlotNow[nCMEs==0] = np.inf
-        c = axes[i].pcolor(subXX,subYY,toPlotNow,cmap=cmap1,  vmin=cent-rng, vmax=cent+rng, shading='auto')
+        c = axes[i].pcolormesh(subXX,subYY,toPlotNow,cmap=cmap1,  vmin=cent-rng, vmax=cent+rng, shading='auto')
         div = make_axes_locatable(axes[i])
         if i < 5:
             cax = div.append_axes("top", size="5%", pad=0.05)
@@ -3358,39 +3370,47 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     if len(sys.argv) > 2:
         GCStime = float(sys.argv[2])
         print (np.isscalar(sys.argv[2]))
-          
-    ResArr = txt2obj(GCStime)
+    
+    try:
+        ResArr = txt2obj(GCStime)
+    except:
+        sys.exit('Error reading in OSPREI results. Exiting without plotting anything.')
      
     global ObsData, hasObs
     hasObs = False
     ObsData = [None]
-    if OSP.ObsDataFile is not None:
-        hasObs = True
-        if nSat == 1:
-            ObsData = [readInData(OSP.ObsDataFile)]
-            OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
-            satNames = ['sat1']
+    try:
+        if OSP.ObsDataFile is not None:
+            hasObs = True
+            if nSat == 1:
+                ObsData = [readInData(OSP.ObsDataFile)]
+                OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
+                satNames = ['sat1']
         
-    # if have multi sats
-    elif 'satPath' in OSP.input_values:
-        satPath = OSP.input_values['satPath']
-        if (satPath[-4:] == 'sats'):
-            satNames = []
-            ObsData = [[None] for i in range(nSat)]
-            temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
-            OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
-            for i in range(nSat):
-                if nSat !=1:
-                    satNames.append(temp[i][0])
-                else:
-                    satNames.append(temp[i])
-                if len(temp[0]) >= 6:
-                    ObsData[i] = readInData(temp[i][5])
-                    hasObs = True
-                if len(temp[0]) == 9:
-                    OSP.obsFRstart[i] = float(temp[i][7])
-                    OSP.obsFRend[i] = float(temp[i][8])
-                    OSP.obsShstart[i] = float(temp[i][6])
+        # if have multi sats
+        elif 'satPath' in OSP.input_values:
+            satPath = OSP.input_values['satPath']
+            if (satPath[-4:] == 'sats'):
+                satNames = []
+                ObsData = [[None] for i in range(nSat)]
+                temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+                OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
+                for i in range(nSat):
+                    if nSat !=1:
+                        satNames.append(temp[i][0])
+                    else:
+                        satNames.append(temp[i])
+                    if len(temp[0]) >= 6:
+                        ObsData[i] = readInData(temp[i][5])
+                        hasObs = True
+                    if len(temp[0]) == 9:
+                        OSP.obsFRstart[i] = float(temp[i][7])
+                        OSP.obsFRend[i] = float(temp[i][8])
+                        OSP.obsShstart[i] = float(temp[i][6])
+    except:
+        print('Error in reading in observations for comparison. Proceeding without them.')
+        hasObs = False
+        ObsData = [None]
 
     global nEns
     nEns = len(ResArr.keys())
@@ -3398,13 +3418,19 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         # Make in situ plot
         for i in range(nSat):
             if hitsSat[i]:
-                makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                try:
+                    makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                except:
+                    print ('Error in making IS plot for sat '+satNames[i])
     
     else:
         # Plots we can make for single CME simulations
         if OSP.doFC:
             # Make CPA plot
-            makeCPAplot(ResArr)
+            try:
+                makeCPAplot(ResArr)
+            except:
+                print ('Error in making CPA plot')
             # Make the AW, delta, v plot
             # Non-forecast plot
             #makeADVplot(ResArr)    # haven't checked post FIDO integration into ANT
@@ -3426,22 +3452,34 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             # Make in situ plot
             for i in range(nSat):
                 if hitsSat[i]:
-                    makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                    try:
+                        makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                    except:
+                        print ('Error in making IS plot for sat '+satNames[i])
 
         # Ensemble plots
         if nEns > 1:
             if OSP.doFC:
                 # Make CPA plot
-                makeCPAhist(ResArr)
+                try:
+                    makeCPAhist(ResArr)
+                except:
+                    print ('Error in making CPA plot')    
             
             if OSP.doANT:
                 # Make arrival time hisogram 
                 for i in range(nSat):
                     if hitsSat[i]:
-                        makeAThisto(ResArr, satID=i)    
+                        try:
+                            makeAThisto(ResArr, satID=i)    
+                        except:
+                            print ('Error in making AThisto plot for sat '+satNames[i])
                     # Contour plot - not set up to run FIDO only so keep in here
-                    makeContours(ResArr, satID=i)
-                
+                    try:
+                        makeContours(ResArr, satID=i)
+                    except:
+                        print('Error in making contour plot')
+                    
             if OSP.doFIDO:
                 # FIDO histos- duration, minBz
                 # Non-forecast version with more params
@@ -3449,17 +3487,26 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                 # missing params from forecast version
                 for i in range(nSat):
                     if hitsSat[i]:
-                        makeFIDOhistos(ResArr, satID=i)
+                        try:
+                            makeFIDOhistos(ResArr, satID=i)
+                        except:
+                            print ('Error in making FIDOhisto plot for sat '+satNames[i])
                 if OSP.doPUP:
                     # Non-forecast version with more params
                     #makeSIThistos(ResArr)
                     for i in range(nSat):
                         if hitsSat[i]:
-                            makeallIShistos(ResArr, satID=i)
+                            try:
+                                makeallIShistos(ResArr, satID=i)
+                            except:
+                                print ('Error in making allIShisto plot for sat '+satNames[i])
                 # Kp probability timeline
                 for i in range(nSat):
                     if hitsSat[i]:
-                        makeAllprob(ResArr, satID=i)
+                        try:
+                            makeAllprob(ResArr, satID=i)
+                        except:
+                            print ('Error in making Allprob plot')
 
             # Slow plots -- worth commenting out if running quick tests
             # and not looking specifically at these
@@ -3467,7 +3514,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             # Ensemble input-output plot
             for i in range(nSat):
                 if hitsSat[i]:
-                    makeEnsplot(ResArr,critCorr=0.5, satID=i)
+                    try:
+                        makeEnsplot(ResArr,critCorr=0.5, satID=i)
+                    except:
+                        print ('Error in making ensemble scatter plot for sat '+satNames[i])
         
     
         # Also slow now
@@ -3477,7 +3527,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     print ('----------------------- Sat:' , satNames[i], '-----------------------')
                     if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
                         # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
-                        getISmetrics(ResArr, satID=i, ignoreSheath=False)
+                        try:
+                            getISmetrics(ResArr, satID=i, ignoreSheath=False)
+                        except:
+                            print ('Error in calculating metrics for sat '+satNames[i])
                     print ('')
                     print('')
                 else:
