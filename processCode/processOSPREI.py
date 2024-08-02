@@ -168,7 +168,7 @@ def txt2obj(GCStime):
         ANTdata = np.genfromtxt(ANTfile, dtype=float, encoding='utf8')
         # get the unique ANTEATR ideas (only one row per id here)
         # might have some missing if it misses
-        if (8888. in ANTdata):
+        if (8888. in ANTdata) & (len(ANTdata.shape) == 1):
             print ('Skipping ANTEATR figures because forces were unstable')
             print ('Try decreasing AWp. Forces tend to break if AWp is too large relative to AW.')
             ANTids = []
@@ -1355,7 +1355,7 @@ def makeAThisto(ResArr, satID=0):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANThist'+satName+'.'+figtag)
     plt.close() 
      
-def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDates=False, setTrange=False, useObsLim=False, satID=0):
+def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDates=False, setTrange=False, useObsLim=False, satID=0, silent=False):
     satName = satNames[satID]
     if len(satName)>1:
         satName = '_'+satName
@@ -1409,9 +1409,11 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
                 else:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 #axes[4].plot(dates[nowIdx], ResArr[key].FIDOKps[nowIdx], '--', linewidth=2, color='DarkGray')
-                print('ATs: ', dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
+                if not silent:
+                    print('ATs: ', dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
             else:
-                print('ATs: ', dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
+                if not silent:
+                    print('ATs: ', dates[ResArr[key].FIDO_FRidx[satID][0]].strftime('%Y-%m-%dT%H:%M'), dates[ResArr[key].FIDO_FRidx[satID][-1]].strftime('%Y-%m-%dT%H:%M'))
             # plot SW outside of sh+FR
             if len(ResArr[key].FIDO_SWidx[satID]) > 0:
                 if len(ResArr[key].FIDO_shidx[satID]) != 0:
@@ -2193,18 +2195,21 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
                 axes[6].plot(obsDates, ObsData[satID][8,:], linewidth=lw[i], color=cs[i], zorder=5)
                 
     # add in ensemble seed
-    if OSP.noDate:
-        dates2 = ResArr[0].FIDOtimes[satID]
-    elif ResArr[0].FIDOtimes[satID]:
-        dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes[satID]])
-        for i in range(len(dates2)):
-             dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
-    else:
-        dates2 = None
+    try:
+        if OSP.noDate:
+            dates2 = ResArr[0].FIDOtimes[satID]
+        elif ResArr[0].FIDOtimes[satID][0]:
+            dates2 = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[0].FIDOtimes[satID]])
+            for i in range(len(dates2)):
+                 dates2[i] = (dates2[i].timestamp()-plotStart.timestamp())/24./3600. +gridtimes[0]
+        else:
+            dates2 = [None]
+    except:
+        dates2 = [None]
     thiscol = ['w', 'b']
     lw = [6,3]
     
-    if dates2:
+    if dates2[0] != None:
         for i in range(2):
             axes[0].plot(dates2, ResArr[0].FIDOBs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
             axes[1].plot(dates2, ResArr[0].FIDOBxs[satID], linewidth=lw[i], color=thiscol[i], zorder=6)
@@ -2727,10 +2732,16 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     # need the days since jan 1 = 0 days
     obst = np.array([1+deltat[i].days + deltat[i].seconds/(3600*24)for i in range(len(deltat))])
     
+    # pull out good keys
+    goodKeys = []
+    for key in ResArr.keys():
+        if not ResArr[key].fail:
+            goodKeys.append(key)
+            
     # Find earliest simulated front/back
     # is this really necessary?
     mindate, maxdate = None, None
-    for key in ResArr.keys():
+    for key in goodKeys:
         if ResArr[key].FIDOtimes[satID] is not None:
             transientidx = ResArr[key].FIDO_FRidx[satID]
             if hasSheath:
@@ -2769,10 +2780,10 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
         obshr[:,i+1] = hrvalsObs[goodidx]
     
     nHits = 0
-    for key in ResArr.keys():
+    for key in goodKeys:
         if ResArr[key].FIDOtimes[satID] is not None:
             nHits += 1
-    #nHits = len(ResArr.keys()) # why need to redefine?    
+            
     if hasSheath:
         allScores = np.zeros([nHits,21]) 
         meanVals  = np.zeros(21)
@@ -2782,10 +2793,10 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     timingErr = np.zeros([nHits,3])
         
     hitCounter = 0
-    goodkeys = []
+    betterKeys = []
     for key in ResArr.keys():
-        if ResArr[key].FIDOtimes[satID] is not None:
-            goodkeys.append(key)
+        if (ResArr[key].FIDOtimes[satID] is not None) & (key in goodKeys):
+            betterKeys.append(key) # possible to not be ANT fail but miss on a sat
             # assuming enough SW padding on either side so don't have to worry obs end points too far
             thisRes = ResArr[key]
             thistime = thisRes.FIDOtimes[satID]+DoY+1
@@ -2853,10 +2864,10 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
                 outprint += '  '
                 rngcounter += 1
             hitCounter += 1
-            print (key, outprint)
+            print (key, outprint)            
     
-    goodkeys = np.array(goodkeys)
-    
+    betterKeys = np.array(betterKeys)
+
     print ('')            
     print ('')  
     
@@ -2887,25 +2898,27 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     print (outprint)         
     
     totTimeErr = np.sum(timingErr, axis=1)
-    want2use = [0,4,5,6] # no B vec
-    #want2use = [0,1,2,3,4,5,6] # all
+    # This is where you set which parameters to include in the score
+    # order is [Btot, Bx, By, Bz, v, T, n]
+    #want2use = [0,4,5,6] # no B vec
+    want2use = [0,1,2,3,4,5,6] # all
     #want2use = [1,2,3] # b vec only
     canuse = []
     for i in range(7):
         if (i in want2use) and (i in haveObsidx):
             canuse.append(i)
     oneScores = np.sum(weightedScores[:,canuse], axis=1) + totTimeErr
+
     print ('Seed has total score of ', oneScores[0])
     bestScore = np.min(oneScores)
     bestidx = np.where(oneScores == bestScore)[0]
-    print ('Best total score of ', bestScore, 'for ensemble member ', goodkeys[bestidx][0])
+    print ('Best total score of ', bestScore, 'for ensemble member ', betterKeys[bestidx][0])
     print ('')
-
 
     # make new IS plot with best fit highlighted
     if nEns != 1:
-        if goodkeys[bestidx][0] != 0:
-                makeISplot(ResArr, bfCase = goodkeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID, useObsLim=True)
+        if betterKeys[bestidx][0] != 0:
+                makeISplot(ResArr, bfCase = betterKeys[bestidx][0], plotn=True, tightDates=True, setTrange=True, satID=satID, useObsLim=True, silent=True)
         else:
             print ('Seed is best fit')
     
@@ -2978,6 +2991,7 @@ def getISmetrics(ResArr, satID=0, ignoreSheath=False):
     
             
             plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScatter.png')
+    return oneScores, betterKeys
         
 def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0, planes='both', vel0=300, vel1=650):
     # assume we are plotting the seed case but will change if specified in call
@@ -3292,6 +3306,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             for i in range(nSat):
                 # only include sat in meridonal plot if fairly close to that plane
                 colors = ['r', '#880E4F', '#C2185B', '#EC407A', '#F48FB1', '#FF6F00', '#FFA000', '#FFC107', '#FFE082']
+                #colors = ['r', 'cyan']
                 #col = colors[i]
                 col = 'cyan'
                 if doMer:
@@ -3379,13 +3394,14 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     global ObsData, hasObs
     hasObs = False
     ObsData = [None]
+    satNames = [''] # default for single sat case with no data
     try:
         if OSP.ObsDataFile is not None:
             hasObs = True
             if nSat == 1:
+                print ('here')
                 ObsData = [readInData(OSP.ObsDataFile)]
                 OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
-                satNames = ['sat1']
         
         # if have multi sats
         elif 'satPath' in OSP.input_values:
@@ -3411,7 +3427,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         print('Error in reading in observations for comparison. Proceeding without them.')
         hasObs = False
         ObsData = [None]
-
+    
     global nEns
     nEns = len(ResArr.keys())
     if onlyIS:
@@ -3425,7 +3441,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     
     else:
         # Plots we can make for single CME simulations
-        if OSP.doFC:
+        '''if OSP.doFC:
             # Make CPA plot
             try:
                 makeCPAplot(ResArr)
@@ -3503,10 +3519,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                 # Kp probability timeline
                 for i in range(nSat):
                     if hitsSat[i]:
-                        try:
+                        #try:
                             makeAllprob(ResArr, satID=i)
-                        except:
-                            print ('Error in making Allprob plot')
+                        #except:
+                        #   print ('Error in making Allprob plot '+satNames[i])
 
             # Slow plots -- worth commenting out if running quick tests
             # and not looking specifically at these
@@ -3517,10 +3533,16 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     try:
                         makeEnsplot(ResArr,critCorr=0.5, satID=i)
                     except:
-                        print ('Error in making ensemble scatter plot for sat '+satNames[i])
+                        print ('Error in making ensemble scatter plot for sat '+satNames[i])'''
         
     
         # Also slow now
+        sumScore = 0
+        # set up algorithm to weight scores for each satellite
+        # use default of even weight but could hardcode in an array
+        # to unevenly weight if desired (e.g. satScoreWeights = [1,1,2,1])
+        # The sat order is the same as in satNames/.sat file
+        satScoreWeights = np.ones(nSat)
         for i in range(nSat):
             if hasObs and (hitsSat[i]):
                 if OSP.obsFRstart[i] not in [None, 9999.]:
@@ -3528,8 +3550,13 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
                         # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
                         try:
-                            getISmetrics(ResArr, satID=i, ignoreSheath=False)
+                            oneScore, goodKeys = getISmetrics(ResArr, satID=i, ignoreSheath=False)
+                            newScores = np.ones(len(ResArr.keys())) * 9999
+                            newScores[goodKeys] = oneScore
+                            sumScore += newScores * satScoreWeights[i]
+                            #print ('TotScores:' , sumScore)
                         except:
+                            #sumScore += 9999.
                             print ('Error in calculating metrics for sat '+satNames[i])
                     print ('')
                     print('')
@@ -3538,9 +3565,25 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     print ('Missing FR start for ', satNames[i], ' so no metrics')
                     print ('')
                     print ('')
+                    
+        if nSat > 1:
+            print ('Total score over all satellites: ')
+            for i in range(len(sumScore)):
+                score = sumScore[i]
+                if score > 9999:
+                    score = ' Fail'
+                else:
+                    score = '{:5.2f}'.format(score)
+                print('  ', i, score)   
+            minSumScore = np.min(sumScore)
+            bestID = np.where(sumScore == minSumScore)[0]             
+            print ('Best total score over all satellites: ', minSumScore, 'for run number ', bestID[0])
+            for i in range(nSat):
+                makeISplot(ResArr, bfCase = bestID[0], plotn=True, tightDates=True, setTrange=True, satID=i, useObsLim=True, silent=True)
+        
     
         if False:
-            enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=500)
+            enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', vel0=350, vel1=800)
 
 if __name__ == '__main__':
     runproOSP()

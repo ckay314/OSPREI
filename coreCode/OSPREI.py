@@ -847,10 +847,13 @@ def setupEns():
     EnsInputs = {}
     for i in range(len(EnsData)):
         #temp = EnsData[i]
-        if len(EnsData) > 1:
+        if len(EnsData) > 2:
             temp = EnsData[i]
-        else:
-            temp = EnsData
+        elif len(EnsData) == 2:
+            if len(EnsData[i]) == 2: 
+                temp = EnsData[i]
+            else:
+                temp = EnsData
         if temp[0][:-1] in possible_vars:
             EnsInputs[temp[0][:-1]] = float(temp[1])
     # Display what parameters will be varied
