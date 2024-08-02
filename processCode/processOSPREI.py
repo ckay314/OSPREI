@@ -3430,18 +3430,21 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     
     global nEns
     nEns = len(ResArr.keys())
+    moreSilence = False
+    if nEns > 10:
+        moreSilence = True  
     if onlyIS:
         # Make in situ plot
         for i in range(nSat):
             if hitsSat[i]:
                 try:
-                    makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                    makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12, silent=moreSilence)
                 except:
                     print ('Error in making IS plot for sat '+satNames[i])
     
     else:
         # Plots we can make for single CME simulations
-        '''if OSP.doFC:
+        if OSP.doFC:
             # Make CPA plot
             try:
                 makeCPAplot(ResArr)
@@ -3469,7 +3472,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             for i in range(nSat):
                 if hitsSat[i]:
                     try:
-                        makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12)
+                        makeISplot(ResArr, satID=i, SWpadF=12, SWpadB=12,  silent=moreSilence)
                     except:
                         print ('Error in making IS plot for sat '+satNames[i])
 
@@ -3533,7 +3536,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     try:
                         makeEnsplot(ResArr,critCorr=0.5, satID=i)
                     except:
-                        print ('Error in making ensemble scatter plot for sat '+satNames[i])'''
+                        print ('Error in making ensemble scatter plot for sat '+satNames[i])
         
     
         # Also slow now
