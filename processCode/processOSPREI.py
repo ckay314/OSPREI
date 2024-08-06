@@ -1563,7 +1563,7 @@ def makeISplot(ResArr, SWpadF=12, SWpadB = 15, bfCase=None, plotn=False, tightDa
     
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
-    if bfCase is not None:
+    if (bfCase is not None) & (nEns>1):
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'_BF'+str(bfCase)+'.'+figtag)
     else:
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'.'+figtag)    
