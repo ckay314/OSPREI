@@ -2251,7 +2251,7 @@ def makeAllprob(ResArr, pad=6, plotn=False, satID=0):
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc'+satName+'.'+figtag)   
     plt.close() 
                                
-def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
+def makeContours(ResArr, calcwid=95, plotwid=40, satID=0, satLoc=False):
     # Start by filling in the area that corresponds to the CME in a convenient frame
     # then rotate it the frame where Earth is at [0,0] at the time of impact for all CMEs
     # using its exact position in "real" space (which will vary slightly between CMEs).
@@ -2467,8 +2467,10 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0):
        
         # Coordinate transformations -------------------------------------------------------------
         # Calculate how far to shift the CME in lat/lon to put Earth at 0,0
-        dLon = OSP.satPos[1] + ResArr[key].ANTtimes[-1] * 24 * 3600 * OSP.Sat_rot - thisLon
-        dLat = OSP.satPos[0] - thisLat
+        if not satLoc:
+            satLoc = OSP.satPos
+        dLon = satLoc[1] - thisLon #+ ResArr[key].ANTtimes[-1] * 24 * 3600 * OSP.Sat_rot
+        dLat = satLoc[0] - thisLat
         if dLon < -180:
             dLon += 360
         elif dLon > 180:
@@ -3395,23 +3397,28 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     hasObs = False
     ObsData = [None]
     satNames = [''] # default for single sat case with no data
+    satLoc0 = [] # array of sat locations at start of simulation
+    satLocI = [] # array of sat locations at time of impact (for each one)
     try:
         if OSP.ObsDataFile is not None:
             hasObs = True
             if nSat == 1:
-                print ('here')
                 ObsData = [readInData(OSP.ObsDataFile)]
                 OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
         
         # if have multi sats
-        elif 'satPath' in OSP.input_values:
+        if 'satPath' in OSP.input_values:
             satPath = OSP.input_values['satPath']
+            satPaths = OSP.satPathWrapper(satPath,  checkSatlen=False)
             if (satPath[-4:] == 'sats'):
                 satNames = []
                 ObsData = [[None] for i in range(nSat)]
                 temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+                if nSat == 1:
+                    temp = [temp] #package in array to make loop happy
                 OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [[] for i in range(nSat)], [[] for i in range(nSat)], [[] for i in range(nSat)]
                 for i in range(nSat):
+                    satLoc0.append([float(temp[i][1]), float(temp[i][2]), float(temp[i][3])])
                     if nSat !=1:
                         satNames.append(temp[i][0])
                     else:
@@ -3423,6 +3430,11 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                         OSP.obsFRstart[i] = float(temp[i][7])
                         OSP.obsFRend[i] = float(temp[i][8])
                         OSP.obsShstart[i] = float(temp[i][6])
+                    # make the location at time of impact
+                    myt = ResArr[0].ANTtimes[ResArr[0].ANTFRidx[i]]*24*60 + ResArr[0].FCtimes[-1]
+                    myImpLoc = [float(satPaths[i][0](myt*60)), float(satPaths[i][1](myt*60)), float(satPaths[i][2](myt*60))]
+                    satLocI.append(myImpLoc)            
+            
     except:
         print('Error in reading in observations for comparison. Proceeding without them.')
         hasObs = False
@@ -3494,10 +3506,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                         except:
                             print ('Error in making AThisto plot for sat '+satNames[i])
                     # Contour plot - not set up to run FIDO only so keep in here
-                    try:
-                        makeContours(ResArr, satID=i)
-                    except:
-                        print('Error in making contour plot')
+                    #try:
+                    makeContours(ResArr, satID=i, satLoc=satLocI[i])
+                    #except:
+                    #    print('Error in making contour plot')
                     
             if OSP.doFIDO:
                 # FIDO histos- duration, minBz

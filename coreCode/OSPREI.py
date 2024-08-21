@@ -1942,7 +1942,7 @@ def runOSPREI(inputPassed='noFile'):
     if 'satPath' in input_values:
         satPath = input_values['satPath']
         satPaths = satPathWrapper(satPath)
-          
+
     if doFC:
         goForeCAT(makeRestart=False)        
     else:
