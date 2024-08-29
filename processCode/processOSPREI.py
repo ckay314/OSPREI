@@ -591,7 +591,7 @@ def makeCPAplot(ResArr):
     axes[1].plot(ResArr[0].FCrs, ResArr[0].FClonsS, linewidth=4, color='k')
     axes[2].plot(ResArr[0].FCrs, ResArr[0].FCtilts, linewidth=4, color='k')
     
-    degree = '$^\circ$'
+    degree = '$^\\irc$'
     
     # Add the final position as text
     if nEns > 1:
@@ -603,9 +603,9 @@ def makeCPAplot(ResArr):
         fitLats = norm.fit(all_latfs)
         fitLons = norm.fit(all_lonfs)
         fitTilts = norm.fit(all_tiltfs)
-        axes[0].text(0.97, 0.05, '{:4.1f}'.format(fitLats[0])+'$\pm$'+'{:4.1f}'.format(fitLats[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.05, '{:4.1f}'.format(fitLons[0])+'$\pm$'+'{:4.1f}'.format(fitLons[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-        axes[2].text(0.97, 0.05, '{:4.1f}'.format(fitTilts[0])+'$\pm$'+'{:4.1f}'.format(fitTilts[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[0].text(0.97, 0.05, '{:4.1f}'.format(fitLats[0])+'$\\pm$'+'{:4.1f}'.format(fitLats[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.05, '{:4.1f}'.format(fitLons[0])+'$\\pm$'+'{:4.1f}'.format(fitLons[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+        axes[2].text(0.97, 0.05, '{:4.1f}'.format(fitTilts[0])+'$\\pm$'+'{:4.1f}'.format(fitTilts[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
     else:
         axes[0].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FClats[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
         axes[1].text(0.97, 0.05, '{:4.1f}'.format(ResArr[0].FClonsS[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
@@ -671,7 +671,7 @@ def makeCPAhist(ResArr):
     ax1[1].plot(ResArr[0].FCrs, ResArr[0].FClonsS, linewidth=4, color='k')
     ax1[2].plot(ResArr[0].FCrs, ResArr[0].FCtilts, linewidth=4, color='k')
 
-    degree = '$^\circ$'
+    degree = '$^\\circ$'
     
     # Add the final position as text
     all_latfs, all_lonfs, all_tiltfs = [], [], []
@@ -682,9 +682,9 @@ def makeCPAhist(ResArr):
     fitLats = norm.fit(all_latfs)
     fitLons = norm.fit(all_lonfs)
     fitTilts = norm.fit(all_tiltfs)
-    ax1[0].text(0.97, 0.05, '{:4.1f}'.format(fitLats[0])+'$\pm$'+'{:4.1f}'.format(fitLats[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[0].transAxes)
-    ax1[1].text(0.97, 0.05, '{:4.1f}'.format(fitLons[0])+'$\pm$'+'{:4.1f}'.format(fitLons[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[1].transAxes)
-    ax1[2].text(0.97, 0.05, '{:4.1f}'.format(fitTilts[0])+'$\pm$'+'{:4.1f}'.format(fitTilts[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[2].transAxes)
+    ax1[0].text(0.97, 0.05, '{:4.1f}'.format(fitLats[0])+'$\\pm$'+'{:4.1f}'.format(fitLats[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[0].transAxes)
+    ax1[1].text(0.97, 0.05, '{:4.1f}'.format(fitLons[0])+'$\\pm$'+'{:4.1f}'.format(fitLons[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[1].transAxes)
+    ax1[2].text(0.97, 0.05, '{:4.1f}'.format(fitTilts[0])+'$\\pm$'+'{:4.1f}'.format(fitTilts[1])+degree, horizontalalignment='right', verticalalignment='center', transform=ax1[2].transAxes)
     
     for i in range(3):
         ax2[i].yaxis.tick_right()
@@ -763,7 +763,7 @@ def makeADVplot(ResArr):
     axes[8].plot(ResArr[0].FCrs, ResArr[0].FCvAxps, linewidth=4, color='b', zorder=3)
     axes[9].plot(ResArr[0].FCrs, ResArr[0].FCdefs, linewidth=4, color='k', zorder=3)
     
-    degree = '$^\circ$'
+    degree = '$^\\circ$'
     
     # Add the final position as text
     if nEns > 1:
@@ -793,37 +793,37 @@ def makeADVplot(ResArr):
         fitdefs = norm.fit(all_defs)
         
         
-        axes[0].text(0.97, 0.15, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[0].text(0.97, 0.15, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.05,  'AW$_{\\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         #axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
-        axes[2].text(0.97, 0.05, '$\delta_{CA}: $' + '{:4.2f}'.format(fitdelCAs[0]) + '$\pm$'+'{:4.2f}'.format(fitdelCAs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[2].text(0.97, 0.05, '$\\delta_{CA}: $' + '{:4.2f}'.format(fitdelCAs[0]) + '$\\pm$'+'{:4.2f}'.format(fitdelCAs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
         #axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[3].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-        axes[4].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color='b')
-        axes[7].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-        axes[8].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
-        axes[5].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
-        axes[6].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
-        axes[9].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(fitdefs[0])+'$\pm$'+'{:4.1f}'.format(fitdefs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes)              
+        axes[3].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+        axes[4].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color='b')
+        axes[7].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+        axes[8].text(0.97, 0.05,  'v$_{CS,\\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
+        axes[5].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+        axes[6].text(0.97, 0.05,  'v$_{Ax,\\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
+        axes[9].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(fitdefs[0])+'$\\pm$'+'{:4.1f}'.format(fitdefs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes)              
     else:
         axes[0].text(0.97, 0.15, 'AW: '+'{:4.1f}'.format(ResArr[0].FCAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].FCAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].text(0.97, 0.05, '$\delta_{CA}: $'+'{:4.2f}'.format(ResArr[0].FCdelCAs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[1].text(0.97, 0.05,  'AW$_{\\perp}$: '+'{:4.1f}'.format(ResArr[0].FCAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[2].text(0.97, 0.05, '$\\delta_{CA}: $'+'{:4.2f}'.format(ResArr[0].FCdelCAs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
         #axes[3].text(0.97, 0.05, '$\delta_{CS}$'+'{:4.1f}'.format(ResArr[0].FCdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
         axes[3].text(0.97, 0.15, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].FCvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
         axes[4].text(0.97, 0.05,  'v$_E$: '+'{:4.1f}'.format(ResArr[0].FCvEs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color='b')
         axes[5].text(0.97, 0.15, 'v$_{CS,r}$: '+'{:4.1f}'.format(ResArr[0].FCvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
-        axes[6].text(0.97, 0.05,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
+        axes[6].text(0.97, 0.05,  'v$_{CS,\\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color='b')
         axes[7].text(0.97, 0.15, 'v$_{Ax,r}$: '+'{:4.1f}'.format(ResArr[0].FCvAxrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-        axes[8].text(0.97, 0.05,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
+        axes[8].text(0.97, 0.05,  'v$_{Ax,\\perp}$: '+'{:4.1f}'.format(ResArr[0].FCvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='b')
         axes[9].text(0.97, 0.05, 'v$_{def}$: '+'{:4.1f}'.format(ResArr[0].FCdefs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes)
                   
     # Labels
-    axes[0].set_ylabel('AW, AW$_{\perp}$ ('+degree+')')
-    axes[2].set_ylabel('$\delta_{CA}$')
+    axes[0].set_ylabel('AW, AW$_{\\perp}$ ('+degree+')')
+    axes[2].set_ylabel('$\\delta_{CA}$')
     axes[3].set_ylabel('v$_F$, v$_E$ (km/s)')
-    axes[5].set_ylabel('v$_{Ax,r}$, v$_{Ax,\perp}$ (km/s)')
-    axes[7].set_ylabel('v$_{CS,r}$, v$_{CS,\perp}$ (km/s)')
+    axes[5].set_ylabel('v$_{Ax,r}$, v$_{Ax,\\perp}$ (km/s)')
+    axes[7].set_ylabel('v$_{CS,r}$, v$_{CS,\\perp}$ (km/s)')
     axes[9].set_ylabel('v$_{def}$ (km/s)')
     axes[5].set_xlabel('Distance (R$_S$)')
     axes[9].set_xlabel('Distance (R$_S$)')
@@ -923,7 +923,7 @@ def makeDragless(ResArr):
         axes[8].plot(ResArr[0].ANTrs, ResArr[0].ANTyaws, linewidth=4, color='Maroon', zorder=3)    
         
     
-    degree = '$^\circ$'
+    degree = '$^\\circ$'
     
     # Add the final position as text
     if nEns > 1:
@@ -955,27 +955,27 @@ def makeDragless(ResArr):
             if OSP.simYaw:
                 fityaws = norm.fit(all_yaws)
 
-            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-            axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:2.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\\pm$'+'{:2.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+            axes[1].text(0.97, 0.9,  'AW$_{\\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\\pm$'+'{:2.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
             try:
                 axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
             except:
                 pass
-            axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-            axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-            axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')     
+            axes[2].text(0.97, 0.96, '$\\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+            axes[3].text(0.97, 0.9, '$\\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\\pm$'+'{:2.0f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\\pm$'+'{:2.0f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+            axes[6].text(0.97, 0.96, 'B: '+'{:4.1f}'.format(fitBtors[0])+'$\\pm$'+'{:3.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\\pm$'+'{:3.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')     
             if OSP.simYaw:
-                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
+                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color='Maroon')  
         else:
             thisIdx = ResArr[0].ANTFRidx[0]
             if thisIdx:
                 axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-                axes[1].text(0.97, 0.9,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-                axes[2].text(0.97, 0.96, '$\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-                axes[3].text(0.97, 0.9, '$\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+                axes[1].text(0.97, 0.9,  'AW$_{\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+                axes[2].text(0.97, 0.96, '$\\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+                axes[3].text(0.97, 0.9, '$\\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
                 axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
                 axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
                 axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
@@ -985,8 +985,8 @@ def makeDragless(ResArr):
 
                   
     # Labels
-    axes[0].set_ylabel('AW, AW$_{\perp}$ ('+degree+')')
-    axes[2].set_ylabel('$\delta_{Ax}$, $\delta_{CS}$')
+    axes[0].set_ylabel('AW, AW$_{\\perp}$ ('+degree+')')
+    axes[2].set_ylabel('$\\delta_{Ax}$, $\\delta_{CS}$')
     axes[4].set_ylabel('v$_F$, v$_{Exp}$ (km/s)')
     axes[6].set_ylabel('B (nT)')
     axes[7].set_ylabel('log(T) (K)')
@@ -1075,8 +1075,8 @@ def makePUPplot(ResArr, satID=0):
             axes[i].plot(thexs[i],theParams[i], linewidth=4, color=col, zorder=3)
     
     # Add the final position as text
-    labels = ['AT$_{Sh}$', 'AT$_{CME}$', 'AW', 'AW$_{\perp}$', '$\delta_{Ax}$', '$\delta_{CS}$', 'B$_{sh}$', 'B$_{CME}$', 'v$_{Sh}$', 'v$_{CME}$', 'v$_{Exp}$', 'Wid$_{sh}$', 'Wid$_{CME}$', 'n$_{sh}$', 'n$_{CME}$', 'log(T$_{Sh}$)', 'log(T$_{CME}$)']
-    deg = '$^\circ$'
+    labels = ['AT$_{Sh}$', 'AT$_{CME}$', 'AW', 'AW$_{\\perp}$', '$\\delta_{Ax}$', '$\\delta_{CS}$', 'B$_{sh}$', 'B$_{CME}$', 'v$_{Sh}$', 'v$_{CME}$', 'v$_{Exp}$', 'Wid$_{sh}$', 'Wid$_{CME}$', 'n$_{sh}$', 'n$_{CME}$', 'log(T$_{Sh}$)', 'log(T$_{CME}$)']
+    deg = '$^\\circ$'
     units = ['hr', 'hr', deg, deg, '', '', 'nT', 'nT', 'km/s', 'km/s', 'km/s', 'R$_S$', 'R$_S$', 'cm$^{-3}$', 'cm$^{-3}$', 'K', 'K']
     
     
@@ -1109,10 +1109,10 @@ def makePUPplot(ResArr, satID=0):
                     calci = i - 1
                 if calci % 2 == 1: ytext = 0.89
                 if calci % 2 == 0: col = c2
-            axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(endMean)+'$\pm$'+'{:.2f}'.format(endSTD)+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center')
+            axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(endMean)+'$\\pm$'+'{:.2f}'.format(endSTD)+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center')
     
     
-    ylabels = ['Time (hr)', 'AW ('+deg+')', '$\delta$', 'B (nT)', 'v (km/s)', 'Width (R$_S$)', 'n (cm$^{-3}$)', 'log(T) (T)']
+    ylabels = ['Time (hr)', 'AW ('+deg+')', '$\\delta$', 'B (nT)', 'v (km/s)', 'Width (R$_S$)', 'n (cm$^{-3}$)', 'log(T) (T)']
 
     for i in range(8):
         axes[2*i+1].set_ylabel(ylabels[i])
@@ -1212,7 +1212,7 @@ def makeDragplot(ResArr):
     axes[11].plot(ResArr[0].ANTrs, ResArr[0].ANTBpols, linewidth=4, color='b', zorder=3)
     axes[12].plot(ResArr[0].ANTrs, ResArr[0].ANTlogTs, linewidth=4, color='r', zorder=3)
     
-    degree = '$^\circ$'
+    degree = '$^\\circ$'
     
     # Add the final position as text
     if nEns > 1:
@@ -1246,40 +1246,40 @@ def makeDragplot(ResArr):
         fitTs    = norm.fit(all_Ts)
         
         
-        axes[0].text(0.97, 0.95, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.05,  'AW$_{\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[0].text(0.97, 0.95, 'AW: '+'{:4.1f}'.format(fitAWs[0])+'$\\pm$'+'{:4.1f}'.format(fitAWs[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[1].text(0.97, 0.05,  'AW$_{\\perp}$: '+'{:4.1f}'.format(fitAWps[0])+'$\\pm$'+'{:4.1f}'.format(fitAWps[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
         axes[2].set_ylim(fitdelAxs[0]-fitdelAxs[1]-0.1, 1.05)
-        axes[2].text(0.97, 0.95, '$\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.85, '$\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
-        axes[4].text(0.97, 0.95, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-        axes[5].text(0.97, 0.85,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
-        axes[6].text(0.97, 0.95, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.85,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
-        axes[8].text(0.97, 0.95, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
-        axes[9].text(0.97, 0.85,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
-        axes[10].text(0.97, 0.95, 'B$_{t}$: '+'{:4.1f}'.format(fitBtors[0])+'$\pm$'+'{:4.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[10].transAxes)
-        axes[11].text(0.97, 0.85,  'B$_{p}$: '+'{:4.1f}'.format(fitBpols[0])+'$\pm$'+'{:4.1f}'.format(fitBpols[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[11].transAxes, color='b')
-        axes[11].text(0.97, 0.75,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\pm$'+'{:4.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[11].transAxes, color='r')
+        axes[2].text(0.97, 0.95, '$\\delta_{Ax}$: '+'{:4.2f}'.format(fitdelAxs[0])+'$\\pm$'+'{:4.2f}'.format(fitdelAxs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.85, '$\\delta_{CS}$: '+'{:4.2f}'.format(fitdelCSs[0])+'$\\pm$'+'{:4.2f}'.format(fitdelCSs[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[4].text(0.97, 0.95, 'v$_F$: '+'{:4.1f}'.format(fitvFs[0])+'$\\pm$'+'{:4.1f}'.format(fitvFs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+        axes[5].text(0.97, 0.85,  'v$_E$: '+'{:4.1f}'.format(fitvEs[0])+'$\\pm$'+'{:4.1f}'.format(fitvEs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
+        axes[6].text(0.97, 0.95, 'v$_{CS,r}$: '+'{:4.1f}'.format(fitvCSrs[0])+'$\\pm$'+'{:4.1f}'.format(fitvCSrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+        axes[7].text(0.97, 0.85,  'v$_{CS,\\perp}$: '+'{:4.1f}'.format(fitvCSps[0])+'$\\pm$'+'{:4.1f}'.format(fitvCSps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
+        axes[8].text(0.97, 0.95, 'v$_{Ax,r}$: '+'{:4.1f}'.format(fitvAxrs[0])+'$\\pm$'+'{:4.1f}'.format(fitvAxrs[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
+        axes[9].text(0.97, 0.85,  'v$_{Ax,\\perp}$: '+'{:4.1f}'.format(fitvAxps[0])+'$\\pm$'+'{:4.1f}'.format(fitvAxps[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
+        axes[10].text(0.97, 0.95, 'B$_{t}$: '+'{:4.1f}'.format(fitBtors[0])+'$\\pm$'+'{:4.1f}'.format(fitBtors[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[10].transAxes)
+        axes[11].text(0.97, 0.85,  'B$_{p}$: '+'{:4.1f}'.format(fitBpols[0])+'$\\pm$'+'{:4.1f}'.format(fitBpols[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[11].transAxes, color='b')
+        axes[11].text(0.97, 0.75,  'log(T): '+'{:4.1f}'.format(fitTs[0])+'$\\pm$'+'{:4.1f}'.format(fitTs[1])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[11].transAxes, color='r')
     else:
         axes[0].text(0.97, 0.95, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-        axes[1].text(0.97, 0.85,  'AW$_{\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
-        axes[2].text(0.97, 0.95, '$\delta_{Ax}$: '+'{:4.1f}'.format(ResArr[0].ANTdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-        axes[3].text(0.97, 0.85, '$\delta_{CS}$: '+'{:4.1f}'.format(ResArr[0].ANTdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
+        axes[1].text(0.97, 0.85,  'AW$_{\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[-1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color='b')
+        axes[2].text(0.97, 0.95, '$\\delta_{Ax}$: '+'{:4.1f}'.format(ResArr[0].ANTdelAxs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+        axes[3].text(0.97, 0.85, '$\\delta_{CS}$: '+'{:4.1f}'.format(ResArr[0].ANTdelCSs[-1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color='b')
         axes[4].text(0.97, 0.95, 'v$_F$: '+'{:4.1f}'.format(ResArr[0].ANTvFs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
         axes[5].text(0.97, 0.85,  'v$_E$: '+'{:4.1f}'.format(ResArr[0].ANTvEs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color='b')
         axes[6].text(0.97, 0.95, 'v$_{CS,r}$: '+'{:4.1f}'.format(ResArr[0].ANTvCSrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-        axes[7].text(0.97, 0.85,  'v$_{CS,\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
+        axes[7].text(0.97, 0.85,  'v$_{CS,\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTvCSps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color='b')
         axes[8].text(0.97, 0.95, 'v$_{Ax,r}$: '+'{:4.1f}'.format(ResArr[0].ANTvAxrs[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)
-        axes[9].text(0.97, 0.85,  'v$_{Ax,\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
+        axes[9].text(0.97, 0.85,  'v$_{Ax,\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTvAxps[-1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[9].transAxes, color='b')
         axes[10].text(0.97, 0.95, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[-1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[10].transAxes)
         axes[11].text(0.97, 0.85,  'B$_{p}$: '+'{:4.1f}'.format(ResArr[0].ANTBpols[-1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[11].transAxes, color='b')
                   
     # Labels
-    axes[0].set_ylabel('AW, AW$_{\perp}$ ('+degree+')')
-    axes[2].set_ylabel('$\delta_{Ax}$, $\delta_{CS}$')
+    axes[0].set_ylabel('AW, AW$_{\\perp}$ ('+degree+')')
+    axes[2].set_ylabel('$\\delta_{Ax}$, $\\delta_{CS}$')
     axes[4].set_ylabel('v$_F$, v$_E$ (km/s)')
-    axes[8].set_ylabel('v$_{Ax,r}$, v$_{Ax,\perp}$ (km/s)')
-    axes[6].set_ylabel('v$_{CS,r}$, v$_{CS,\perp}$ (km/s)')
+    axes[8].set_ylabel('v$_{Ax,r}$, v$_{Ax,\\perp}$ (km/s)')
+    axes[6].set_ylabel('v$_{CS,r}$, v$_{CS,\\perp}$ (km/s)')
     axes[10].set_ylabel('B$_t$, B$_p$ (nT)')
     axes[12].set_ylabel('log(T) (K))')
     axes[12].set_ylim([3,6.5])
@@ -1337,14 +1337,14 @@ def makeAThisto(ResArr, satID=0):
         maxn = np.max(n)
         if maxn > maxcount: maxcount = maxn
         if i != 2:
-            axes[i].text(0.97, 0.92, fmts[i].format(mean)+'$\pm$'+fmts[i].format(std)+ ' '+units[i], horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+            axes[i].text(0.97, 0.92, fmts[i].format(mean)+'$\\pm$'+fmts[i].format(std)+ ' '+units[i], horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
         else:
             if not OSP.noDate:
                 base = datetime.datetime(yr, 1, 1, 0, 0)
                 date = base + datetime.timedelta(days=(DoY+mean))   
                 dateLabel = date.strftime('%b %d %H:%M')
-                axes[i].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
-            axes[i].text(0.97, 0.82, fmts[i].format(mean)+'$\pm$'+'{:.2f}'.format(std)+' days', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+                axes[i].text(0.97, 0.92, dateLabel+'$\\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
+            axes[i].text(0.97, 0.82, fmts[i].format(mean)+'$\\pm$'+'{:.2f}'.format(std)+' days', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
 
                 
                        
@@ -1611,12 +1611,12 @@ def makeFIDOhistos(ResArr, satID=0):
     fitKp = norm.fit(all_Kp)
     fitvF  = norm.fit(all_vF)
     fitvE  = norm.fit(all_vE)
-    axes[0].text(0.97, 0.95, '{:4.1f}'.format(fitDur[0])+'$\pm$'+'{:4.1f}'.format(fitDur[1])+' hours', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-    axes[1].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-    axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvF[0])+'$\pm$'+'{:4.1f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
-    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitvE[0])+'$\pm$'+'{:4.1f}'.format(fitvE[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+    axes[0].text(0.97, 0.95, '{:4.1f}'.format(fitDur[0])+'$\\pm$'+'{:4.1f}'.format(fitDur[1])+' hours', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+    axes[1].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+    axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvF[0])+'$\\pm$'+'{:4.1f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)
+    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitvE[0])+'$\\pm$'+'{:4.1f}'.format(fitvE[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
     
     # Labels
     axes[0].set_xlabel('Duration (hours)')
@@ -1684,15 +1684,15 @@ def makeSIThistos(ResArr):
     fitvSheath = norm.fit(all_vSheath)
     fitKp = norm.fit(all_Kp)
 
-    axes[0].text(0.97, 0.95, '{:4.2f}'.format(fitDur[0])+'$\pm$'+'{:4.2f}'.format(fitDur[1])+' hours', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-    axes[1].text(0.97, 0.95, '{:4.2f}'.format(fitComp[0])+'$\pm$'+'{:4.2f}'.format(fitComp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitn[0])+'$\pm$'+'{:4.1f}'.format(fitn[1])+' cm$^{-3}$', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-    axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitvShock[0])+'$\pm$'+'{:4.1f}'.format(fitvShock[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvSheath[0])+'$\pm$'+'{:4.1f}'.format(fitvSheath[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
-    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitMach[0])+'$\pm$'+'{:4.1f}'.format(fitMach[1]), horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
-    axes[6].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-    axes[7].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-    axes[8].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)    
+    axes[0].text(0.97, 0.95, '{:4.2f}'.format(fitDur[0])+'$\\pm$'+'{:4.2f}'.format(fitDur[1])+' hours', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+    axes[1].text(0.97, 0.95, '{:4.2f}'.format(fitComp[0])+'$\\pm$'+'{:4.2f}'.format(fitComp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+    axes[2].text(0.97, 0.95, '{:4.1f}'.format(fitn[0])+'$\\pm$'+'{:4.1f}'.format(fitn[1])+' cm$^{-3}$', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+    axes[3].text(0.97, 0.95, '{:4.1f}'.format(fitvShock[0])+'$\\pm$'+'{:4.1f}'.format(fitvShock[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+    axes[4].text(0.97, 0.95, '{:4.1f}'.format(fitvSheath[0])+'$\\pm$'+'{:4.1f}'.format(fitvSheath[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
+    axes[5].text(0.97, 0.95, '{:4.1f}'.format(fitMach[0])+'$\\pm$'+'{:4.1f}'.format(fitMach[1]), horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+    axes[6].text(0.97, 0.95, '{:4.1f}'.format(fitB[0])+'$\\pm$'+'{:4.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+    axes[7].text(0.97, 0.95, '{:4.1f}'.format(fitBz[0])+'$\\pm$'+'{:4.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+    axes[8].text(0.97, 0.95, '{:4.1f}'.format(fitKp[0])+'$\\pm$'+'{:4.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)    
     
     # Labels
     axes[0].set_xlabel('Duration (hours)')
@@ -1777,18 +1777,18 @@ def makeallIShistos(ResArr, satID=0):
         # add in FC time (if desired)
         date = base+datetime.timedelta(days=(fitAT[0]+DoY))
         dateLabel = date.strftime('%b %d %H:%M')
-        axes[0].text(0.97, 0.92, dateLabel+'$\pm$'+'{:.1f}'.format(fitAT[1]*24)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes) 
-    axes[0].text(0.97, 0.82, '{:.2f}'.format(fitAT[0])+'$\pm$'+'{:.2f}'.format(fitAT[1]) + ' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
+        axes[0].text(0.97, 0.92, dateLabel+'$\\pm$'+'{:.1f}'.format(fitAT[1]*24)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes) 
+    axes[0].text(0.97, 0.82, '{:.2f}'.format(fitAT[0])+'$\\pm$'+'{:.2f}'.format(fitAT[1]) + ' days', horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
 
     #axes[0].text(0.97, 0.95, '{:4.1f}'.format(fitAT[0])+'$\pm$'+'{:4.1f}'.format(fitAT[1]), horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes)
-    axes[1].text(0.97, 0.92, '{:.1f}'.format(fitDurS[0])+'$\pm$'+'{:.1f}'.format(fitDurS[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.97, 0.92, '{:.1f}'.format(fitDur[0])+'$\pm$'+'{:.1f}'.format(fitDur[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
-    axes[3].text(0.97, 0.92, '{:.0f}'.format(fitvS[0])+'$\pm$'+'{:.0f}'.format(fitvS[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
-    axes[4].text(0.97, 0.92, '{:.0f}'.format(fitvF[0])+'$\pm$'+'{:.0f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
-    axes[5].text(0.97, 0.92, '{:.0f}'.format(fitvE[0])+'$\pm$'+'{:.0f}'.format(fitvE[1])+ ' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
-    axes[6].text(0.97, 0.92, '{:.1f}'.format(fitB[0])+'$\pm$'+'{:.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
-    axes[7].text(0.97, 0.92, '{:.1f}'.format(fitBz[0])+'$\pm$'+'{:.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
-    axes[8].text(0.97, 0.92, '{:.1f}'.format(fitKp[0])+'$\pm$'+'{:.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)    
+    axes[1].text(0.97, 0.92, '{:.1f}'.format(fitDurS[0])+'$\\pm$'+'{:.1f}'.format(fitDurS[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes)
+    axes[2].text(0.97, 0.92, '{:.1f}'.format(fitDur[0])+'$\\pm$'+'{:.1f}'.format(fitDur[1])+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes)
+    axes[3].text(0.97, 0.92, '{:.0f}'.format(fitvS[0])+'$\\pm$'+'{:.0f}'.format(fitvS[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes)
+    axes[4].text(0.97, 0.92, '{:.0f}'.format(fitvF[0])+'$\\pm$'+'{:.0f}'.format(fitvF[1])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes)    
+    axes[5].text(0.97, 0.92, '{:.0f}'.format(fitvE[0])+'$\\pm$'+'{:.0f}'.format(fitvE[1])+ ' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes)
+    axes[6].text(0.97, 0.92, '{:.1f}'.format(fitB[0])+'$\\pm$'+'{:.1f}'.format(fitB[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes)
+    axes[7].text(0.97, 0.92, '{:.1f}'.format(fitBz[0])+'$\\pm$'+'{:.1f}'.format(fitBz[1])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes)
+    axes[8].text(0.97, 0.92, '{:.1f}'.format(fitKp[0])+'$\\pm$'+'{:.1f}'.format(fitKp[1]), horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes)    
     
     # Labels
     axes[0].set_xlabel('Transit Time (days)')
@@ -1813,11 +1813,11 @@ def makeEnsplot(ResArr, critCorr=0.5, satID=0):
     if len(satName)>1:
         satName = '_'+satName
     
-    deg = '('+'$^\circ$'+')'
+    deg = '('+'$^\\circ$'+')'
 
-    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
+    out2outLab = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\\perp}$\n'+deg, 'CMEdelAx':'$\\delta_{Ax}$', 'CMEdelCS':'$\\delta_{CS}$', 'CMEvF':'v$_{F}$\n(km/s)', 'CMEvExp':'v$_{Exp}$\n(km/s)', 'TT':'Transit\nTime\n(days)', 'Dur':'Dur\n(hours)', 'n':'n\n(cm$^{-3}$)',  'B':'max B (nT)', 'Bz':'min Bz\n(nT)', 'Kp':'max Kp', 'logT':'log$_{10}$T\n(K)'}
     
-    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\perp}$\n'+deg, 'CMEdelAx':'$\delta_{Ax}$', 'CMEdelCS':'$\delta_{CS}$', 'CMEdelCSAx':'$\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRB':'B (nT)', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRT':'T [K]',  'Gamma':'$\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
+    myLabs = {'CMElat':'Lat\n'+deg, 'CMElon':'Lon\n'+deg, 'CMEtilt':'Tilt\n'+deg, 'CMEvr':'v$_F$\n(km/s)', 'CMEAW':'AW\n'+deg, 'CMEAWp':'AW$_{\\perp}$\n'+deg, 'CMEdelAx':'$\\delta_{Ax}$', 'CMEdelCS':'$\\delta_{CS}$', 'CMEdelCSAx':'$\\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$\n (R$_S$)', 'FCraccel1':'FC R$_{v1}$\n (km/s)', 'FCraccel2':'FC R$_{v2}$\n (km/s)', 'FCvrmin':'FC v$_{0}$\n (km/s)', 'FCAWmin':'FC AW$_{0}$\n'+deg, 'FCAWr':'FC R$_{AW}$\n (R$_S$)', 'CMEM':'M$_{CME}$\n(10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$\n(R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$\n (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\\perp}$', 'SWn':'n$_{SW}$\n(cm$^{-3}$)', 'SWv':'v$_{SW}$\n(km/s)', 'SWB':'B$_{SW}$\n(nT)', 'SWT':'T$_{SW}$\n(K)', 'SWcs':'c$_s$\n(km/s)', 'SWvA':'v$_A$\n(km/s)', 'FRB':'B (nT)', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRT':'T [K]',  'Gamma':'$\\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$\n(km/s)', 'SWBx':'SW B$_x$\n(nT)', 'SWBy':'SW B$_y$\n(nT)', 'SWBz':'SW B$_z$\n(nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
     
     configID = 0
     if OSP.doFC: configID += 100
@@ -2689,12 +2689,12 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0, satLoc=False):
             axes[i].xaxis.set_ticks_position('top') 
         else:
             axes[i].tick_params(axis='x', which='major', pad=5)
-            axes[i].set_xlabel('Lon ($^{\circ}$)')
+            axes[i].set_xlabel('Lon ($^{\\circ}$)')
         #axes[i].xaxis.set_ticks([-plotwid, -plotwid/2, 0, plotwid/2, plotwid])
         if i not in [0,5]: 
             axes[i].set_yticklabels([])
         else:
-            axes[i].set_ylabel('Lat ($^{\circ}$)')
+            axes[i].set_ylabel('Lat ($^{\\circ}$)')
 
     plt.xticks(fontsize=10)    
     plt.subplots_adjust(wspace=0.2, hspace=0.46,left=0.1,right=0.95,top=0.85,bottom=0.12)    
