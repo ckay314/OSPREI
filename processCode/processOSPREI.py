@@ -3370,6 +3370,121 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Enlilesque'+countstr+'.'+figtag)
         plt.close()
     
+def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
+    allts = []
+    allSheaths = []
+    allFRstarts = []
+    allFRends   = []
+    
+    for j in range(len(CMEarr)):        
+        myCME    = CMEarr[j]
+        mySatLoc = satLoc[j]
+        startt   = startTimes[j]
+        nANT     = len(myCME.ANTtimes)
+        CMEpos   = [myCME.FClats[-1], myCME.FClons[-1], myCME.FCtilts[-1], 0]
+
+        mySheath  = []
+        myFRstart = []
+        myFRend   = []
+        myDTs     = []
+        for i in range(nANT):
+            # CME properties at this time step
+            thisR, thisAW, thisAWp, thisDelAx, thisDelCS = myCME.ANTrs[i], myCME.ANTAWs[i]*dtor, myCME.ANTAWps[i]*dtor, myCME.ANTdelAxs[i], myCME.ANTdelCSs[i]
+        
+            # Find the sat loc in the CME frame
+            # would need in this loop if yaw is a thing
+            Epos1 = SPH2CART(mySatLoc)
+            temp = rotz(Epos1, -CMEpos[1])
+            temp2 = roty(temp, CMEpos[0])
+            temp3 = rotx(temp2, 90.-CMEpos[2])
+            temp3[0] -= thisR*7e10
+            Epos2 = roty(temp3, CMEpos[3])
+            Epos2[0] += thisR*7e10
+            SatPos = np.array(Epos2)/7e10
+        
+            # Calc CME lens
+            CMElens = np.zeros(7)
+            CMElens[0] = thisR
+            CMElens[4] = np.tan(thisAWp) / (1 + thisDelCS * np.tan(thisAWp)) * CMElens[0]
+            CMElens[3] = thisDelCS * CMElens[4]
+            CMElens[6] = (np.tan(thisAW) * (CMElens[0] - CMElens[3]) - CMElens[3]) / (1 + thisDelAx * np.tan(thisAW))  
+            CMElens[5] = thisDelAx * CMElens[6]
+            CMElens[2] = CMElens[0] - CMElens[3] - CMElens[5]
+            CMElens[1] = CMElens[2] * np.tan(thisAW)
+    
+            # use angle between to estimate where 
+            satR = np.sqrt(np.sum(SatPos**2))
+            guessPsi = np.abs(np.arccos(np.dot(SatPos, [1,0,0])/satR))
+            # don't trust the sign on this so check if should be +/-
+            # get axis pos for both and check which closer
+            thisAxA = np.array([CMElens[2] + thisDelAx * CMElens[6] * np.cos(guessPsi), 0.,  0.5 * CMElens[6] * (np.sin(guessPsi) + np.sqrt(1 - np.cos(guessPsi)))])
+            thisAxB = np.array([CMElens[2] + thisDelAx * CMElens[6] * np.cos(-guessPsi), 0.,  -0.5 * CMElens[6] * (np.sin(guessPsi) + np.sqrt(1 - np.cos(guessPsi)))])
+            distA = np.sum((thisAxA-SatPos)**2)
+            distB = np.sum((thisAxB-SatPos)**2)
+            if distB < distA:
+                guessPsi = - guessPsi
+    
+            # search around guess to refine
+            delPsi = 30 * dtor
+            psis = np.linspace(guessPsi-delPsi, guessPsi+delPsi, 101)
+            sns = np.sign(psis)
+            xFR = CMElens[2] + thisDelAx * CMElens[6] * np.cos(psis)
+            zFR = 0.5 * sns * CMElens[6] * (np.sin(np.abs(psis)) + np.sqrt(1 - np.cos(np.abs(psis))))   
+            dists2 = ((SatPos[0] - xFR)**2 + SatPos[1]**2 + (SatPos[2] - zFR)**2) / (CMElens[4])**2
+            thismin = np.min(dists2)
+            thisPsi = psis[np.where(dists2 == np.min(dists2))][0]
+            sn = np.sign(thisPsi)
+            if sn == 0: sn = 1
+            thisPsi = np.abs(thisPsi)
+    
+            # get distance at axis
+            xFR = CMElens[2] + thisDelAx * CMElens[6] * np.cos(thisPsi)
+            zFR = 0.5 * sn * CMElens[6] * (np.sin(np.abs(thisPsi)) + np.sqrt(1 - np.cos(np.abs(thisPsi))))   
+            rAx = np.sqrt(xFR**2 + zFR**2)
+    
+            # Approx width using angles and local cylinder approx
+            # Get the normal vector
+            if thisPsi == 0: thisPsi = 0.00001
+            Nvec = [0.5 * sn*(np.cos(thisPsi) + 0.5*np.sin(thisPsi)/np.sqrt(1-np.cos(thisPsi))), 0., thisDelAx * np.sin(thisPsi)] 
+            Nmag = np.sqrt(Nvec[0]**2+Nvec[2]**2)
+            norm = np.array(Nvec) / Nmag
+            # Determine angle from radial dir at sat
+            rhat = SatPos / satR
+            cosAng = np.abs(np.dot(rhat, norm))
+            newWid = CMElens[3] / cosAng
+            mySheath.append(rAx+newWid + myCME.PUPwids[i])
+            myFRstart.append(rAx+newWid)
+            myFRend.append(rAx-newWid)
+            myDTs.append(startt + datetime.timedelta(days= myCME.ANTtimes[i]))
+
+        allSheaths.append(np.array(mySheath))
+        allFRstarts.append(np.array(myFRstart))
+        allFRends.append(np.array(myFRend))
+        allts.append(np.array(myDTs))
+    
+    fig, ax = plt.subplots(1,1, figsize=(10,5))
+    for j in range(len(allts)):
+        plt.fill_between(allts[j], allSheaths[j], allFRstarts[j], color='#882255', alpha=0.25 )
+        plt.fill_between(allts[j], allFRstarts[j], allFRends[j], color='k', alpha=0.25 )
+        plt.plot(allts[j], allSheaths[j], '#882255', lw=2)
+        plt.plot(allts[j], allFRstarts[j], 'k',lw=2)
+        plt.plot(allts[j], allFRends[j], 'k',lw=2)
+    
+    if arrivals:
+        yl = ax.get_ylim()
+        for item in arrivals:
+            plt.plot([item, item], yl, '--', color='lightgray', zorder=0)
+        ax.set_ylim(yl)
+            
+    
+    xl = ax.get_xlim()
+    plt.plot(xl, [213, 213], 'k--')    
+    ax.set_xlim(xl)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
+    ax.set_ylabel('Distance (R$_S$)')
+    plt.savefig(OSP.Dir+'/fig'+str(CMEarr[0].name)+'_Jmap'+satName+'.png')
+    return
+    
 def runproOSP(inputPassed='noFile', onlyIS=False):
     # set whether to save the figures as png or pdf
     # set only to 'png' or 'pdf'
@@ -3399,6 +3514,9 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     satNames = [''] # default for single sat case with no data
     satLoc0 = [] # array of sat locations at start of simulation
     satLocI = [] # array of sat locations at time of impact (for each one)
+    if nSat == 1:
+        satLoc0 = [OSP.satPos]
+        satLocI = [OSP.satPos] # this assuming not moving, need to fix
     try:
         if OSP.ObsDataFile is not None:
             hasObs = True
@@ -3443,6 +3561,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     global nEns
     nEns = len(ResArr.keys())
     moreSilence = False
+    
     if nEns > 10:
         moreSilence = True  
     if onlyIS:
@@ -3478,6 +3597,23 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             makeDragless(ResArr)
             # Non-forecast version with more params
             #makeDragplot(ResArr)  # haven't checked post FIDO integration into ANT
+            
+            # Make the J map -like plot
+            for i in range(nSat):
+                if hitsSat[i]:
+                    #try:
+                        print (satNames)
+                        sl = satLoc0[i]
+                        swapSatLoc = [sl[2], sl[0], sl[1]]
+                        if not OSP.noDate:
+                            datestr = OSP.input_values['date'] + 'T'+ OSP.input_values['time']
+                            start = (datetime.datetime.strptime(datestr, "%Y%m%dT%H:%M" ))
+                        else:
+                            start = [None]
+                        makeJmap([ResArr[0]], [swapSatLoc], [start], satNames[i])
+                   except:
+                        print ('Error in making Jmap plot for sat '+satNames[i])
+                        
 
         if OSP.doFIDO:
             # Make in situ plot
