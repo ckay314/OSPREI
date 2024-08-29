@@ -591,7 +591,7 @@ def makeCPAplot(ResArr):
     axes[1].plot(ResArr[0].FCrs, ResArr[0].FClonsS, linewidth=4, color='k')
     axes[2].plot(ResArr[0].FCrs, ResArr[0].FCtilts, linewidth=4, color='k')
     
-    degree = '$^\\irc$'
+    degree = '$^\\circ$'
     
     # Add the final position as text
     if nEns > 1:
@@ -3390,7 +3390,7 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
         for i in range(nANT):
             # CME properties at this time step
             thisR, thisAW, thisAWp, thisDelAx, thisDelCS = myCME.ANTrs[i], myCME.ANTAWs[i]*dtor, myCME.ANTAWps[i]*dtor, myCME.ANTdelAxs[i], myCME.ANTdelCSs[i]
-        
+            
             # Find the sat loc in the CME frame
             # would need in this loop if yaw is a thing
             Epos1 = SPH2CART(mySatLoc)
@@ -3436,7 +3436,7 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
             sn = np.sign(thisPsi)
             if sn == 0: sn = 1
             thisPsi = np.abs(thisPsi)
-    
+            
             # get distance at axis
             xFR = CMElens[2] + thisDelAx * CMElens[6] * np.cos(thisPsi)
             zFR = 0.5 * sn * CMElens[6] * (np.sin(np.abs(thisPsi)) + np.sqrt(1 - np.cos(np.abs(thisPsi))))   
@@ -3470,7 +3470,7 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
         plt.plot(allts[j], allFRstarts[j], 'k',lw=2)
         plt.plot(allts[j], allFRends[j], 'k',lw=2)
     
-    if arrivals:
+    if arrivals != None:
         yl = ax.get_ylim()
         for item in arrivals:
             plt.plot([item, item], yl, '--', color='lightgray', zorder=0)
@@ -3478,12 +3478,12 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
             
     
     xl = ax.get_xlim()
-    plt.plot(xl, [213, 213], 'k--')    
+    plt.plot(xl, [mySatLoc[0], mySatLoc[0]], 'k--')    
     ax.set_xlim(xl)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
     ax.set_ylabel('Distance (R$_S$)')
     plt.savefig(OSP.Dir+'/fig'+str(CMEarr[0].name)+'_Jmap'+satName+'.png')
-    return
+    
     
 def runproOSP(inputPassed='noFile', onlyIS=False):
     # set whether to save the figures as png or pdf
@@ -3602,17 +3602,16 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             for i in range(nSat):
                 if hitsSat[i]:
                     #try:
-                        print (satNames)
                         sl = satLoc0[i]
                         swapSatLoc = [sl[2], sl[0], sl[1]]
                         if not OSP.noDate:
                             datestr = OSP.input_values['date'] + 'T'+ OSP.input_values['time']
                             start = (datetime.datetime.strptime(datestr, "%Y%m%dT%H:%M" ))
                         else:
-                            start = [None]
-                        makeJmap([ResArr[0]], [swapSatLoc], [start], satNames[i])
-                   except:
-                        print ('Error in making Jmap plot for sat '+satNames[i])
+                            start = None
+                        makeJmap([ResArr[0]], [swapSatLoc], [start], satName=satNames[i])
+                    #except:
+                        #print ('Error in making Jmap plot for sat '+satNames[i])
                         
 
         if OSP.doFIDO:
