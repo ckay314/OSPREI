@@ -3482,7 +3482,7 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
     ax.set_xlim(xl)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
     ax.set_ylabel('Distance (R$_S$)')
-    plt.savefig(OSP.Dir+'/fig'+str(CMEarr[0].name)+'_Jmap'+satName+'.png')
+    plt.savefig(OSP.Dir+'/fig'+str(CMEarr[0].name)+'_Jmap'+satName+'.'+figtag)
     
     
 def runproOSP(inputPassed='noFile', onlyIS=False):
@@ -3601,7 +3601,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             # Make the J map -like plot
             for i in range(nSat):
                 if hitsSat[i]:
-                    #try:
+                    try:
                         sl = satLoc0[i]
                         swapSatLoc = [sl[2], sl[0], sl[1]]
                         if not OSP.noDate:
@@ -3610,8 +3610,8 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                         else:
                             start = None
                         makeJmap([ResArr[0]], [swapSatLoc], [start], satName=satNames[i])
-                    #except:
-                        #print ('Error in making Jmap plot for sat '+satNames[i])
+                    except:
+                        print ('Error in making Jmap plot for sat '+satNames[i])
                         
 
         if OSP.doFIDO:
