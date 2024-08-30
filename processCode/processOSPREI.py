@@ -1346,7 +1346,6 @@ def makeAThisto(ResArr, satID=0):
                 axes[i].text(0.97, 0.92, dateLabel+'$\\pm$'+'{:.1f}'.format(std*12)+' hr', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
             axes[i].text(0.97, 0.82, fmts[i].format(mean)+'$\\pm$'+'{:.2f}'.format(std)+' days', horizontalalignment='right', verticalalignment='center', transform=axes[i].transAxes) 
 
-                
                        
     for i in range(9): axes[i].set_ylim(0, maxcount*1.2)
         
@@ -2640,9 +2639,8 @@ def makeContours(ResArr, calcwid=95, plotwid=40, satID=0, satLoc=False):
     cmap1.set_bad("k")
     # Reorder Axes
     axes = [axes[0,0], axes[0,1], axes[0,2], axes[0,3], axes[0,4], axes[1,0], axes[1,1], axes[1,2], axes[1,3], axes[1,4]]
-    labels = ['Chance of Impact (%)', 'B$_z$ Front (nT)', 'v$_r$ Front (km/s)',  'Kp Front', 'n (cm$^{-1}$)', 'Duration (hr)', 'B$_z$ Center (nT)', 'v$_r$ Center (km/s)',  'Kp Center', 'log(T) (K)']
-    
-    
+    labels = ['Chance of Impact (%)', 'B$_z$ Front (nT)', 'v$_r$ Front (km/s)',  'Kp Front', 'n (cm$^{-1}$)', 'Duration (hr)', 'B$_z$ Center (nT)', 'v$_r$ Center (km/s)',  'Kp Center', 'log(T) (K)']    
+
     # Get the number of CMEs in each grid cell
     nCMEs = np.sum(allGrid[:,:,:,1]*allGrid[:,:,:,0], axis=0)
     ngrid = 2 * plotwid+1
