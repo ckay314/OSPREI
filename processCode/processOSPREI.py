@@ -3452,7 +3452,8 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
             rhat = SatPos / satR
             cosAng = np.abs(np.dot(rhat, norm))
             newWid = CMElens[3] / cosAng
-            mySheath.append(rAx+newWid + myCME.PUPwids[i])
+            if OSP.doPUP:
+                mySheath.append(rAx+newWid + myCME.PUPwids[i])
             myFRstart.append(rAx+newWid)
             myFRend.append(rAx-newWid)
             myDTs.append(startt + datetime.timedelta(days= myCME.ANTtimes[i]))
@@ -3464,9 +3465,11 @@ def makeJmap(CMEarr, satLoc, startTimes, arrivals=None, satName=''):
     
     fig, ax = plt.subplots(1,1, figsize=(10,5))
     for j in range(len(allts)):
-        plt.fill_between(allts[j], allSheaths[j], allFRstarts[j], color='#882255', alpha=0.25 )
+        if OSP.doPUP:
+            plt.fill_between(allts[j], allSheaths[j], allFRstarts[j], color='#882255', alpha=0.25 )
         plt.fill_between(allts[j], allFRstarts[j], allFRends[j], color='k', alpha=0.25 )
-        plt.plot(allts[j], allSheaths[j], '#882255', lw=2)
+        if OSP.doPUP:
+            plt.plot(allts[j], allSheaths[j], '#882255', lw=2)
         plt.plot(allts[j], allFRstarts[j], 'k',lw=2)
         plt.plot(allts[j], allFRends[j], 'k',lw=2)
     

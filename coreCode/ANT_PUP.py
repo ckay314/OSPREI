@@ -696,6 +696,8 @@ def getBvector(CMElens, minb, mythetaT, thetaP, deltaAx, deltaCS):
     tan[0], tan[2] = -norm[2], norm[0] 
     # CS angular direction
     pol = -np.array([-deltaCS * np.sin(thetaP), np.cos(thetaP), 0.])
+    pmag = np.sqrt(np.sum(pol**2))
+    pol = pol/pmag
     return tan, pol
     
 def getvCMEframe(rbar, thetaT, thetaP, delAx, delCS, vExps):
