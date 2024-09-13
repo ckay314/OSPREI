@@ -865,7 +865,7 @@ def setupEns():
     # 3 sigma = 99.7 percent of distribution
     for item in EnsInputs.keys(): EnsInputs[item] = EnsInputs[item]/3.
     # Open up a file for the tracking of ensemble member parameters
-    global ensembleFile
+    global ensembleFile, orderedEnsKeys
     ensembleFile = open(Dir+'/EnsembleParams'+thisName+'.dat', 'w')
     # Add a header and the seed values
     # Have to do ForeCAT values first then non ForeCAT based on how 
@@ -873,14 +873,18 @@ def setupEns():
     # nSW and vSW variations are only captured in ANTEATR output
     outstr1 = 'RunID '
     outstr2 = '0000 '
+    orderedEnsKeys = []
     for item in EnsInputs.keys():
-        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRT', 'IVDf1', 'IVDf2', 'Gamma', 'MHarea', 'MHdist']:
+        if item not in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT', 'FRB', 'FRT', 'IVDf1', 'IVDf2', 'IVFf', 'Gamma', 'MHarea', 'MHdist']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
+            orderedEnsKeys.append(item)
     for item in EnsInputs.keys():
-        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT',  'FRB', 'FRT', 'IVDf1', 'IVDf2', 'Gamma', 'MHarea', 'MHdist']:
+        if item in ['SWCd', 'SWn', 'SWv', 'SWB', 'SWT',  'FRB', 'FRT', 'IVDf1', 'IVDf2', 'IVFf', 'Gamma', 'MHarea', 'MHdist']:
             outstr1 += item + ' '
             outstr2 += str(input_values[item]) + ' '
+            orderedEnsKeys.append(item)
+    orderedEnsKeys = np.array(orderedEnsKeys)
     ensembleFile.write(outstr1+'\n')
     ensembleFile.write(outstr2+'\n')
             
@@ -891,7 +895,7 @@ def genEnsMem(runnum=0):
     flagAccel = False
     flagExp   = False
     new_pos = [float(input_values['CMElat']), float(input_values['CMElon']), float(input_values['CMEtilt'])]
-    for item in EnsInputs.keys():
+    for item in orderedEnsKeys:
         # Sort out what variable we adjust for each param
         # The lambda functions will auto adjust to new global values in them
         if item == 'CMElat':
@@ -997,7 +1001,7 @@ def genEnsMem(runnum=0):
     if 'CMEyaw' in input_values: CME.yaw = float(input_values['CMEyaw'])    
     
     # add changes to non ForeCAT things onto the CME object
-    for item in EnsInputs.keys():
+    for item in orderedEnsKeys:
         if item == 'SWCd':
             CME.Cd = np.random.normal(loc=float(input_values['SWCd']), scale=EnsInputs['SWCd'])
             if CME.Cd <0: CME.Cd = 0
@@ -1085,7 +1089,6 @@ def makeSatPaths(fname, tzero, Clon0=0):
     # return functions that are R, lat, lon as a function of seconds since start of sim
     return fR, fLat, fLon
     
-
 def goForeCAT(makeRestart=False):
     # ForeCAT portion --------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -1191,7 +1194,6 @@ def goForeCAT(makeRestart=False):
                
     ForeCATfile.close()
     
-
 def makeCMEarray():
     # Called if FC not ran
     global ipos
@@ -1238,7 +1240,6 @@ def makeCMEarray():
         CME = move2corona(CME, rmax)
         CMEarray.append(CME)
         
-
 def move2corona(CME, rmax):
     # Need to take the CMEs which are generated in low corona for ForeCAT and
     # move to outer corona for ANTEATR/FIDO
@@ -1258,7 +1259,6 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
-
 def goANTEATR(makeRestart=False, satPathIn=False):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
