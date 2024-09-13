@@ -11,6 +11,7 @@ myPaths = np.genfromtxt('myPaths.txt', dtype=str)
 mainpath = myPaths[0,1]
 codepath = myPaths[1,1]
 magpath  = myPaths[2,1]
+propath  = myPaths[3,1]
 
 # Previous hardcoded version
 # Import all the OSPREI files, make this match your system

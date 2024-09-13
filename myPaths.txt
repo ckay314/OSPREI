@@ -1,4 +1,5 @@
 mainpath: /Users/ckay/OSPREI/
 codepath: /Users/ckay/OSPREI/coreCode
 magpath: /Users/ckay/OSPREI/PickleJar/
+processpath: /Users/ckay/OSPREI/processCode/
 heliopath: /Users/ckay/OSPREI/helioweb/
