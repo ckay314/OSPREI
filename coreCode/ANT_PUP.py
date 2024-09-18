@@ -1275,10 +1275,11 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 if doPUP: maxrSH = maxDistFR + sheath_wid * 7e10
                 # check if in sheath and save if so
                 if doPUP:
-                    if (axDist < maxrSH) and (maxDistFR != maxrSH):
+                    if (axDist < maxrSH) and (maxDistFR != maxrSH) and (satPos[satID][2] > CMElens[0]):
                         if not hitSheath[satID]:
                             hitSheath[satID] = True
                             inint[satID] = 1
+                            outSum[satID] = [t/3600., vs[0]/1e5, vs[3]/1e5, CMElens[0]/7e10, satPos[satID][1], -9999]
                             # Add this specific time step if not already included
                             if not printNow:
                                 if not silent:
@@ -1435,12 +1436,43 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 # Exit point if begins moving away from sat
                 else: 
                     sats2check.remove(satID)
-                    outsFIDO[satID] = [[8888]*8]
-                    if nSats == 1:
-                        vsArr[satID] = [8888, 8888, 8888, 8888, 8888, 8888]
-                    #thisSum[satID] = -
-                    if len(sats2check)==0:
-                        runSim = False
+                    if not hitSheath[satID]:
+                        outsFIDO[satID] = [[8888]*8]
+                        if nSats == 1:
+                            vsArr[satID] = [8888, 8888, 8888, 8888, 8888, 8888]
+                        #thisSum[satID] = -
+                        if len(sats2check)==0:
+                            runSim = False
+                    else:
+                        t2 = outsFIDO[satID][0][-1]
+                        # if doing aFIDOinside add SW padding behind the CME
+                        t2 = t
+                        for i in range(18+24):
+                            t2 += 3600.
+                            # Update HSS position
+                            if hasattr(MEOWHiSS, '__len__'):
+                                doMH[0] = MHt0+t2/3600
+
+                            # Update Earth/satellite position
+                            if not doPath:    
+                                satPos[satID][1] += satPos[satID][3] * dt
+                            else:
+                                satPos[satID][0] = satfs[satID][0](t2)
+                                satPos[satID][1] = satfs[satID][1](t2)
+                                satPos[satID][2] = satfs[satID][2](t2)*7e10
+                            # get SW values
+                            if doMH:
+                                SWatsat, HSSreg   = getSWvals(satPos[satID][2], SWfs, doMH=doMH, returnReg=doMH)
+                            else:
+                                SWatsat   = getSWvals(satPos[satID][2], SWfs)
+                                HSSreg = 0
+                    
+                            FIDOarr = [t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg]
+                            outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOarr) 
+                        
+                            if writeFile:
+                                print2file([t2/3600, inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0., SWatsat[1]/1e5, SWatsat[0]/1.67e-24, np.log10(SWatsat[4]), 100+HSSreg],  f4s[satID], '{:8.5f}')
+                        
                                  
                 # Exit point if center is more than 150 Rs beyond sat pos
                 # Don't think this can be hit? hide for now
@@ -1453,7 +1485,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
 
             # Add FIDO stuff to array if still looping. Could be SW, sheath or CME     
             if printNow:
-                #print (satID, FIDOstuff[satID])
                 if satID in sats2check:
                     outsFIDO[satID] = add2outsFIDO(outsFIDO[satID], FIDOstuff[satID])  
     

@@ -298,10 +298,13 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
             thisRes = ResArr[key]
             theParams = [thisRes.ANTtimes*24, thisRes.ANTtimes*24, thisRes.ANTAWs, thisRes.ANTAWps, thisRes.ANTdelAxs, thisRes.ANTdelCSs, thisRes.PUPBs, thisRes.ANTBtors,  thisRes.PUPvshocks, thisRes.ANTvFs, thisRes.ANTvCSrs, thisRes.PUPwids, thisRes.ANTCMEwids, thisRes.PUPns, thisRes.ANTns, thisRes.PUPlogTs, thisRes.ANTlogTs]        
             for i in range(nParams):
+                shidx, fridx = thisRes.ANTshidx[satID], thisRes.ANTFRidx[satID]
                 if i == 0:
-                    all_Params[i].append(theParams[i][thisRes.ANTshidx[satID]]) 
+                    if shidx:
+                        all_Params[i].append(theParams[i][thisRes.ANTshidx[satID]]) 
                 elif i == 1:
-                    all_Params[i].append(theParams[i][thisRes.ANTFRidx[satID]]) 
+                    if fridx:
+                        all_Params[i].append(theParams[i][thisRes.ANTFRidx[satID]]) 
                 else:
                     all_Params[i].append(theParams[i][-1])   
         for i in range(nParams):
@@ -560,20 +563,23 @@ def makeAThisto(ResArr, dObj=None, DoY=None, satID=0, BFs=[None], satCols=None, 
     for key in ResArr.keys(): 
         if (not ResArr[key].FIDOmiss[satID]) and (not ResArr[key].fail):
             # figure out when hits FR, may not be last pt if doing internal FIDO
-            thisidx = ResArr[key].ANTFRidx[satID]
+            if ResArr[key].sheathOnly[satID]:
+                thisidx = ResArr[key].ANTshidx[satID]
+            else:
+                thisidx = ResArr[key].ANTFRidx[satID]
             if thisidx is not None:
-                all_vFs.append(ResArr[key].ANTvFs[thisidx])
-                all_vExps.append(ResArr[key].ANTvCSrs[thisidx])
-                all_TTs.append(ResArr[key].ANTtimes[thisidx])    
-                all_durs.append(ResArr[key].ANTdur[satID])
-                all_Bfs.append(ResArr[key].ANTBpols[thisidx])
-                all_Bms.append(ResArr[key].ANTBtors[thisidx])
-                all_ns.append(ResArr[key].ANTns[thisidx])
-                all_Kps.append(ResArr[key].ANTKp0[satID])
-                all_Ts.append(ResArr[key].ANTlogTs[thisidx])
+                all_vFs.append(float(ResArr[key].ANTvFs[thisidx]))
+                all_vExps.append(float(ResArr[key].ANTvCSrs[thisidx]))
+                all_TTs.append(float(ResArr[key].ANTtimes[thisidx]))    
+                all_durs.append(float(ResArr[key].ANTdur[satID]))
+                all_Bfs.append(float(ResArr[key].ANTBpols[thisidx]))
+                all_Bms.append(float(ResArr[key].ANTBtors[thisidx]))
+                all_ns.append(float(ResArr[key].ANTns[thisidx]))
+                all_Kps.append(float(ResArr[key].ANTKp0[satID]))
+                all_Ts.append(float(ResArr[key].ANTlogTs[thisidx]))
                 allidx.append(key)
     allidx = np.array(allidx)
-
+    
     # |----------- Reorder things and set up labels -----------|
     # At some point changed the order things are plotted which is why this and the axes
     # array are in messy order. Could fix but not a priorty since works, just ugly
@@ -614,13 +620,15 @@ def makeAThisto(ResArr, dObj=None, DoY=None, satID=0, BFs=[None], satCols=None, 
     
         keycount = 0
         for key in BFs:
-            allkey = np.where(allidx == key)[0]
-            for i in range(9):
-                myx = ordData[i][allkey[0]]
-                if i == 2:
-                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.1], '--', color=satCols[keycount], label=satNames[keycount])
-                else:
-                    axes[i].plot([myx, myx], allys[i], '--', color=satCols[keycount])
+            # it might not be in allidx if bad at other sat
+            if key in allidx:
+                allkey = np.where(allidx == key)[0]
+                for i in range(9):
+                    myx = ordData[i][allkey[0]]
+                    if i == 2:
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.1], '--', color=satCols[keycount], label=satNames[keycount])
+                    else:
+                        axes[i].plot([myx, myx], allys[i], '--', color=satCols[keycount])
             keycount += 1
     
         for i in range(9):
@@ -1363,7 +1371,7 @@ def makePercMap(ResArr, nEns, nFails, calcwid=95, plotwid=40, satID=0, satLocs=N
     axes.xaxis.set_ticks_position('both')
     axes.yaxis.set_ticks_position('both')
             
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_PercMap_'+satName+'.'+pO.figtag, bbox_inches='tight')   
+    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_PercMap'+satName+'.'+pO.figtag, bbox_inches='tight')   
     plt.close()    
 
 
@@ -1470,7 +1478,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             idx = np.min(np.where(thisCME.ANTrs >=r0 + iii*dR ))
         else:
             idx = np.min(np.where(thisCME.ANTrs >=r0 + (npics-1)*dR ))
-        print ('At number ', iii+1, ' out of ', npics+bonusTime, '. Distance of ', r0 + iii*dR, ' Rs')
+        print ('At number ', iii+1, ' out of ', npics+bonusTime, 'at distance of ', r0 + iii*dR, ' Rs')
         
         # |----------- Set up mini grids -----------|
         valuesMer = np.ones((angs.size, rs.size))

@@ -118,7 +118,6 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
             if math.isnan(thisParam[j]): isNans.append(j)
         if len(isNans) < len(thisParam) * 0.5:
             haveObsidx.append(i)            
-    
     for i in haveObsidx:
         hrvalsObs = hourify(obst, ObsData[satID][i+1,:])
         obshr[:,i+1] = hrvalsObs[goodidx]
@@ -153,7 +152,8 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
             thisRes = ResArr[key]
             thistime = thisRes.FIDOtimes[satID]+DoY+1
             shidx = thisRes.FIDO_shidx[satID]
-            FRidx = thisRes.FIDO_FRidx[satID]
+            if not thisRes.sheathOnly[satID]:
+                FRidx = thisRes.FIDO_FRidx[satID]
             transientidx = np.append(thisRes.FIDO_shidx[satID], thisRes.FIDO_FRidx[satID])
             # |----- Pull the sim results corresponding to event -----|
             compVals = [thisRes.FIDOBs[satID], thisRes.FIDOBxs[satID], thisRes.FIDOBys[satID], thisRes.FIDOBzs[satID], thisRes.FIDOns[satID], thisRes.FIDOvs[satID], thisRes.FIDOtems[satID]]
@@ -163,7 +163,11 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
                     shErr = 1 # penalty for not making a sheath
                 else:
                     shErr = np.abs(obstSh - thistime[shidx[0]])
-                timingErr[hitCounter,:] = [np.abs(obstFR1 -thistime[FRidx[0]]), np.abs(obstFR2 - thistime[FRidx[-1]]), shErr]
+                if not thisRes.sheathOnly[satID]:    
+                    timingErr[hitCounter,:] = [np.abs(obstFR1 -thistime[FRidx[0]]), np.abs(obstFR2 - thistime[FRidx[-1]]), shErr]
+                else:
+                    # Big timing penalties for no FR only sheath
+                    timingErr[hitCounter,:] = [99, 99, shErr]
             else:
                 timingErr[hitCounter,:] = [np.abs(obstFR1 -thistime[FRidx[0]]), np.abs(obstFR2 - thistime[FRidx[-1]]), 0]
             # |----- Convert the sim data into hourly resolution ----|
@@ -175,6 +179,11 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
             if hasSheath:
                 rngs = [[obstSh, obstFR2], [obstSh, obstFR1], [obstFR1, obstFR2]]
                 haveObsidxFull = [haveObsidx[i] for i in range(len(haveObsidx))] + [haveObsidx[i] +7 for i in range(len(haveObsidx))] +  [haveObsidx[i] +14 for i in range(len(haveObsidx))]
+                if thisRes.sheathOnly[satID]:
+                    # should have set FR1 bound at back of sheath previously for sheath only case
+                    rngs = [[obstSh, obstFR1]]
+                    haveObsidxFull = [haveObsidx[i] for i in range(len(haveObsidx))]
+                    
             else:
                 rngs =[[obstFR1, obstFR2]]
                 haveObsidxFull = [haveObsidx[i] for i in range(len(haveObsidx))] + [haveObsidx[i] +7 for i in range(len(haveObsidx))]
@@ -413,7 +422,11 @@ def plotEnsScoreScatter(ResArr, allScores, nEns, satID=0, BFs=[None], satNames=[
                 axCounter +=1
     # Add the legend
     fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(BFs))
-        
+    
+    #|---------- Turn off empty panels ----------|    
+    tooMany = len(axes) - nVaried 
+    for i in range(tooMany):
+        axes[-(i+1)].axis('off')
         
     #|---------- Make pretty and save ----------|    
     plt.subplots_adjust(wspace=0.2, hspace=0.5,left=0.1,right=0.95,top=0.95,bottom=0.05)   
@@ -753,7 +766,7 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
                     print ('----------------------- Sat:' , satNames[i], '-----------------------')
                 if isinstance(OSP.obsFRstart[i], float) and isinstance(OSP.obsFRend[i], float) and OSP.doFIDO:
                     # |----- Calculate the metrics for this satellite -----|
-                    try:
+                    #try:
                         # can include ignoreSheath=True if have simulated sheath but don't want to use in metric
                         allScores, timingErr, meanVals, betterKeys, haveObsidxFull, haveObsidx = getISmetrics(ResArr, ObsData, DoY, satNames, satID=i, ignoreSheath=False, silent=silent)
                         if fAll:
@@ -775,9 +788,9 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
                         sumScore += newScores * satScoreWeights[i]
                         if fAll:
                             fAll.write('\n') 
-                    except:
-                        sumScore += 9999.
-                        print ('Error in calculating metrics for sat '+satNames[i])               
+                    #except:
+                    #    sumScore += 9999.
+                    #    print ('Error in calculating metrics for sat '+satNames[i])               
             else:
                 print ('Missing FR start for ', satNames[i], ' so no metrics')
     
@@ -788,21 +801,21 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
             print ('Total score over all satellites: ')
         if fAll:
             fAll.write('|------------------------ Combined Results ------------------------|\n')
-        
+
         # |---------- Pull the number for each case and make pretty to print ----------|
         for i in range(len(sumScore)):
             score = sumScore[i]
             if score > 9999:
-                score = 'Fail '
+                score = 'Fail '.rjust(8)
             else:
-                score = '{:5.2f}'.format(score)
+                score = '{:8.2f}'.format(score)
             outline = score + ' '
             for j in range(nSat):
                 myScore = storeScores[j,i]
                 if myScore == -9998:
-                    myScore = ' Fail'
+                    myScore = ' Fail'.rjust(8)
                 else:
-                    myScore = '{:5.2f}'.format(myScore)
+                    myScore = '{:8.2f}'.format(myScore)
                 outline += myScore
             # Print to screen    
             if not silent:

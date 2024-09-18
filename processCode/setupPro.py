@@ -191,7 +191,6 @@ def txt2obj(GCStime=0):
                 PUPids = []
                 unPUPids = []
             
-        
         for i in unANTids:
             # Check if we already have set up the objects
             # If not do now
@@ -206,7 +205,7 @@ def txt2obj(GCStime=0):
                 thisRes = ResArr[i]
                 
             # Set as an impact not a miss
-            myidxs = np.where(ANTids==i)[0]  
+            myidxs = np.where(ANTids==i)[0] 
             if int(ANTdata[myidxs[0],1]) == 8888:
                 thisRes.fail = True
                 nFails += 1
@@ -271,7 +270,6 @@ def txt2obj(GCStime=0):
                 
                 if OSP.doPUP and (len(PUPdata.shape)!=1):
                     myPUPidxs = np.where(PUPids==i)[0]  
-                    
                     if PUPdata[myPUPidxs[0],1] != 8888:
                         thisRes.PUPvshocks = PUPdata[myPUPidxs,1]
                         thisRes.PUPcomps = PUPdata[myPUPidxs,2]
@@ -381,6 +379,7 @@ def txt2obj(GCStime=0):
             thisRes.FIDOnormrs = [[] for i in range(nSat)]
             thisRes.isSheath   = [[] for i in range(nSat)]
             thisRes.hasSheath  = [False for i in range(nSat)]   
+            thisRes.sheathOnly = [False for i in range(nSat)]
             thisRes.FIDO_shidx = [[] for i in range(nSat)]
             
             thisRes.SITidx = [[] for i in range(nSat)]
@@ -437,29 +436,36 @@ def txt2obj(GCStime=0):
                     thisRes.FIDO_FRidx[k] = []
                     if 1 in thisRes.regions[k]:
                         thisRes.FIDO_FRidx[k] = np.where(thisRes.regions[k]==1)[0]
+                    else:
+                        thisRes.sheathOnly[k] = True
                     thisRes.FIDO_SWidx[k] = np.where(np.abs(thisRes.regions[k]-100)<10)[0]
             
-                    # derived paramters
-                    thisRes.FIDO_FRdur[k] = (thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][-1]] - thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][0]]) * 24
+                    # derived parameters
+                    if not thisRes.sheathOnly[k]:
+                        thisRes.FIDO_FRdur[k] = (thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][-1]] - thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][0]]) * 24
+                        thisRes.FIDO_FRexp[k] = 0.5*(thisRes.FIDOvs[k][thisRes.FIDO_FRidx[k][0]] - thisRes.FIDOvs[k][thisRes.FIDO_FRidx[k][-1]])
                     if len(thisRes.FIDO_shidx[k]) !=0 :
                         thisRes.FIDO_shdur[k] = (thisRes.FIDOtimes[k][thisRes.FIDO_shidx[k][-1]] - thisRes.FIDOtimes[k][thisRes.FIDO_shidx[k][0]]) * 24
                     else:
                         thisRes.FIDO_shdur[k] = 0.
-                    thisRes.FIDO_FRexp[k] = 0.5*(thisRes.FIDOvs[k][thisRes.FIDO_FRidx[k][0]] - thisRes.FIDOvs[k][thisRes.FIDO_FRidx[k][-1]]) 
+                    
                     
                     # get corresponding idxs for ANT data
                     if OSP.doANT:
                         if OSP.doPUP and (len(thisRes.FIDO_shidx[k]) !=0):
                             tSH =thisRes.FIDOtimes[k][thisRes.FIDO_shidx[k][0]], 
                             thisRes.ANTshidx[k] = np.min(np.where(thisRes.ANTtimes >= tSH))
-                        tFR = thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][0]]
-                        thisRes.ANTFRidx[k] = np.min(np.where(thisRes.ANTtimes >= tFR))
+                        if not thisRes.sheathOnly[k]:
+                            tFR = thisRes.FIDOtimes[k][thisRes.FIDO_FRidx[k][0]]
+                            thisRes.ANTFRidx[k] = np.min(np.where(thisRes.ANTtimes >= tFR))
                         
                         # redo calc Kp with actual front
-                        dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx[k]], 4/3.) * np.power(np.abs(thisRes.ANTBpols[thisRes.ANTFRidx[k]]), 2./3.) 
+                        if not thisRes.sheathOnly[k]:
+                            dphidt = np.power(thisRes.ANTvFs[thisRes.ANTFRidx[k]], 4/3.) * np.power(np.abs(thisRes.ANTBpols[thisRes.ANTFRidx[k]]), 2./3.) 
+                        else:
+                            dphidt = np.power(thisRes.ANTvFs[thisRes.ANTshidx[k]], 4/3.) * np.power(np.abs(thisRes.ANTBpols[thisRes.ANTshidx[k]]), 2./3.)
                         # Mays/Savani expression, best behaved for high Kp
                         thisRes.ANTKp0[k] = 9.5 - np.exp(2.17676 - 5.2001e-5*dphidt)
-                
                         # reset ANT dur with more accurate version
                         thisRes.ANTdur[k] = thisRes.FIDO_FRdur[k]
 
@@ -616,11 +622,15 @@ def processObs(ResArr, nSat):
                 # |----- Initial location -----|
                 satLoc0.append([float(temp[i][1]), float(temp[i][2]), float(temp[i][3])])
                 # |----- Location at time of impact ----|
-                myt = ResArr[0].ANTtimes[ResArr[0].ANTFRidx[i]]*24*60 + ResArr[0].FCtimes[-1]
-                if OSP.doFIDO:
-                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_shidx[i][0]]*24*60 + ResArr[0].FCtimes[-1]
+                bonusTime = 0
+                if OSP.doFC:
+                    bonusTime = ResArr[0].FCtimes[-1]
+                myt = ResArr[0].ANTtimes[ResArr[0].ANTFRidx[i]]*24*60 + bonusTime
+                
+                if OSP.doPUP:
+                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_shidx[i][0]]*24*60 + bonusTime
                 else:
-                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_FRidx[i][0]]*24*60 + ResArr[0].FCtimes[-1]
+                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_FRidx[i][0]]*24*60 + bonusTime
                     
                 myImpLoc = [float(satPaths[i][0](myt*60)), float(satPaths[i][1](myt*60)), float(satPaths[i][2](myt*60))]
                 satLocI.append(myImpLoc)     

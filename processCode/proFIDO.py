@@ -88,7 +88,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
             else:
                 lw, co, zord = 3, satCols[idx], 9 
                 lab = satNames[idx]
-                
+
         # |------------- Make sure this member is an impact --------------|        
         if ResArr[key].FIDOtimes[satID] is not None: 
             # |------------- No date (generic time) mode --------------|
@@ -103,38 +103,40 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                     dates = np.array([base + datetime.timedelta(days=(i+DoY)) for i in ResArr[key].FIDOtimes[satID]])
                     
             # |------------- Plot the flux rope --------------|
-            nowIdx = ResArr[key].FIDO_FRidx[satID]
-            if lab[0]:
-                if len(idx) == 1:
-                    axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord, label=lab)
+            if not ResArr[key].sheathOnly[satID]:
+                nowIdx = ResArr[key].FIDO_FRidx[satID]
+                if lab[0]:
+                    if len(idx) == 1:
+                        axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord, label=lab)
+                    else:
+                        for aidx in range(len(idx)):
+                            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co[aidx], zorder=zord, label=lab[aidx])
+                        co = co[-1]
                 else:
-                    for aidx in range(len(idx)):
-                        axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co[aidx], zorder=zord, label=lab[aidx])
-                    co = co[-1]
-            else:
-                axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
-            # Option to plot either n or Kp
-            if OSP.isSat or plotn:
-                axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
-            else:
-                axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                    axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
+                # Option to plot either n or Kp
+                if OSP.isSat or plotn:
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
+                else:
+                    axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
             
-            # |------------- Establish min/max date if not set --------------|    
-            if mindate is None: 
-                mindate = dates[nowIdx[0]]
-                maxdate = dates[nowIdx[-1]]
+                # |------------- Establish min/max date if not set --------------|    
+                if mindate is None: 
+                    mindate = dates[nowIdx[0]]
+                    maxdate = dates[nowIdx[-1]]
 
             # |------------- Plot the sheath --------------|
             # Have to make sure to connect the last sheath 
             # point to the front of the FR
             if len(ResArr[key].FIDO_shidx[satID]) != 0:
                 nowIdx = ResArr[key].FIDO_shidx[satID]
-                nowIdx = np.append(nowIdx, ResArr[key].FIDO_FRidx[satID][0])
+                if not ResArr[key].sheathOnly[satID]:
+                    nowIdx = np.append(nowIdx, ResArr[key].FIDO_FRidx[satID][0])
                 axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[2].plot(dates[nowIdx], ResArr[key].FIDOBys[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
@@ -145,6 +147,11 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
+                
+                # |------------- Establish min/max date if not set --------------|    
+                if mindate is None: 
+                    mindate = dates[nowIdx[0]]
+                    maxdate = dates[nowIdx[-1]]
  
                 # |------------- Print the arrival times of the sheath  --------------|
                 if not silent:
@@ -159,7 +166,10 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
             if len(ResArr[key].FIDO_SWidx[satID]) > 0:
                 # |------------- Get current front/back --------------|
                 if len(ResArr[key].FIDO_shidx[satID]) != 0:
-                    frontEnd, backStart = dates[ResArr[key].FIDO_shidx[satID][0]], dates[ResArr[key].FIDO_FRidx[satID][-1]]
+                    if not ResArr[key].sheathOnly[satID]:
+                        frontEnd, backStart = dates[ResArr[key].FIDO_shidx[satID][0]], dates[ResArr[key].FIDO_FRidx[satID][-1]]
+                    else:
+                        frontEnd, backStart = dates[ResArr[key].FIDO_shidx[satID][0]], dates[ResArr[key].FIDO_shidx[satID][-1]]
                 else:
                     frontEnd, backStart = dates[ResArr[key].FIDO_FRidx[satID][0]], dates[ResArr[key].FIDO_FRidx[satID][-1]]
                 
@@ -172,6 +182,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 # |------------- Find corresponding indices --------------|
                 frontIdx = np.where((dates>=frontStart) & (dates <=frontEnd))[0]
                 backIdx = np.where((dates>=backStart) & (dates <=backEnd))[0]
+                
                 # |------------- Plot the ambient SW --------------|
                 for nowIdx in [frontIdx, backIdx]:
                     axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
@@ -185,7 +196,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                     else:
                         axes[6].plot(dates[nowIdx], ResArr[key].FIDOKps[satID][nowIdx], ':', linewidth=lw, color=co, zorder=zord)
             
-            # |------------- Update min/max date from this event --------------|    
+            # |------------- Update min/max date from this event --------------|   
             if len(ResArr[key].FIDO_SWidx[satID]) > 0:    
                 if dates[frontIdx[0]] < mindate: mindate = dates[frontIdx[0]]
                 if dates[backIdx[-1]] > maxdate: maxdate = dates[backIdx[-1]]  
@@ -353,7 +364,7 @@ def makeallIShistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCo
     for key in ResArr.keys(): 
         if ResArr[key].hasSheath[satID]:
             if (not ResArr[key].FIDOmiss[satID]) and (not ResArr[key].fail):
-                # might have FR impact with no sheath, this checks if empst
+                # might have FR impact with no sheath, this checks if empty
                 if len(ResArr[key].FIDO_shidx[satID]) != 0:
                     all_AT.append(ResArr[key].FIDOtimes[satID][ResArr[key].FIDO_shidx[satID][0]])
                 else:
@@ -361,8 +372,12 @@ def makeallIShistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCo
                 all_durS.append(ResArr[key].SITdur[satID])
                 all_dur.append(ResArr[key].FIDO_FRdur[satID])
                 all_vS.append(ResArr[key].SITvSheath[satID])
-                all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_FRidx[satID][0]])
-                all_vE.append(ResArr[key].FIDO_FRexp[satID])
+                if ResArr[key].sheathOnly[satID]:
+                    all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_shidx[satID][0]])
+                    all_vE.append(0)
+                else:    
+                    all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_FRidx[satID][0]])
+                    all_vE.append(ResArr[key].FIDO_FRexp[satID])
                 all_Bz.append(np.min(ResArr[key].FIDOBzs[satID]))
                 all_B.append(np.max(ResArr[key].FIDOBs[satID]))
                 all_Kp.append(np.max(ResArr[key].FIDOKps[satID]))
@@ -435,16 +450,17 @@ def makeallIShistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCo
         # |------------- Loop through and add BF values --------------| 
         keycount = 0
         for key in BFs:
-            nowKey = np.where(all_Keys == key)[0]
-            nowKey = nowKey[0]
-            myxs = [all_AT[nowKey], all_durS[nowKey], all_dur[nowKey], all_vS[nowKey], all_vF[nowKey], all_vE[nowKey], all_B[nowKey], all_Bz[nowKey], all_Kp[nowKey]]
-            for i in range(9):
-                myx = myxs[i]
-                if i == 0:
-                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=satCols[keycount], label=satNames[keycount], lw=3)
-                else:
-                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=satCols[keycount], lw=3)
-            keycount += 1
+            if key in all_Keys:
+                nowKey = np.where(all_Keys == key)[0]
+                nowKey = nowKey[0]
+                myxs = [all_AT[nowKey], all_durS[nowKey], all_dur[nowKey], all_vS[nowKey], all_vF[nowKey], all_vE[nowKey], all_B[nowKey], all_Bz[nowKey], all_Kp[nowKey]]
+                for i in range(9):
+                    myx = myxs[i]
+                    if i == 0:
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=satCols[keycount], label=satNames[keycount], lw=3)
+                    else:
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=satCols[keycount], lw=3)
+                keycount += 1
         # |------------- Reset lims and add legend --------------|         
         for i in range(9):
             axes[i].set_ylim(allys[i])  
@@ -584,7 +600,10 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
                 minidx = ResArr[key].FIDO_shidx[satID][0]
             else:
                 minidx = ResArr[key].FIDO_FRidx[satID][0]
-            maxidx = ResArr[key].FIDO_FRidx[satID][-1]
+            if ResArr[key].sheathOnly[satID]:
+                maxidx = np.max(np.where(ResArr[key].regions[satID] == 0))
+            else:
+                maxidx = ResArr[key].FIDO_FRidx[satID][-1]
             dates = dates[minidx:maxidx+1]
             # save the extreme times to know plot range
             if mindate is None: 

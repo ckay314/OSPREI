@@ -1460,12 +1460,12 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                 
             for sat in satNames:
                 thisSum = outSum[sat]
+                pidx = np.where(satNames == sat)[0]
                 # check if input for this sat
-                if thisSum[0] != -9999:
+                if thisSum[-1] != -9999:
                     thisvs = vsArr[sat]
                     FRhit = thisSum[0] / 24.
                     FRidx = np.min(np.where(ATresults[0] >= FRhit))
-                    pidx = np.where(satNames == sat)[0]
                     thisParams = myParams[pidx[0]]
                     thisAngs = angArr[sat]
                     # get improved v estimates using FIDO code
@@ -1505,7 +1505,24 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                             dImp = dObj + datetime.timedelta(days=TotTime)
                             print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
                         print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
-                                      
+                        
+                # Only sheath impact
+                elif thisSum[0] != -9999:
+                    # Can add in ForeCAT time to ANTEATR time
+                    FCATtime = CME.t/60./24
+                    regs = FIDOresults[sat][7]
+                    hitTime = FIDOresults[sat][0][np.min(np.where(regs == 0))]/24 
+                    hitIdx = np.min(np.where(ATresults[0] >= hitTime))
+                    endTime = FIDOresults[sat][0][np.max(np.where(regs == 0))]/24 
+                    ShDur = 24 * (endTime - hitTime)
+                    if not allSilent:
+                        print (str(i)+' Contact with sheath after '+"{:.2f}".format(hitTime+ FCATtime)+' days. No FR impact. Sheath duration of ' + '{:.2f}'.format(ShDur) + ' hr.')
+                        if not noDate:
+                            dImp = dObj + datetime.timedelta(days=hitTime)
+                            print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+                            
+                # Should work for either just sheath or full impact
+                if thisSum[0] != -9999:                          
                     # Record FIDO/PUP results specific to each satellite
                     if doFIDO:
                         # Save FIDO profiles
