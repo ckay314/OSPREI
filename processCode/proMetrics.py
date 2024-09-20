@@ -369,20 +369,30 @@ def plotEnsScoreScatter(ResArr, allScores, nEns, satID=0, BFs=[None], satNames=[
     deg = '('+'$^\\circ$'+')'
     myLabs = {'CMElat':'Lat '+deg, 'CMElon':'Lon '+deg, 'CMEtilt':'Tilt ' +deg, 'CMEvr':'v$_F$ (km/s)', 'CMEAW':'AW '+deg, 'CMEAWp':'AW$_{\\perp}$ '+deg, 'CMEdelAx':'$\\delta_{Ax}$', 'CMEdelCS':'$\\delta_{CS}$', 'CMEdelCSAx':'$\\delta_{CA}$', 'CMEr':'R$_{F0}$ (R$_S$)', 'FCrmax':'FC end R$_{F0}$ (R$_S$)', 'FCraccel1':'FC R$_{v1}$ (km/s)', 'FCraccel2':'FC R$_{v2}$ (km/s)', 'FCvrmin':'FC v$_{0}$ (km/s)', 'FCAWmin':'FC AW$_{0}$ '+deg, 'FCAWr':'FC R$_{AW}$ (R$_S$)', 'CMEM':'M$_{CME}$ (10$^{15}$ g)', 'FCrmaxM':'FC R$_{M}$ (R$_S$)', 'FRB':'B$_0$ (nT)', 'CMEvExp':'v$_{Exp}$ (km/s)', 'SWCd': 'C$_d$', 'SWCdp':'C$_{d,\\perp}$', 'SWn':'n$_{SW}$ (cm$^{-3}$)', 'SWv':'v$_{SW}$ (km/s)', 'SWB':'B$_{SW}$ (nT)', 'SWT':'log(T$_{SW}$) (K)', 'SWcs':'c$_s$ (km/s)', 'SWvA':'v$_A$ (km/s)', 'FRB':'B (nT)', 'FRtau':'$\\tau', 'FRCnm':'C$_{nm}$', 'FRT':'log(T) (K)',  'Gamma':'$\\gamma$', 'IVDf1':'$f_{Exp}$', 'IVDf':'$f_{Exp}$', 'IVDf2':'$f_2$', 'CMEvTrans':'v$_{Trans}$ (km/s)', 'SWBx':'SW B$_x$ (nT)', 'SWBy':'SW B$_y$ (nT)', 'SWBz':'SW B$_z$ (nT)', 'MHarea':'CH Area (10$^{10}$ km$^2$)', 'MHdist':'HSS Dist. (au)'}
     
+    #|---------- Clean up the range for the non/sheath impact cases ----------|
+    goodHits = np.where((oneScores < 100) & (oneScores > 0))# think this criteria will always be good?
+    newMax = np.max(oneScores[goodHits])
+    newMin = np.max(oneScores[goodHits])
+    outliers = np.where((oneScores > 100) | (oneScores <= 0))
+    badval = newMin + 0.25 * (newMax-newMin)
+    cleanScores = oneScores*0
+    cleanScores[goodHits] = oneScores[goodHits]
+    cleanScores[outliers] = badval
+
     #|---------- Make the scatter plot from ensemble values and scores ----------|
     for key in goodkeys:
         axCounter=0
         for keyV in ensKeys:
             if oneScores[key] > 0: # negative is only for fails
                 if keyV in ['FRT', 'SWT']:
-                    axes[axCounter].scatter(np.log10(ResArr[key].EnsVal[keyV]), oneScores[key], c='lightgray')
+                    axes[axCounter].scatter(np.log10(ResArr[key].EnsVal[keyV]), cleanScores[key], c='lightgray')
                 else:
-                    axes[axCounter].scatter(ResArr[key].EnsVal[keyV], oneScores[key], c='lightgray')
+                    axes[axCounter].scatter(ResArr[key].EnsVal[keyV], cleanScores[key], c='lightgray')
             axCounter +=1
     
-    #|---------- Add labels ----------|    
+    #|---------- Add labels ----------|        
     axCounter = 0
-    for key in ensKeys:
+    for key in ensKeys:            
         axes[axCounter].set_xlabel(myLabs[key])
         if axCounter % 4 == 0:
             axes[axCounter].set_ylabel('Score')
@@ -394,15 +404,20 @@ def plotEnsScoreScatter(ResArr, allScores, nEns, satID=0, BFs=[None], satNames=[
             axCounter = 0
             for keyV in ensKeys:
                 if keyV in ['FRT', 'SWT']:
-                    axes[axCounter].scatter(np.log10(ResArr[idx].EnsVal[keyV]), oneScores[idx], c='dimgray')
+                    axes[axCounter].scatter(np.log10(ResArr[idx].EnsVal[keyV]), cleanScores[idx], c='dimgray')
                 else:
-                    axes[axCounter].scatter(ResArr[idx].EnsVal[keyV], oneScores[idx], c='dimgray')
+                    axes[axCounter].scatter(ResArr[idx].EnsVal[keyV], cleanScores[idx], c='dimgray')
                 axCounter += 1
             
     #|---------- Highlight best fit cases ----------|
     if BFs[0] or (BFs[0] == 0):
         for i in range(len(BFs)):
             key = int(BFs[i])
+            myCol = BFcols[i]
+            moreidxs = np.where(BFs == key)[0]
+            # If have multiple sats with same BF set all to first color
+            if len(moreidxs) > 1:
+                myCol = BFcols[moreidxs[0]]
             axCounter=0
             for keyV in ensKeys:
                 if axCounter == 0:
@@ -411,17 +426,29 @@ def plotEnsScoreScatter(ResArr, allScores, nEns, satID=0, BFs=[None], satNames=[
                     else:
                         myName = 'All'
                     if keyV in ['FRT', 'SWT']:    
-                        axes[axCounter].plot(np.log10(ResArr[key].EnsVal[keyV]), oneScores[key], 'o', ms=11, mfc=BFcols[i], mec='k', label=myName)
+                        axes[axCounter].plot(np.log10(ResArr[key].EnsVal[keyV]), cleanScores[key], 'o', ms=11, mfc=myCol, mec='k', label=myName)
                     else:
-                        axes[axCounter].plot(ResArr[key].EnsVal[keyV], oneScores[key], 'o', ms=11, mfc=BFcols[i], mec='k', label=myName)
+                        axes[axCounter].plot(ResArr[key].EnsVal[keyV], cleanScores[key], 'o', ms=11, mfc=myCol, mec='k', label=myName)
                 else:
                     if keyV in ['FRT', 'SWT']:
-                        axes[axCounter].plot(np.log10(ResArr[key].EnsVal[keyV]), oneScores[key], 'o', ms=11, mfc=BFcols[i], mec='k')
+                        axes[axCounter].plot(np.log10(ResArr[key].EnsVal[keyV]), cleanScores[key], 'o', ms=11, mfc=myCol, mec='k')
                     else:
-                        axes[axCounter].plot(ResArr[key].EnsVal[keyV], oneScores[key], 'o', ms=11, mfc=BFcols[i], mec='k')
+                        axes[axCounter].plot(ResArr[key].EnsVal[keyV], cleanScores[key], 'o', ms=11, mfc=myCol, mec='k')
                 axCounter +=1
     # Add the legend
     fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(BFs))
+    
+    #|---------- Add a line under the outlier cases ----------| 
+    axCounter = 0
+    if len(outliers):
+        for key in ensKeys:
+            xr = axes[axCounter].get_xlim()
+            yr = axes[axCounter].get_ylim()
+            axes[axCounter].plot(xr, [badval, badval], 'lightgray', ls='--', zorder=0)
+            axes[axCounter].set_xlim(xr)
+            axes[axCounter].set_ylim(yr)
+            axCounter +=1
+    
     
     #|---------- Turn off empty panels ----------|    
     tooMany = len(axes) - nVaried 
@@ -668,11 +695,17 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
                 # Add the BF    
                 if BFs[0]  or (BFs[0] == 0):    
                     for idx in range(len(BFs)):
-                        k = np.where(goodIDs == idx)[0]
-                        if (i+j)==0:
-                            axes[j,i].plot(newEnsVal[i,k], OSPres[newOuts[j]][k], 'o', ms=11, mfc=BFcols[idx], mec='k', label=satNames[idx])
+                        k = np.where(goodIDs == BFs[idx])[0]
+                        allidx = np.where(BFs == BFs[idx])[0]
+                        if len(allidx) > 1:
+                            myCol = BFcols[allidx[0]]
                         else:
-                            axes[j,i].plot(newEnsVal[i,k], OSPres[newOuts[j]][k], 'o', ms=11, mfc=BFcols[idx], mec='k')
+                            myCol = BFcols[idx]
+                            
+                        if (i+j)==0:
+                            axes[j,i].plot(newEnsVal[i,k], OSPres[newOuts[j]][k], 'o', ms=11, mfc=myCol, mec='k', label=satNames[idx])
+                        else:
+                            axes[j,i].plot(newEnsVal[i,k], OSPres[newOuts[j]][k], 'o', ms=11, mfc=myCol, mec='k')
                 
         # Rotate bottom axes labels
         for i in range(newnHoriz):

@@ -1445,7 +1445,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
         isSilent = allSilent
-
+        
         if actualPath:      
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
         else:

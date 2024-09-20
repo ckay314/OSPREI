@@ -1254,7 +1254,6 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
         if printNow:
             outsCME, outsSheath = add2outs(outsCME, outsSheath, fullCMEstuff, PUPstuff)
                     
-                    
         # -----------------------------------------------------------------------------
         # Check if in sheath or CME
         # -----------------------------------------------------------------------------
@@ -1436,11 +1435,12 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                 # Exit point if begins moving away from sat
                 else: 
                     sats2check.remove(satID)
+                    if len(sats2check)==0:
+                        runSim = False
                     if not hitSheath[satID]:
                         outsFIDO[satID] = [[8888]*8]
                         if nSats == 1:
                             vsArr[satID] = [8888, 8888, 8888, 8888, 8888, 8888]
-                        #thisSum[satID] = -
                         if len(sats2check)==0:
                             runSim = False
                     else:

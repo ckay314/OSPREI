@@ -77,10 +77,14 @@ def makeCPAplot(ResArr, nEns, BFs=[None], satCols=None, satNames=None):
     # |----------- Add in the best fit lines if given -----------|
     if BFs[0] or (BFs[0] == 0):
         for i in range(len(BFs)):
+            BFidx = np.where(BFs ==BFs[i])[0]
+            mycol = satCols[i]
+            if len(BFidx) > 1:
+                mycol = satCols[BFidx[0]]
             idx = BFs[i]
-            axes[0].plot(ResArr[idx].FCrs, ResArr[idx].FClats, linewidth=3, color=satCols[i], label=satNames[i])
-            axes[1].plot(ResArr[idx].FCrs, ResArr[idx].FClonsS, linewidth=3, color=satCols[i])
-            axes[2].plot(ResArr[idx].FCrs, ResArr[idx].FCtilts, linewidth=2, color=satCols[i])
+            axes[0].plot(ResArr[idx].FCrs, ResArr[idx].FClats, linewidth=3, color=mycol, label=satNames[i])
+            axes[1].plot(ResArr[idx].FCrs, ResArr[idx].FClonsS, linewidth=3, color=mycol)
+            axes[2].plot(ResArr[idx].FCrs, ResArr[idx].FCtilts, linewidth=2, color=mycol)
             
     # |----------- Add a legend -----------|
     if nEns > 1:

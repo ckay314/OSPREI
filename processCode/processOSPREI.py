@@ -288,7 +288,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     # |------------------------------------------------------------|
     # |------------------ Make heat map timeline ------------------|    
     # |------------------------------------------------------------| 
-        if True and (nEns>1):
+        if plotAll and (nEns>1):
             for i in range(nSat):
                 if hitsSat[i]:
                     # Adding BFs is possible but does make it pretty messy 

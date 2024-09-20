@@ -630,12 +630,17 @@ def processObs(ResArr, nSat):
                 if OSP.doPUP:
                     myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_shidx[i][0]]*24*60 + bonusTime
                 else:
-                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_FRidx[i][0]]*24*60 + bonusTime
-                    
-                myImpLoc = [float(satPaths[i][0](myt*60)), float(satPaths[i][1](myt*60)), float(satPaths[i][2](myt*60))]
+                    myt = ResArr[0].FIDOtimes[i][ResArr[0].FIDO_FRidx[i][0]]*24*60 + bonusTime   
+                if type(satPaths[i][0])==float:  
+                    myImpLoc = [float(satPaths[i][0]), float(satPaths[i][1]+satPaths[i][3]*myt*60), float(satPaths[i][2])]
+                else:
+                    myImpLoc = [float(satPaths[i][0](myt*60)), float(satPaths[i][1](myt*60)), float(satPaths[i][2](myt*60))]
                 satLocI.append(myImpLoc)     
                 for j in range(nSat):
-                    satLocAllI[i].append([float(satPaths[j][0](myt*60)), float(satPaths[j][1](myt*60)), float(satPaths[j][2](myt*60))])
+                    if type(satPaths[i][0])==float:
+                        satLocAllI[i].append([float(satPaths[j][0]), float(satPaths[j][1]+satPaths[j][3]*myt*60), float(satPaths[j][2])])
+                    else:
+                        satLocAllI[i].append([float(satPaths[j][0](myt*60)), float(satPaths[j][1](myt*60)), float(satPaths[j][2](myt*60))])
         
     return ObsData, satNames, satLoc0, satLocI, satLocAllI
     

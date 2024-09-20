@@ -271,13 +271,17 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
         if BFs[0] or (BFs[0] == 0):
             for idx in range(len(BFs)):
                 j = BFs[idx]
+                myCol = satCols[idx]
+                allidxs = np.where(BFs == j)[0]
+                if len(allidxs) > 1:
+                    myCol = satCols[allidxs[0]]
                 thisRes = ResArr[j]
                 thexs, theParams = makexy(ResArr, j)
                 if i != 10:
                     if i == 0:
-                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=satCols[idx], zorder=3, label=satNames[idx])
+                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=myCol, zorder=3, label=satNames[idx])
                     else:
-                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=satCols[idx], zorder=3)
+                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=myCol, zorder=3)
             fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(satCols))
         # |-------------------- Plot the main line if not vCS --------------------|
         # |----------- (use to plot vCS but easier to ignore than rm)  -----------|
@@ -429,15 +433,20 @@ def makeDragless(ResArr, nEns, BFs=[None], satCols=None, satNames=None):
     lw = 2
     if BFs[0] or (BFs[0] == 0):            
             for i in range(len(BFs)):
+                myCol = satCols[i]
+                allidxs = np.where(BFs == BFs[i])[0]
+                if len(allidxs) > 1:
+                    myCol = satCols[allidxs[0]]
+                    
                 idx = BFs[i]
-                axes[0].plot(ResArr[idx].ANTrs, ResArr[idx].ANTAWs, linewidth=lw, color=satCols[i], zorder=3, label=satNames[i])
-                axes[1].plot(ResArr[idx].ANTrs, ResArr[idx].ANTAWps, linewidth=lw, color=satCols[i], zorder=3)
-                axes[2].plot(ResArr[idx].ANTrs, ResArr[idx].ANTdelAxs, linewidth=lw, color=satCols[i], zorder=3)
-                axes[3].plot(ResArr[idx].ANTrs, ResArr[idx].ANTdelCSs, linewidth=lw, color=satCols[i], zorder=3)
-                axes[4].plot(ResArr[idx].ANTrs, ResArr[idx].ANTvFs, linewidth=lw, color=satCols[i], zorder=3)
-                axes[5].plot(ResArr[idx].ANTrs, ResArr[idx].ANTvCSrs, linewidth=lw, color=satCols[i], zorder=3)
-                axes[6].plot(ResArr[idx].ANTrs, ResArr[idx].ANTBtors, linewidth=lw, color=satCols[i], zorder=3)
-                axes[7].plot(ResArr[idx].ANTrs, ResArr[idx].ANTlogTs, linewidth=lw, color=satCols[i], zorder=3)    
+                axes[0].plot(ResArr[idx].ANTrs, ResArr[idx].ANTAWs, linewidth=lw, color=myCol, zorder=3, label=satNames[i])
+                axes[1].plot(ResArr[idx].ANTrs, ResArr[idx].ANTAWps, linewidth=lw, color=myCol, zorder=3)
+                axes[2].plot(ResArr[idx].ANTrs, ResArr[idx].ANTdelAxs, linewidth=lw, color=myCol, zorder=3)
+                axes[3].plot(ResArr[idx].ANTrs, ResArr[idx].ANTdelCSs, linewidth=lw, color=myCol, zorder=3)
+                axes[4].plot(ResArr[idx].ANTrs, ResArr[idx].ANTvFs, linewidth=lw, color=myCol, zorder=3)
+                axes[5].plot(ResArr[idx].ANTrs, ResArr[idx].ANTvCSrs, linewidth=lw, color=myCol, zorder=3)
+                axes[6].plot(ResArr[idx].ANTrs, ResArr[idx].ANTBtors, linewidth=lw, color=myCol, zorder=3)
+                axes[7].plot(ResArr[idx].ANTrs, ResArr[idx].ANTlogTs, linewidth=lw, color=myCol, zorder=3)    
                 if OSP.simYaw:
                     axes[8].plot(ResArr[idx].ANTrs, ResArr[0].ANTyaws, linewidth=4, color=col3, zorder=3) 
             fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(satCols))
@@ -596,7 +605,7 @@ def makeAThisto(ResArr, dObj=None, DoY=None, satID=0, BFs=[None], satCols=None, 
         cutoff = 5 *std
         if i in [3,4]: cutoff = 3 * std
         newData = theseData[np.where(np.abs(theseData - mean) < cutoff)[0]]
-        n, bins, patches = axes[i].hist(newData, bins=10, color='#882255', histtype='bar', ec='black')
+        n, bins, patches = axes[i].hist(newData, bins=10, color='lightgray', histtype='bar', ec='black')
         axes[i].set_xlabel(names[i])
         maxn = np.max(n)
         if maxn > maxcount: maxcount = maxn
@@ -622,13 +631,17 @@ def makeAThisto(ResArr, dObj=None, DoY=None, satID=0, BFs=[None], satCols=None, 
         for key in BFs:
             # it might not be in allidx if bad at other sat
             if key in allidx:
+                BFidx = np.where(BFs ==key)[0]
+                mycol = satCols[keycount]
+                if len(BFidx) > 1:
+                    mycol = satCols[BFidx[0]]
                 allkey = np.where(allidx == key)[0]
                 for i in range(9):
                     myx = ordData[i][allkey[0]]
                     if i == 2:
-                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.1], '--', color=satCols[keycount], label=satNames[keycount])
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.1], '--', color=mycol, label=satNames[keycount])
                     else:
-                        axes[i].plot([myx, myx], allys[i], '--', color=satCols[keycount])
+                        axes[i].plot([myx, myx], allys[i], '--', color=mycol)
             keycount += 1
     
         for i in range(9):

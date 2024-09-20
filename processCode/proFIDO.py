@@ -69,6 +69,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
     # |------------- Loop through ensemble results --------------|
     for key in ResArr.keys():
         lab = None
+        multiBF = False
         # |------------- Generic case colors --------------|
         lw, co, zord, lab = 2, 'DarkGray', 2, [None]
         # |--------------- Seed case colors ---------------|
@@ -82,13 +83,13 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
         # |---------------- BF case colors ----------------|    
         if key in BFs:
             idx = np.where(BFs ==key)[0]
-            if len(idx) == 1:
-                lw, co, zord = 3, satCols[idx][0], 9 
-                lab = satNames[idx]      
-            else:
-                lw, co, zord = 3, satCols[idx], 9 
-                lab = satNames[idx]
-
+            if len(idx) > 1:
+                BFidxs = idx
+                idx = [BFidxs[0]]
+                multiBF = True       
+            lw, co, zord = 3, satCols[idx][0], 9 
+            lab = satNames[idx]      
+ 
         # |------------- Make sure this member is an impact --------------|        
         if ResArr[key].FIDOtimes[satID] is not None: 
             # |------------- No date (generic time) mode --------------|
@@ -106,12 +107,12 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
             if not ResArr[key].sheathOnly[satID]:
                 nowIdx = ResArr[key].FIDO_FRidx[satID]
                 if lab[0]:
-                    if len(idx) == 1:
-                        axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord, label=lab)
+                    if multiBF:
+                        for iii in BFidxs:
+                            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord, label=satNames[iii])
                     else:
-                        for aidx in range(len(idx)):
-                            axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co[aidx], zorder=zord, label=lab[aidx])
-                        co = co[-1]
+                        axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord, label=lab)
+                            
                 else:
                     axes[0].plot(dates[nowIdx], ResArr[key].FIDOBs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
                 axes[1].plot(dates[nowIdx], ResArr[key].FIDOBxs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
@@ -451,15 +452,19 @@ def makeallIShistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCo
         keycount = 0
         for key in BFs:
             if key in all_Keys:
+                myCol = satCols[keycount]
+                BFidxs = np.where(BFs == key)[0]
+                if len(BFidxs) > 1:
+                    myCol = satCols[BFidxs[0]]
                 nowKey = np.where(all_Keys == key)[0]
                 nowKey = nowKey[0]
                 myxs = [all_AT[nowKey], all_durS[nowKey], all_dur[nowKey], all_vS[nowKey], all_vF[nowKey], all_vE[nowKey], all_B[nowKey], all_Bz[nowKey], all_Kp[nowKey]]
                 for i in range(9):
                     myx = myxs[i]
                     if i == 0:
-                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=satCols[keycount], label=satNames[keycount], lw=3)
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=myCol, label=satNames[keycount], lw=3)
                     else:
-                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=satCols[keycount], lw=3)
+                        axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=myCol, lw=3)
                 keycount += 1
         # |------------- Reset lims and add legend --------------|         
         for i in range(9):
@@ -497,12 +502,16 @@ def makeFIDOhistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCol
     # |------------- Collect the results into holders --------------| 
     for key in ResArr.keys(): 
         if not ResArr[key].FIDOmiss[satID]:
-            all_AT.append(ResArr[key].FIDOtimes[satID][ResArr[key].FIDO_FRidx[satID][0]])
+            if ResArr[key].sheathOnly:
+                all_AT.append(ResArr[key].FIDOtimes[satID][ResArr[key].FIDO_shidx[satID][0]])
+                all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_shidx[satID][0]])                
+            else:
+                all_AT.append(ResArr[key].FIDOtimes[satID][ResArr[key].FIDO_FRidx[satID][0]])
+                all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_FRidx[satID][0]])
             all_dur.append(ResArr[key].FIDO_FRdur[satID])
             all_Bz.append(np.min(ResArr[key].FIDOBzs[satID]))
             all_Kp.append(np.max(ResArr[key].FIDOKps[satID]))
             all_B.append(np.max(ResArr[key].FIDOBs[satID]))
-            all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_FRidx[satID][0]])
             all_vE.append(ResArr[key].FIDO_FRexp[satID] )
             all_Keys.append(key)
     all_Keys = np.array(all_Keys)
@@ -558,15 +567,19 @@ def makeFIDOhistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCol
         # |------------- Loop through and add BF values --------------| 
         keycount = 0
         for key in BFs:
+            myCol = satCols[keycount]
+            BFidxs = np.where(BFs == key)[0]
+            if len(BFidxs) > 1:
+                myCol = satCols[BFidxs[0]]
             nowKey = np.where(all_Keys == key)[0]
             nowKey = nowKey[0]
             myxs = [all_dur[nowKey], all_Bz[nowKey], all_B[nowKey], all_AT[nowKey], all_vF[nowKey], all_vE[nowKey]]
             for i in range(6):
                 myx = myxs[i]
                 if i == 3:
-                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=satCols[keycount], label=satNames[keycount], lw=3)
+                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.3], '--', color=myCol, label=satNames[keycount], lw=3)
                 else:
-                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=satCols[keycount], lw=3)
+                    axes[i].plot([myx, myx], [allys[i][0], allys[i][1]/1.15], '--', color=myCol, lw=3)
             keycount += 1
         # |------------- Reset lims and add legend --------------|         
         for i in range(6):
@@ -762,7 +775,15 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
             except:
                 dates2 = [None]
             
-            thiscol = ['w', satCols[BFcount]]
+            
+            
+            BFidx = np.where(BFs ==key)[0]
+            if len(BFidx) > 1:
+                mycol = satCols[BFidx[0]]
+            else:
+                mycol = satCols[BFidx][0]
+            
+            thiscol = ['w', mycol]
             lw = [3,2]
     
             if dates2[0] != None:
