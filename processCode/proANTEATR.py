@@ -246,8 +246,8 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
         if nEns > 1:
             means[:,i]  = np.mean(splineVals[:,:,i], axis=0)
             stds[:,i]   = np.std(splineVals[:,:,i], axis=0)
-            lims[:,0,i] = np.max(splineVals[:,:,i], axis=0) 
-            lims[:,1,i] = np.min(splineVals[:,:,i], axis=0)
+            lims[:,0,i] = np.percentile(splineVals[:,:,i], 95, axis=0) 
+            lims[:,1,i] = np.percentile(splineVals[:,:,i], 5,  axis=0) 
             
             # |----------- Remove the 0 points from the vShock spline fit -----------|
             if i==8:
@@ -265,8 +265,9 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
 
             # |----------- Color in the ranges -----------|
             rmidx = 1
-            axes[i].fill_between(fakers[:-rmidx], lims[:-rmidx,0,i], lims[:-rmidx,1,i], color=col, alpha=0.25) 
-            axes[i].fill_between(fakers[:-rmidx], means[:-rmidx,i]+stds[:-rmidx,i], means[:-rmidx,i]-stds[:-rmidx,i], color=col, alpha=0.25)
+            if i != 10:
+                axes[i].fill_between(fakers[:-rmidx]/215, lims[:-rmidx,0,i], lims[:-rmidx,1,i], color=col, alpha=0.25) 
+                axes[i].fill_between(fakers[:-rmidx]/215, means[:-rmidx,i]+stds[:-rmidx,i], means[:-rmidx,i]-stds[:-rmidx,i], color=col, alpha=0.25)
         
         if BFs[0] or (BFs[0] == 0):
             for idx in range(len(BFs)):
@@ -279,16 +280,16 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
                 thexs, theParams = makexy(ResArr, j)
                 if i != 10:
                     if i == 0:
-                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=myCol, zorder=3, label=satNames[idx])
+                        axes[i].plot(thexs[i]/215,theParams[i], linewidth=2, color=myCol, zorder=3, label=satNames[idx])
                     else:
-                        axes[i].plot(thexs[i],theParams[i], linewidth=2, color=myCol, zorder=3)
+                        axes[i].plot(thexs[i]/215,theParams[i], linewidth=2, color=myCol, zorder=3)
             fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(satCols))
         # |-------------------- Plot the main line if not vCS --------------------|
         # |----------- (use to plot vCS but easier to ignore than rm)  -----------|
         thisRes = ResArr[0]
         thexs, theParams = makexy(ResArr, 0)
         if i != 10:
-            axes[i].plot(thexs[i],theParams[i], linewidth=4, color=col, zorder=4)
+            axes[i].plot(thexs[i]/215,theParams[i], linewidth=4, color=col, zorder=4)
     
     # |----------- Add text with final result -----------|
     # |-------- Currently only for ens not single -------|
@@ -326,7 +327,36 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
                     calci = i - 1
                 if calci % 2 == 1: ytext = 0.89
                 if calci % 2 == 0: col = c2
-            axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(endMean)+'$\\pm$'+'{:.2f}'.format(endSTD)+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center', zorder=5)
+            if i != 10:
+                axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(endMean)+'$\\pm$'+'{:.2f}'.format(endSTD)+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center', zorder=5)
+
+    else:
+        thisRes = ResArr[0]
+        all_Params = [0. for i in range(nParams)]
+        theParams = [thisRes.ANTtimes*24, thisRes.ANTtimes*24, thisRes.ANTAWs, thisRes.ANTAWps, thisRes.ANTdelAxs, thisRes.ANTdelCSs, thisRes.PUPBs, thisRes.ANTBtors,  thisRes.PUPvshocks, thisRes.ANTvFs, thisRes.ANTvCSrs, thisRes.PUPwids, thisRes.ANTCMEwids, thisRes.PUPns, thisRes.ANTns, thisRes.PUPlogTs, thisRes.ANTlogTs]        
+        for i in range(nParams):
+            shidx, fridx = thisRes.ANTshidx[satID], thisRes.ANTFRidx[satID]
+            if i == 0:
+                if shidx:
+                    all_Params[i] = theParams[i][thisRes.ANTshidx[satID]] 
+            elif i == 1:
+                if fridx:
+                    all_Params[i] = theParams[i][thisRes.ANTFRidx[satID]]
+            else:
+                all_Params[i] = theParams[i][-1] 
+            ytext = 0.96
+            col = c1
+            if i == 10: 
+                col = 'k'
+                ytext = 0.82
+            else:
+                calci = i
+                if i > 10:
+                    calci = i - 1
+                if calci % 2 == 1: ytext = 0.89
+                if calci % 2 == 0: col = c2
+            axes[i].text(0.97, ytext, labels[i]+': '+'{:4.1f}'.format(all_Params[i])+' '+units[i], transform=axes[i].transAxes, color=col, horizontalalignment='right', verticalalignment='center', zorder=5)
+                               
     
     # |----------- Prettify and save -----------|
     # Expand AW axis to add room for text
@@ -340,6 +370,8 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
             axes[2*i+1].set_xlabel('R (au)')   
     for i in [7,13,15]:
         axes[i].set_yscale('log')
+    rStart = ResArr[0].ANTrs[0] /215
+    rEnd = ResArr[0].ANTrs[-1] / 215
     axes[0].set_xlim([rStart, rEnd])
     plt.subplots_adjust(wspace=0.3, hspace=0.01,left=0.06,right=0.99,top=0.94,bottom=0.1)    
     plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANTPUP.'+pO.figtag)
