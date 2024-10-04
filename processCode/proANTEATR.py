@@ -133,7 +133,10 @@ def makeJmap(CMEarr, satLoc_unswap, startTimes, arrivals=None, satName=''):
                 mySheath.append(rAx+newWid + myCME.PUPwids[i])
             myFRstart.append(rAx+newWid)
             myFRend.append(rAx-newWid)
-            myDTs.append(startt + datetime.timedelta(days= myCME.ANTtimes[i]))
+            if startt:
+                myDTs.append(startt + datetime.timedelta(days= myCME.ANTtimes[i]))
+            else:
+                myDTs.append(myCME.ANTtimes[i])
             
         # |----------- Add to holders -----------|
         allSheaths.append(np.array(mySheath))
@@ -167,9 +170,12 @@ def makeJmap(CMEarr, satLoc_unswap, startTimes, arrivals=None, satName=''):
     
     # |----------- Prettify and save -----------|
     ax.set_xlim(xl)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
+    if startt:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M"))
+    else:
+        ax.set_xlabel('Time (days)')
     ax.set_ylabel('Distance (R$_S$)')
-    plt.savefig(OSP.Dir+'/fig'+str(CMEarr[0].name)+'_Jmap_'+satName+'.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(CMEarr[0].name)+'_Jmap_'+satName+'.'+pO.figtag)
 
 
 
@@ -374,7 +380,7 @@ def makePUPplot(ResArr, nEns, satID=0, BFs=[None], satCols=None, satNames=None):
     rEnd = ResArr[0].ANTrs[-1] / 215
     axes[0].set_xlim([rStart, rEnd])
     plt.subplots_adjust(wspace=0.3, hspace=0.01,left=0.06,right=0.99,top=0.94,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANTPUP.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_ANTPUP.'+pO.figtag)
     plt.close() 
 
 
@@ -578,7 +584,7 @@ def makeDragless(ResArr, nEns, BFs=[None], satCols=None, satNames=None):
     axes[6].set_yscale('log')
     
     plt.subplots_adjust(hspace=0.1, wspace=0.27,left=0.1,right=0.93,top=0.95,bottom=0.1)
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_DragLess.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_DragLess.'+pO.figtag)
     plt.close() 
     
 
@@ -685,7 +691,7 @@ def makeAThisto(ResArr, dObj=None, DoY=None, satID=0, BFs=[None], satCols=None, 
         
     # |----------- Prettify and save -----------|
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ANThist'+satName+'.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_ANThist'+satName+'.'+pO.figtag)
     plt.close() 
     
 
@@ -1169,7 +1175,7 @@ def makeContours(ResArr, nEns, nFails, calcwid=95, plotwid=40, satID=0, satLocs=
         fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(satLocs))
     plt.xticks(fontsize=10)    
     plt.subplots_adjust(wspace=0.2, hspace=0.55,left=0.1,right=0.95,top=0.84,bottom=0.12)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Contours'+satName+'.'+pO.figtag)   
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_Contours'+satName+'.'+pO.figtag)   
     plt.close() 
     
 
@@ -1416,7 +1422,7 @@ def makePercMap(ResArr, nEns, nFails, calcwid=95, plotwid=40, satID=0, satLocs=N
     axes.xaxis.set_ticks_position('both')
     axes.yaxis.set_ticks_position('both')
             
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_PercMap'+satName+'.'+pO.figtag, bbox_inches='tight')   
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_PercMap'+satName+'.'+pO.figtag, bbox_inches='tight')   
     plt.close()    
 
 
@@ -1833,5 +1839,5 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         
         countstr = str(iii)
         countstr = countstr.zfill(3)
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_Enlilesque'+countstr+'.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_Enlilesque'+countstr+'.'+pO.figtag)
         plt.close()

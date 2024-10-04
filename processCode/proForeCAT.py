@@ -121,5 +121,5 @@ def makeCPAplot(ResArr, nEns, BFs=[None], satCols=None, satNames=None):
     axes[2].set_xlabel('Distance (R$_S$)')
     axes[0].set_xlim([1.01,maxr+0.15])
     plt.subplots_adjust(hspace=0.1,left=0.13,right=0.95,top=0.95,bottom=0.1)
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_CPA.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_CPA.'+pO.figtag)
     plt.close() 

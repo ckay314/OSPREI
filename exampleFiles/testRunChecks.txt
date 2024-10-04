@@ -1,0 +1,390 @@
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 1 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+
+Satellite:         sat1
+Transit Time:      56.333333333333336
+Final Velocity:    474.77022844767174 33.54601175528433
+CME nose dist:     213.02888760667796
+Sat. longitude:    0.0
+Est. Duration:     24.749999999999993
+
+0 Contact after 2.36 days with front velocity 474.77 km/s (expansion velocity 33.55 km/s) when nose reaches 213.52 Rsun and angular width 53 deg and estimated duration 25 hr
+   Density:  6.532875641405174   Temp:   63114.74733382258
+   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 2 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+Satellite:         Sat0
+Transit Time:      56.333333333333336
+Final Velocity:    474.77022844767174 33.54601175528433
+CME nose dist:     213.02888760667796
+Sat. longitude:    0.0
+Est. Duration:     24.749999999999993
+
+Satellite:         Sat1
+Transit Time:      55.733333333333334
+Final Velocity:    476.2292865900431 33.93778472297298
+CME nose dist:     211.56163778856055
+Sat. longitude:    10.0
+Est. Duration:     24.41666666666667
+
+Satellite:         Sat2
+Transit Time:      54.05
+Final Velocity:    480.4636655819665 35.06179568245513
+CME nose dist:     207.42067725460757
+Sat. longitude:    20.0
+Est. Duration:     23.433333333333337
+
+Satellite:         Sat3
+Transit Time:      51.71666666666667
+Final Velocity:    486.70273190991344 36.6853179110785
+CME nose dist:     201.6181280648906
+Sat. longitude:    30.0
+Est. Duration:     21.78333333333333
+
+Satellite:         Sat4
+Transit Time:      49.53333333333333
+Final Velocity:    492.97080741825715 38.281249800147805
+CME nose dist:     196.11837236800164
+Sat. longitude:    40.0
+Est. Duration:     19.53333333333333
+
+Satellite:         Sat1n
+Transit Time:      55.733333333333334
+Final Velocity:    476.2292865900431 33.93778472297298
+CME nose dist:     211.56163778856055
+Sat. longitude:    -10.0
+Est. Duration:     24.433333333333337
+
+Satellite:         Sat2n
+Transit Time:      54.05
+Final Velocity:    480.4636655819665 35.06179568245513
+CME nose dist:     207.42067725460757
+Sat. longitude:    -20.0
+Est. Duration:     23.433333333333337
+
+Satellite:         Sat3n
+Transit Time:      51.71666666666667
+Final Velocity:    486.70273190991344 36.6853179110785
+CME nose dist:     201.6181280648906
+Sat. longitude:    -30.0
+Est. Duration:     21.78333333333333
+
+Satellite:         Sat4n
+Transit Time:      49.53333333333333
+Final Velocity:    492.97080741825715 38.281249800147805
+CME nose dist:     196.11837236800164
+Sat. longitude:    -40.0
+Est. Duration:     19.53333333333333
+
+0 Contact after 2.35 days with front velocity 474.77 km/s (expansion velocity 33.55 km/s) when nose reaches 213.03 Rsun and angular width 53 deg and estimated duration 25 hr
+   Density:  6.581156599619855   Temp:   63268.295321397636
+0 Contact after 2.32 days with front velocity 492.56 km/s (expansion velocity 33.83 km/s) when nose reaches 211.56 Rsun and angular width 53 deg and estimated duration 24 hr
+   Density:  6.729238674837702   Temp:   63734.584153661846
+0 Contact after 2.25 days with front velocity 532.55 km/s (expansion velocity 34.70 km/s) when nose reaches 207.42 Rsun and angular width 53 deg and estimated duration 23 hr
+   Density:  7.172252163932703   Temp:   65089.769028342445
+0 Contact after 2.16 days with front velocity 576.77 km/s (expansion velocity 36.10 km/s) when nose reaches 201.66 Rsun and angular width 53 deg and estimated duration 22 hr
+   Density:  7.8564947365903715   Temp:   67076.73436029739
+0 Contact after 2.07 days with front velocity 616.55 km/s (expansion velocity 37.91 km/s) when nose reaches 196.54 Rsun and angular width 53 deg and estimated duration 20 hr
+   Density:  8.54008317701111   Temp:   68949.14610602468
+0 Contact after 2.32 days with front velocity 492.56 km/s (expansion velocity 33.83 km/s) when nose reaches 211.56 Rsun and angular width 53 deg and estimated duration 24 hr
+   Density:  6.729238674837702   Temp:   63734.584153661846
+0 Contact after 2.25 days with front velocity 532.55 km/s (expansion velocity 34.70 km/s) when nose reaches 207.42 Rsun and angular width 53 deg and estimated duration 23 hr
+   Density:  7.172252163932703   Temp:   65089.769028342445
+0 Contact after 2.16 days with front velocity 576.77 km/s (expansion velocity 36.10 km/s) when nose reaches 201.66 Rsun and angular width 53 deg and estimated duration 22 hr
+   Density:  7.8564947365903715   Temp:   67076.73436029739
+0 Contact after 2.07 days with front velocity 616.55 km/s (expansion velocity 37.91 km/s) when nose reaches 196.54 Rsun and angular width 53 deg and estimated duration 20 hr
+   Density:  8.54008317701111   Temp:   68949.14610602468
+   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 3 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+Satellite:         bep
+Transit Time:      38.25
+Final Velocity:    350.23213869570645 34.281300091829074
+CME nose dist:     93.25046906108014
+Sat. longitude:    329.7772792693532
+Est. Duration:     19.366666666666667
+
+Satellite:         sol
+Transit Time:      56.983333333333334
+Final Velocity:    342.9462936017238 21.47323894527762
+CME nose dist:     126.63188528947626
+Sat. longitude:    350.040623898441
+Est. Duration:     21.41666666666667
+
+Satellite:         psp
+Transit Time:      78.41666666666667
+Final Velocity:    334.9043563299813 10.805832429558707
+CME nose dist:     163.99613017935354
+Sat. longitude:    338.43218497538976
+Est. Duration:     24.183333333333323
+
+Satellite:         sta
+Transit Time:      98.38333333333334
+Final Velocity:    327.13563202391833 2.0100913972050147
+CME nose dist:     197.98573850793875
+Sat. longitude:    342.34678343810015
+Est. Duration:     23.883333333333326
+
+0 Contact after 1.60 days with front velocity 321.89 km/s (expansion velocity 4.99 km/s) when nose reaches 93.52 Rsun and angular width 46 deg and estimated duration 19 hr
+   Impact at 2021 Sep 25 08:24 
+   Density:  67.50000764460691   Temp:   22975.764846378635
+0 Contact after 2.38 days with front velocity 386.39 km/s (expansion velocity 38.48 km/s) when nose reaches 126.78 Rsun and angular width 46 deg and estimated duration 21 hr
+   Impact at 2021 Sep 26 03:04 
+   Density:  25.062915517445994   Temp:   16568.383604595427
+0 Contact after 3.27 days with front velocity 356.98 km/s (expansion velocity 4.09 km/s) when nose reaches 164.02 Rsun and angular width 47 deg and estimated duration 24 hr
+   Impact at 2021 Sep 27 00:26 
+   Density:  11.427644268665066   Temp:   12785.727130121459
+0 Contact after 4.10 days with front velocity 371.42 km/s (expansion velocity 1.74 km/s) when nose reaches 198.01 Rsun and angular width 46 deg and estimated duration 24 hr
+   Impact at 2021 Sep 27 20:24 
+   Density:  6.693023758996879   Temp:   10716.552536642617   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 4 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+(results from processOSPREI)  
+|------------------------ bep ------------------------|
+Number of hits:  46
+                Mean        STD        Min        Max
+CMEAW          45.888      1.576     41.732     48.467
+CMEAWp         30.135      2.890     24.239     35.503
+CMEdelAx        0.207      0.025      0.161      0.284
+CMEdelCS        0.349      0.035      0.271      0.423
+CMEvF         331.406     10.603    304.196    354.721
+CMEvExp       -19.284     10.482    -42.366      2.550
+TT              0.576      0.010      0.553      0.600
+Dur            19.385      1.608     15.456     22.536
+n              69.063     13.540     46.554     96.759
+logT            4.354      0.106      4.128      4.616
+B              40.066      5.049     31.778     52.857
+Bz            -15.239      2.981    -26.020     -9.539
+Kp              4.824      0.274      4.204      5.519
+
+|------------------------ sol ------------------------|
+Number of hits:  46
+                Mean        STD        Min        Max
+CMEAW          46.459      1.541     42.400     49.020
+CMEAWp         32.595      3.298     25.541     38.336
+CMEdelAx        0.186      0.022      0.146      0.258
+CMEdelCS        0.268      0.038      0.185      0.354
+CMEvF         392.665     13.286    365.120    428.113
+CMEvExp       -16.200      6.074    -29.816     -4.009
+TT              0.953      0.021      0.905      1.004
+Dur            21.479      2.124     15.936     26.784
+n              25.754      5.070     17.747     35.831
+logT            4.212      0.118      3.959      4.507
+B              22.436      3.022     17.725     30.028
+Bz             -9.895      1.933    -16.729     -6.497
+Kp              4.586      0.289      3.977      5.363
+
+|------------------------ psp ------------------------|
+Number of hits:  46
+                Mean        STD        Min        Max
+CMEAW          46.596      1.525     42.710     49.322
+CMEAWp         34.786      3.710     26.817     41.035
+CMEdelAx        0.176      0.021      0.140      0.245
+CMEdelCS        0.205      0.041      0.120      0.300
+CMEvF         359.657     14.715    328.917    389.984
+CMEvExp       -12.894     15.458    -49.766     25.046
+TT              1.361      0.035      1.286      1.446
+Dur            24.473      3.160     15.432     31.080
+n              11.768      2.422      7.603     16.761
+logT            4.099      0.128      3.840      4.420
+B              16.168      2.664     12.402     24.557
+Bz             -6.795      1.391    -11.168     -4.423
+Kp              3.621      0.249      3.176      4.186
+
+|------------------------ sta ------------------------|
+Number of hits:  46
+                Mean        STD        Min        Max
+CMEAW          46.532      1.522     42.798     49.368
+CMEAWp         36.432      3.977     27.910     42.959
+CMEdelAx        0.172      0.020      0.138      0.238
+CMEdelCS        0.163      0.042      0.078      0.262
+CMEvF         376.322     15.735    337.935    409.502
+CMEvExp        -4.987     18.217    -43.140     54.636
+TT              1.788      0.051      1.690      1.906
+Dur            24.142      4.210     12.288     32.664
+n               6.950      1.431      4.424      9.878
+logT            4.023      0.133      3.781      4.364
+B              12.766      2.891      9.274     24.201
+Bz             -5.293      1.312     -9.478     -3.293
+Kp              3.365      0.275      2.851      4.180   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 5 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+Satellite:         sat1
+Transit Time:      69.91666666666667
+Final Velocity:    340.3967081002877 16.453724402056228
+CME nose dist:     148.43427961193527
+Sat. longitude:    361.72098999988174
+Est. Duration:     12.61666666666666
+
+0 Contact after 3.49 days with front velocity 430.19 km/s (expansion velocity 90.76 km/s) when nose reaches 149.02 Rsun and angular width 46 deg and estimated duration 13 hr
+   Impact at 2021 Sep 26 16:14 
+   Density:  17.014198850787615   Temp:   13574.383397425083   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 6 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+Satellite:         bep
+Transit Time:      36.916666666666664
+Final Velocity:    352.6944841496282 36.05941671989974
+CME nose dist:     89.68029448139181
+Sat. longitude:    331.38255895518347
+Est. Duration:     17.21666666666667
+
+Satellite:         sol
+Transit Time:      54.6
+Final Velocity:    345.60850466716806 23.876371404396263
+CME nose dist:     121.41763365028305
+Sat. longitude:    351.15747696668956
+Est. Duration:     19.51666666666666
+
+Satellite:         psp
+Transit Time:      73.21666666666667
+Final Velocity:    339.29972031938894 15.036266041158093
+CME nose dist:     154.20198979847694
+Sat. longitude:    338.6442530676066
+Est. Duration:     22.683333333333337
+
+Satellite:         sta
+Transit Time:      90.93333333333334
+Final Velocity:    333.36165911043236 7.910160812982762
+CME nose dist:     184.84706211358514
+Sat. longitude:    342.6143131840201
+Est. Duration:     22.816666666666663
+
+0 Contact after 2.11 days with front velocity 340.56 km/s (expansion velocity -9.69 km/s) when nose reaches 90.01 Rsun and angular width 45 deg and estimated duration 17 hr
+   Impact at 2021 Sep 25 07:05 
+   Density:  84.36845389340857   Temp:   23024.581482240606
+0 Contact after 2.84 days with front velocity 382.71 km/s (expansion velocity 28.39 km/s) when nose reaches 121.51 Rsun and angular width 46 deg and estimated duration 20 hr
+   Impact at 2021 Sep 26 00:38 
+   Density:  31.865379263721113   Temp:   16697.352481545466
+0 Contact after 3.61 days with front velocity 376.19 km/s (expansion velocity -1.58 km/s) when nose reaches 154.26 Rsun and angular width 46 deg and estimated duration 23 hr
+   Impact at 2021 Sep 26 19:14 
+   Density:  15.340417214787292   Temp:   13118.330900092868
+0 Contact after 4.36 days with front velocity 376.68 km/s (expansion velocity 3.20 km/s) when nose reaches 185.02 Rsun and angular width 46 deg and estimated duration 23 hr
+   Impact at 2021 Sep 27 13:01 
+   Density:  9.03372846410795   Temp:   11015.099781563467   
+   
+   
+   
+   
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+| ------------------ Test Run 7 ------------------ |
+| ------------------------------------------------ | 
+| ------------------------------------------------ | 
+(results from processOSPREI)  
+|------------------------ bep ------------------------|
+Number of hits:  45
+                Mean        STD        Min        Max
+CMElat        -25.685      3.971    -34.119    -18.667
+CMElon        337.633      4.024    324.378    344.497
+CMEtilt        84.047     10.651     71.001    123.467
+CMEAW          44.940      1.623     41.786     48.487
+CMEAWp         28.262      2.947     22.955     34.762
+CMEdelAx        0.230      0.029      0.169      0.306
+CMEdelCS        0.356      0.054      0.204      0.474
+CMEvF         342.762     26.316    275.108    396.192
+CMEvExp         2.896     17.043    -51.651     33.526
+TT              1.170      0.042      1.090      1.262
+Dur            15.431      2.443      9.480     20.232
+n              89.875     19.924     48.373    137.533
+logT            4.381      0.090      4.167      4.614
+B              37.036      6.246     19.413     54.332
+Bz             -1.478      3.479    -21.156      0.000
+Kp              3.896      0.612      2.874      6.130
+
+|------------------------ sol ------------------------|
+Number of hits:  43
+                Mean        STD        Min        Max
+CMElat        -25.685      3.971    -34.119    -18.667
+CMElon        337.633      4.024    324.378    344.497
+CMEtilt        84.047     10.651     71.001    123.467
+CMEAW          45.104      2.466     36.193     49.114
+CMEAWp         29.636      4.635     14.623     38.345
+CMEdelAx        0.231      0.105      0.154      0.728
+CMEdelCS        0.311      0.139      0.157      0.917
+CMEvF         378.968     27.660    292.776    429.358
+CMEvExp         3.287     19.370    -31.958     70.893
+TT              1.544      0.058      1.433      1.668
+Dur            18.423      3.442      9.048     27.144
+n              35.014      7.416     20.665     54.070
+logT            4.244      0.101      4.006      4.504
+B              22.859      4.423     12.204     32.860
+Bz             -3.430      1.560     -6.069     -0.661
+Kp              3.652      0.353      2.629      4.473
+
+|------------------------ psp ------------------------|
+Number of hits:  45
+                Mean        STD        Min        Max
+CMElat        -25.685      3.971    -34.119    -18.667
+CMElon        337.633      4.024    324.378    344.497
+CMEtilt        84.047     10.651     71.001    123.467
+CMEAW          45.501      1.720     41.031     49.273
+CMEAWp         32.131      3.843     24.897     41.740
+CMEdelAx        0.199      0.022      0.148      0.263
+CMEdelCS        0.223      0.067      0.031      0.362
+CMEvF         359.604     29.216    281.290    413.266
+CMEvExp         1.263     15.358    -37.169     50.040
+TT              1.956      0.081      1.801      2.164
+Dur            20.472      5.178      2.256     30.936
+n              18.009      6.278     10.805     52.717
+logT            4.152      0.121      3.885      4.519
+B              17.866      9.109      8.771     73.770
+Bz             -2.104      3.599    -25.023      0.000
+Kp              3.152      0.794      2.210      7.125
+
+|------------------------ sta ------------------------|
+Number of hits:  43
+                Mean        STD        Min        Max
+CMElat        -25.747      3.994    -34.119    -18.667
+CMElon        337.934      3.532    327.095    344.497
+CMEtilt        83.151      8.939     71.001    115.480
+CMEAW          45.362      2.114     36.426     49.258
+CMEAWp         33.013      4.972     14.623     42.218
+CMEdelAx        0.206      0.082      0.147      0.728
+CMEdelCS        0.203      0.126      0.039      0.917
+CMEvF         359.394     36.740    231.201    419.409
+CMEvExp         5.981     19.998    -23.080     70.893
+TT              2.386      0.095      2.197      2.616
+Dur            21.258      5.488      6.384     34.656
+n              10.395      1.893      7.070     14.902
+logT            4.073      0.116      3.800      4.368
+B              13.770      5.053      8.585     39.961
+Bz             -1.344      0.753     -2.959     -0.108
+Kp              2.879      0.693      1.986      5.677

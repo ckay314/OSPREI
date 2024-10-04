@@ -128,6 +128,7 @@ def txt2obj(GCStime=0):
         DoY = (dObj - dNewYear).days + (dObj - dNewYear).seconds/3600./24.
     else: 
         DoY = 0 # needed for Kp calc
+        dObj = None
 
     if OSP.doFC:
         FCfile = OSP.Dir+'/ForeCATresults'+OSP.thisName+'.dat'
@@ -514,7 +515,7 @@ def txt2obj(GCStime=0):
         # sort varied according to a nice order
         myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB',  'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'Gamma', 'IVDf', 'IVDf1', 'IVDf2', 'MHarea', 'MHdist']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))    
-        
+           
     return ResArr, nSat, hitsSat, nFails, DoY, dObj
     
 # |----- Mini script to determine Kp from other params -----|
@@ -572,7 +573,7 @@ def readInData(thisfile):
 # |--------------------------------------------------------------|
 # |---------- Wrapper for all obs processing functions ----------|
 # |--------------------------------------------------------------|
-def processObs(ResArr, nSat):
+def processObs(ResArr, nSat, hasObs=True):
     # |----- Set up holders -----|
     ObsData = [None]
     satNames = [''] # default for single sat case with no data
@@ -583,8 +584,9 @@ def processObs(ResArr, nSat):
     # |------Boring single sat case -----------------|
     # |----- Will overwrite if fancy single sat -----|
     if nSat == 1:
-        ObsData = [readInData(OSP.ObsDataFile)]
-        OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
+        if hasObs:
+            ObsData = [readInData(OSP.ObsDataFile)]
+            OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
         satLoc0 = [OSP.satPos]
         satLocI = [OSP.satPos] # this assuming not moving, need to fix
     
@@ -643,7 +645,4 @@ def processObs(ResArr, nSat):
                         satLocAllI[i].append([float(satPaths[j][0](myt*60)), float(satPaths[j][1](myt*60)), float(satPaths[j][2](myt*60))])
         
     return ObsData, satNames, satLoc0, satLocI, satLocAllI
-    
-
-
     

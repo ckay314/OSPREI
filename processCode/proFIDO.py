@@ -57,7 +57,8 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
     satName = satNames[satID]
     if len(satName)>1:
         satName = '_'+satName
-    yr = dObj.year    
+    if dObj:    
+        yr = dObj.year    
         
     # |------------- Set up figure --------------|    
     fig, axes = plt.subplots(7, 1, sharex=True, figsize=(8,12))
@@ -251,6 +252,8 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
         
         if setTrange:
             axes[5].set_ylim([0,1])
+    else:
+        axes[6].set_xlabel('Time (days)')
     
     # |------------- Add observations  --------------|
     if hasObs:
@@ -333,9 +336,9 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
     if not OSP.noDate: fig.autofmt_xdate()
     plt.subplots_adjust(hspace=0.1,left=0.15,right=0.95,top=0.95,bottom=0.15)
     if (HiLite is not None):
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'_EnsMem'+str(HiLite)+'.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_IS'+satName+'_EnsMem'+str(HiLite)+'.'+pO.figtag)
     else:
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_IS'+satName+'.'+pO.figtag)    
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_IS'+satName+'.'+pO.figtag)    
     plt.close() 
 
 
@@ -473,7 +476,7 @@ def makeallIShistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCo
         
     # |------------- Prettify and save --------------| 
     plt.subplots_adjust(wspace=0.15, hspace=0.3,left=0.12,right=0.95,top=0.95,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allIShist'+satName+'.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_allIShist'+satName+'.'+pO.figtag)
     plt.close() 
 
 
@@ -588,7 +591,7 @@ def makeFIDOhistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCol
     
     # |------------- Prettify and save --------------| 
     plt.subplots_adjust(wspace=0.15, hspace=0.25,left=0.12,right=0.95,top=0.92,bottom=0.1)    
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_FIDOhist'+satName+'.'+pO.figtag)
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_FIDOhist'+satName+'.'+pO.figtag)
     plt.close() 
 
 
@@ -643,6 +646,8 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
     # |------------- Find min/max values for each parameter from sim --------------| 
     minmax = np.zeros([7,2])
     minmax[4,0] = 400 # set v min to 350 km/s so will probably include steady state vSW range
+    allmins = [[] for i in range(7)]
+    allmaxs = [[] for i in range(7)]
     for key in ResArr.keys():
         if ResArr[key].FIDOtimes[satID] is not None:
             thisRes = ResArr[key]
@@ -652,9 +657,17 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
                 allParams = [thisRes.FIDOBs[satID], thisRes.FIDOBxs[satID], thisRes.FIDOBys[satID], thisRes.FIDOBzs[satID], thisRes.FIDOvs[satID], thisRes.FIDOtems[satID], thisRes.FIDOKps[satID]]
             for i in range(7):
                 thismin, thismax = np.min(allParams[i]), np.max(allParams[i]) 
+                allmins[i].append(thismin)
+                allmaxs[i].append(thismax)
                 if thismin < minmax[i,0]: minmax[i,0] = thismin
                 if thismax > minmax[i,1]: minmax[i,1] = thismax 
-
+    # Check if max set by extreme outliers (more than 95 percentile + std) and reset if so
+    for i in range(7):
+        if minmax[i][1] > np.percentile(allmaxs[i],95) + np.std(allmaxs[i]):
+            minmax[i][1] = np.percentile(allmaxs[i],95)
+        if (minmax[i][0] != 0) & (minmax[i][0] < np.percentile(allmins[i],5) - np.std(allmins[i])):
+            minmax[i][0] = np.percentile(allmins[i],5)
+ 
     # |------------- Check obs min/max if needed --------------| 
     if (not OSP.noDate) and (ObsData[satID] is not None): 
         obsIdx = [1, 2, 3, 4, 6, 7, 5]
@@ -867,5 +880,5 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
     cbar_ax = fig.add_axes([ax0pos.x0, 0.94, ax0pos.width, 0.02])
     cbar = fig.colorbar(c, cax=cbar_ax, orientation='horizontal')
     cbar.ax.set_title('Percentage Chance')        
-    plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_allPerc'+satName+'.'+pO.figtag)   
+    plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_allPerc'+satName+'.'+pO.figtag)   
     plt.close()

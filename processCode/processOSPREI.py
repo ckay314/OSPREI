@@ -55,7 +55,8 @@ figtag = 'png' # can only be 'png' or 'pdf'
 # |-------------------------------------------------------|
 colorEns = True
 # Set up a list of nice colors to use to highlight best fit for each satellite
-BFcols = ['#882255', '#88CCEE', '#CC6677', '#44AA99', '#DDCC77', '#AA4499', '#117733', '#332288']
+#BFcols = ['#882255', '#88CCEE', '#CC6677', '#44AA99', '#DDCC77', '#AA4499', '#117733', '#332288', ]
+BFcols = ['#03135B', '#A50026', '#364B9A', '#E34D34', '#5385BC', '#F99858', '#83B8D7', '#FDD081', '#B7DDEB', '#F3Fd81']
 # Color for metric combining all sats
 comboCol = 'red'
 
@@ -89,8 +90,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             moreSilence = True
         # Set up satellite colors
         satColors = [BFcols[i] for i in range(nSat)]
-        satColors = np.append(satColors, comboCol)
-            
+        satColors = np.append(satColors, comboCol)        
     except:
         sys.exit('Error reading in OSPREI results. Exiting without plotting anything.')
         
@@ -102,19 +102,23 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     hasObs = False
     ObsData = [None]
     satNames = [''] # default for single sat case with no data
-    satLoc0 = [] # array of sat locations at start of simulation
-    satLocI = [] # array of sat locations at its own time of impact (for each one)
+    satLoc0 = [[] for i in range(nSat)]  # array of sat locations at start of simulation
+    satLocI = [[] for i in range(nSat)]  # array of sat locations at its own time of impact (for each one)
     satLocAllI = [[] for i in range(nSat)]  # array of sat locations at impact for each one
     # e.g. if have PSP, STA then would be [[PSP at PSP time, STA at PSP time], [PSP at STA time, STA at STA time]]
 
     if (OSP.ObsDataFile is not None) or ('satPath' in OSP.input_values):
-        hasObs = True
         try:
             ObsData, satNames, satLoc0, satLocI, satLocAllI = SP.processObs(ResArr, nSat)  
+            if len(ObsData[0]) != 1:
+                hasObs = True
         except:
             print('Error in reading in observations for comparison. Proceeding without them.')
             hasObs = False
             ObsData = [None]
+    else:
+        hasObs = False
+        ObsData, satNames, satLoc0, satLocI, satLocAllI = SP.processObs(ResArr, nSat, hasObs=hasObs)
 
     # |---------------------------------------------------------------------------------------|
     # |---------------------------------------------------------------------------------------|
@@ -130,35 +134,42 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     
     BFbySat, BFall = None, None # holders for ens best fits 
     satNamesL = np.append(satNames, ['All'])
-    allScores, BFbySat, BFall, friends = met.setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, silent=True)    
-    if nEns > 1:
-        comboBFs = np.append(BFbySat, BFall)
-    else:
-        comboBFs = [None]
-    # reset to Nones if don't want to plot colors
-    if not colorEns:
-        BFbySat, BFall = None, None
+    metFail   = False
+    try:
+        if hasObs:
+            allScores, BFbySat, BFall, friends = met.setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, silent=True)    
+        if nEns > 1:
+            comboBFs = np.append(BFbySat, BFall)
+        else:
+            comboBFs = [None]
+        # reset to Nones if don't want to plot colors
+        if not colorEns:
+            BFbySat, BFall = None, None
+    except:
+        print('Error in calculating metrics. Proceeding without score analysis')
+        metFail = True
         
-    #BFall = 42 
-    #comboBFs = [42, 10, 23, 20, 42]
-    #satNamesL = np.append(satNames, ['All'])
-    # remove these once done testing
-    #BFall    = 72
-    #comboBFs = [72,  3, 22, 73, 72]
+
     # |------------------------------------------------------------|
     # |--------- Make the ensemble score scatter plots ------------|    
     # |------------------------------------------------------------|  
     # These plots are pretty slow for larger ensembles
-    if plotAll and (nEns > 1): 
+    if plotAll and (nEns > 1) and not metFail: 
         for i in range(nSat):
             # friends at -1 will plot values from combined score
             # switch -1 to i (satID) to use friends for that satellite
-            met.plotEnsScoreScatter(ResArr, allScores, nEns, satID=i, BFs=comboBFs, satNames=satNames, BFcols=satColors, friends=friends[-1])
-        # Convert allScores to oneScores
-        oneScores = np.sum(allScores, axis=0)
-        # Reflag the bad cases after summing messes up
-        oneScores[np.where(oneScores < 0)] == -9998
-        met.plotEnsScoreScatter(ResArr, oneScores, nEns, satID=-1, BFs=comboBFs, satNames=satNames, BFcols=satColors, friends=friends[-1])
+            try:
+                met.plotEnsScoreScatter(ResArr, allScores, nEns, satID=i, BFs=comboBFs, satNames=satNames, BFcols=satColors, friends=friends[-1])
+            except:
+                print('Error in making ensemble score scatter for ', satNames[i])
+        try:
+            # Convert allScores to oneScores
+            oneScores = np.sum(allScores, axis=0)
+            # Reflag the bad cases after summing messes up
+            oneScores[np.where(oneScores < 0)] == -9998
+            met.plotEnsScoreScatter(ResArr, oneScores, nEns, satID=-1, BFs=comboBFs, satNames=satNames, BFcols=satColors, friends=friends[-1])
+        except:
+            print('Error in making combined ensemble score scatter')
 
   
     # |------------------------------------------------------------|
@@ -168,8 +179,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         for i in range(nSat):
             # friends at -1 will plot values from combined score
             # switch -1 to i (satID) to use friends for that satellite
-            met.makeEnsplot(ResArr, nEns, critCorr=0.5, satID=i, satNames=satNamesL, BFs=comboBFs, BFcols=satColors, friends=friends[-1])
-
+            try:
+                met.makeEnsplot(ResArr, nEns, critCorr=0.5, satID=i, satNames=satNamesL, BFs=comboBFs, BFcols=satColors, friends=friends[-1])
+            except:
+                print('Error in making ensemble input/output scatter plot')
 
 
     # |---------------------------------------------------------------------------------------|
@@ -183,7 +196,10 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     # |------------------------ CPA plot --------------------------|    
     # |------------------------------------------------------------|  
         if plotAll:
-            proFore.makeCPAplot(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+            try:
+                proFore.makeCPAplot(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+            except:
+                print('Error in making CPA plot')
     
 
 
@@ -202,53 +218,69 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                 # This has some weird packaging in the call bc the code will do multi sat
                 # but not something used in OSPREI for now
                 # Get time at start of ANTEATR portion
-                if not OSP.noDate:
-                    datestr = OSP.input_values['date'] + 'T'+ OSP.input_values['time']
-                    start = (datetime.datetime.strptime(datestr, "%Y%m%dT%H:%M" ))
-                else:
-                    start = None
-                proANT.makeJmap([ResArr[0]], [satLoc0[i]], [start], satName=satNames[i])
+                try:
+                    if not OSP.noDate:
+                        datestr = OSP.input_values['date'] + 'T'+ OSP.input_values['time']
+                        start = (datetime.datetime.strptime(datestr, "%Y%m%dT%H:%M" ))
+                    else:
+                        start = None
+                    proANT.makeJmap([ResArr[0]], [satLoc0[i]], [start], satName=satNames[i])
+                except:
+                    print('Error in making J map plot for satellite ', satNames[i])
                 
     # |------------------------------------------------------------|
     # |------------ Make the profiles with sheath data ------------|    
     # |------------------------------------------------------------| 
         # The sheath profiles don't always look the best if it is a borderline case
         # where some fraction of the cases stop forming a shock halfway through
-        if plotAll:
-            proANT.makePUPplot(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+        if plotAll and OSP.doPUP:
+            try:
+                proANT.makePUPplot(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+            except:
+                print('Error in making PUP histogram')
             
     # |------------------------------------------------------------|
     # |---------- Make the profiles without sheath data -----------|    
     # |------------------------------------------------------------| 
         if plotAll:
-            proANT.makeDragless(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+            try:
+                proANT.makeDragless(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+            except:
+                print('Error in making drag plot')
                 
     # |------------------------------------------------------------|
     # |---------------- Make the ANTEATR histogram ----------------|    
     # |------------------------------------------------------------| 
         if plotAll and (nEns>1):
             for i in range(nSat):
-                proANT.makeAThisto(ResArr, dObj=dObj, DoY=DoY, satID=i, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+                try:
+                    proANT.makeAThisto(ResArr, dObj=dObj, DoY=DoY, satID=i, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
+                except:
+                    print('Error in making ANTEATR histogram for satellite ', satNamesL[i])
             
     # |----------------------------------------------------------------|
     # |------------ Make impact and /or other contours plot -----------|    
     # |----------------------------------------------------------------| 
         if plotAll and (nEns>1):
             for i in range(nSat):
-                # Option for the multi panel plot
-                #proANT.makeContours(ResArr, nEns, nFails, satID=3,  satLocs=satLocI, satNames=satNames, allSats=True, satCols=satColors, calcwid=95, plotwid=50 )
-                
-                # Option for just single panel with percentage of impacts
-                proANT.makePercMap(ResArr, nEns, nFails, satID=i, satLocs=satLocAllI[i], satNames=satNames, allSats=True, satCols=satColors, calcwid=95, plotwid=50 )
-    
+                try:
+                    # Option for the multi panel plot
+                    #proANT.makeContours(ResArr, nEns, nFails, satID=3,  satLocs=satLocI, satNames=satNames, allSats=True, satCols=satColors, calcwid=95, plotwid=50 )
+                    # Option for just single panel with percentage of impacts
+                    proANT.makePercMap(ResArr, nEns, nFails, satID=i, satLocs=satLocAllI[i], satNames=satNames, allSats=True, satCols=satColors, calcwid=95, plotwid=50 )
+                except:
+                    print('Error in making impact contours')
 
     # |------------------------------------------------------------|
     # |------------- Make tne Enlil-like movie figures ------------|    
     # |------------------------------------------------------------| 
         if doMovie:
-            # vel0 = 300 -> sets min of contours at 300 (defaults to 300)
-            # vel1 = 750 -> sets max of contours at 750 (defaults to nearest 50 over vCME)
-            proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors)
+            try:
+                # vel0 = 300 -> sets min of contours at 300 (defaults to 300)
+                # vel1 = 750 -> sets max of contours at 750 (defaults to nearest 50 over vCME)
+                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors)
+            except:
+                print('Error in making Enlilesque frames')
     
 
 
@@ -266,15 +298,20 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         if plotAll:
             for i in range(nSat):
                 if hitsSat[i]:
-                    proFIDO.makeISplot(ResArr, dObj, DoY, satID=i, SWpadF=12, SWpadB=12, BFs=comboBFs, satCols=satColors, satNames=satNamesL, hasObs=hasObs, ObsData=ObsData)
-    
+                    try:
+                        proFIDO.makeISplot(ResArr, dObj, DoY, satID=i, SWpadF=12, SWpadB=12, BFs=comboBFs, satCols=satColors, satNames=satNamesL, hasObs=hasObs, ObsData=ObsData)
+                    except:
+                        print('Error in making in situ plot for satellite ', satNames[i])
     # |------------------------------------------------------------|
     # |------------- Make histograms with sheath data -------------|    
     # |------------------------------------------------------------| 
         if OSP.doPUP:
             if plotAll and (nEns>1):
                 for i in range(nSat):
-                    proFIDO.makeallIShistos(ResArr, dObj, DoY, satID=i, satNames=satNamesL, BFs=comboBFs, satCols=satColors)
+                    try:
+                        proFIDO.makeallIShistos(ResArr, dObj, DoY, satID=i, satNames=satNamesL, BFs=comboBFs, satCols=satColors)
+                    except:
+                        print('Error in making FIDO histogram for satellite ', satNamesL[i])
     
     # |------------------------------------------------------------|
     # |------------ Make histograms without sheath data -----------|    
@@ -282,7 +319,11 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         else:
              if plotAll and (nEns>1):
                  for i in range(nSat):
-                     proFIDO.makeFIDOhistos(ResArr, dObj, DoY, satID=i, satNames=satNamesL, BFs=comboBFs, satCols=satColors)
+                     try:
+                         proFIDO.makeFIDOhistos(ResArr, dObj, DoY, satID=i, satNames=satNamesL, BFs=comboBFs, satCols=satColors)
+                     except:
+                        print('Error in making FIDO histogram for satellite ', satNamesL[i])
+                    
                  
     
     # |------------------------------------------------------------|
@@ -294,7 +335,11 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
                     # Adding BFs is possible but does make it pretty messy 
                     #proFIDO.makeAllprob(ResArr, dObj, DoY, satID=i, BFs=comboBFs, satCols=satColors, satNames=satNamesL, hasObs=hasObs, ObsData=ObsData)
                     # Typically better to run without BFs
-                    proFIDO.makeAllprob(ResArr, dObj, DoY, satID=i, hasObs=hasObs, ObsData=ObsData, satNames=satNames)
+                    try:
+                        proFIDO.makeAllprob(ResArr, dObj, DoY, satID=i, hasObs=hasObs, ObsData=ObsData, satNames=satNames)
+                    except:
+                        print('Error in making FIDO heat map for satellite ', satNamesL[i])
+                    
     
     
     

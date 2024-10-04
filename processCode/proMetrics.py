@@ -458,9 +458,9 @@ def plotEnsScoreScatter(ResArr, allScores, nEns, satID=0, BFs=[None], satNames=[
     #|---------- Make pretty and save ----------|    
     plt.subplots_adjust(wspace=0.2, hspace=0.5,left=0.1,right=0.95,top=0.95,bottom=0.05)   
     if satID != -1: 
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores_'+satNames[satID]+'.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_EnsScores_'+satNames[satID]+'.'+pO.figtag)
     else:
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_EnsScores_All.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_EnsScores_All.'+pO.figtag)
 
 
 # |---------------------------------------------------------------------------------|        
@@ -524,8 +524,10 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
     for key in ResArr.keys():
         if (not ResArr[key].FIDOmiss[satID]):
             if not ResArr[key].fail:
-                if ResArr[key].FIDOtimes[satID] is not None:
+                FIDOidx = ResArr[key].FIDO_FRidx[satID]
+                if len(FIDOidx) > 0:
                     goodIDs.append(key)
+                    ANTidx  = np.min(np.where(ResArr[key].ANTtimes >= ResArr[key].FIDOtimes[satID][FIDOidx][0]))
             else:
                 failIDs.append(key)
         elif configID == 100: goodIDs.append(key)
@@ -539,32 +541,44 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
                 if item == 'CMEtilt':
                     OSPres[item].append(ResArr[key].FCtilts[-1])
                 if item == 'CMEAW':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTAWs[ANTidx])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTAWs[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCAWs[-1])
                 if item == 'CMEAWp':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTAWps[ANTidx])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTAWps[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCAWps[-1])
                 if item == 'CMEdelAx':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTdelAxs[ANTidx])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTdelAxs[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCdelAxs[-1])
                 if item == 'CMEdelCS':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].ANTdelCSs[ANTidx])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTdelCSs[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCdelCSs[-1])
                 if item == 'CMEvF':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].FIDOvs[satID][FIDOidx][0])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTvFs[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCvFs[-1])
                 if item == 'CMEvExp':
-                    if OSP.doANT and (key in goodIDs):
+                    if OSP.doFIDO and (key in goodIDs):
+                        OSPres[item].append(ResArr[key].FIDOvs[satID][FIDOidx][-1] - ResArr[key].FIDOvs[satID][FIDOidx][0])
+                    elif OSP.doANT and (key in goodIDs):
                         OSPres[item].append(ResArr[key].ANTvCSrs[-1])
                     else:
                         OSPres[item].append(ResArr[key].FCvCSrs[-1])
@@ -583,9 +597,15 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
                         else:
                             OSPres[item].append(ResArr[key].ANTdur[satID])
                     if item == 'n':
-                        OSPres[item].append(ResArr[key].ANTns[-1])   
+                        if OSP.doFIDO and (key in goodIDs):
+                            OSPres[item].append(ResArr[key].ANTns[ANTidx])
+                        elif OSP.doANT and (key in goodIDs):  
+                            OSPres[item].append(ResArr[key].ANTns[-1])   
                     if item == 'logT':
-                        OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
+                        if OSP.doFIDO and (key in goodIDs):
+                            OSPres[item].append(ResArr[key].ANTlogTs[ANTidx])    
+                        elif OSP.doANT and (key in goodIDs):  
+                            OSPres[item].append(ResArr[key].ANTlogTs[-1])                 
                     if item == 'Kp':
                         if OSP.doFIDO:
                             if ResArr[key].FIDOtimes[satID] is not None:
@@ -603,13 +623,15 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
     # |---------- Save the overall values characterizing ensemble outputs ----------| 
     f1 = open(OSP.Dir+'/EnsembleOutputs'+str(ResArr[0].name)+'_'+satName+'.dat', 'w')
     if not silent:
+        print ('')
+        print ('|------------------------', satName[1:], '------------------------|')
         print ('Number of hits: ', len(goodIDs)) 
-        print ('Mean, Standard Deviation, Min, Max')
+        print ('                Mean        STD        Min        Max')
     for item in outDict[configID]:
         OSPres[item] = np.array(OSPres[item])
         ensMean, ensSTD, ensMin, ensMax = np.mean(OSPres[item]), np.std(OSPres[item]), np.min(OSPres[item]), np.max(OSPres[item])
         if not silent:
-            print (item, ensMean, ensSTD, ensMin, ensMax)  
+            print (item.ljust(10), '{:10.3f}'.format(ensMean), '{:10.3f}'.format(ensSTD), '{:10.3f}'.format(ensMin), '{:10.3f}'.format(ensMax))  
         f1.write(item.ljust(10) + '{:10.3f}'.format(ensMean) + '{:10.3f}'.format(ensSTD) + '{:10.3f}'.format(ensMin)+  '{:10.3f}'.format(ensMax) +'\n')
     f1.close()
     
@@ -722,7 +744,7 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
         if BFs[0] or (BFs[0] == 0):
             fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(BFs))
         
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS'+satName+'.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_ENS'+satName+'.'+pO.figtag)
         
         
     # |---------- Different plot algorithm if only a single column ----------| 
@@ -765,7 +787,7 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
         if BFs[0] or (BFs[0] == 0):
             fig.legend(loc='upper center', fancybox=True, fontsize=13, labelspacing=0.4, handletextpad=0.4, framealpha=0.5, ncol=len(BFs))
             
-        plt.savefig(OSP.Dir+'/fig'+str(ResArr[0].name)+'_ENS.'+pO.figtag)
+        plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_ENS.'+pO.figtag)
         plt.close() 
     else:
         print('No significant correlations, not making ENS plot')
