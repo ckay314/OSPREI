@@ -941,9 +941,10 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     else:
         SWfront  = getSWvals(CMElens[0], SWfs, doMH=doMH, returnReg = doMH)
         HSSreg = 0
-    SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
+    # fix for rEdge confusion
+    SWedge   = getSWvals(sideR, SWfs, doMH=doMH)
     SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
-    SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
+    SWedgeB  = getSWvals(sideR-2*CMElens[3], SWfs, doMH=doMH)
        
     # Set up factors for scaling B through conservation
     # this was scaled of Bsw0 insteand of sqrt(Btot2) before...
@@ -1181,9 +1182,9 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
             SWfront = getSWvals(theFront, SWfs, doMH=doMH, returnReg = doMH)
             HSSreg = 0
         # other (simpler) locations
-        SWedge   = getSWvals(CMElens[1], SWfs, doMH=doMH)
+        SWedge   = getSWvals(sideR, SWfs, doMH=doMH)
         SWfrontB = getSWvals(CMElens[0]-2*CMElens[3], SWfs, doMH=doMH)
-        SWedgeB  = getSWvals(CMElens[1]-2*CMElens[3], SWfs, doMH=doMH)
+        SWedgeB  = getSWvals(sideR-2*CMElens[3], SWfs, doMH=doMH)
         
 
         # ------------------------------------------------------------------
