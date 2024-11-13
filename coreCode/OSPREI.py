@@ -45,6 +45,27 @@ np.random.seed(20220310)
 # turn off all printing
 allSilent = False
 
+global sheathParams
+# hack for adding in sheath on combo 
+sheathParams = [0.,0.,0.]
+#sheathParams = [0.066, 1.791, 598.889] # M1
+#sheathParams = [1.477, 21.485, 32.977] # M2
+#sheathParams = [2.009, 24.706, 33.64] # M3
+#sheathParams = [0.226, 1.523, 1317.208] # M4
+#sheathParams = [2.989, 30.109, 23.425] # M5
+#sheathParams = [7.931, 47.009, 10.581] # M6
+#sheathParams = [14.555, 69.174, 6.082] # M7
+#sheathParams = [2.009, 24.706, 33.64] # M8
+
+# including axis forces
+#sheathParams = [1.344, 21.921, 27.463] # M2
+#sheathParams = [1.974, 26.937, 32.961] # M3
+#sheathParams = [0.181, 1.308, 1358.737] # M4
+#sheathParams = [2.257, 29.671, 36.728] # M5
+#sheathParams = [3.817, 39.217, 15.047] # M6
+#sheathParams = [6.577, 54.721, 8.467] # M7
+
+
 def setupOSPREI(logInputs=False, inputPassed='noFile'):
     # Initial OSPREI setup ---------------------------------------------|
     # Make use of ForeCAT function to read in vars----------------------|
@@ -244,6 +265,9 @@ def checkInputs(printNonCrit=False):
     # Run through all the input parameters and check that everything is in appropriate range
     # Set to defaults if not provided or exit if must be explicitly provided
     
+    # CK 11/2024 - a lot of cutoff values were change to allow for blob-moding multiple
+    # CMEs for the May events study. Leaving the boundaries as working for that
+    
     global models
     if 'models' in input_values:
         models = input_values['models']
@@ -318,7 +342,7 @@ def checkInputs(printNonCrit=False):
             if (CMEr < 1.05) or (CMEr > 2.5):
                 sys.exit('Initial CME front distance (CMEr) must be within [1.05, 2.5] Rs for ForeCAT start') 
         elif startpoint == 'ANT':
-            if (CMEr < 10) or (CMEr > 50):
+            if (CMEr < 10) or (CMEr > 500):
                 sys.exit('Initial CME front distance (CMEr) must be within [10, 50] Rs for ANTEATR start') 
         # FIDO can start wherever but at least check that units are semi reasonable
         # and within Jupiter distance?
@@ -557,9 +581,9 @@ def checkInputs(printNonCrit=False):
         
         if 'FRB' in input_values:
             FRB = float(input_values['FRB'])
-            if (np.abs(FRB) < 500) or  (np.abs(FRB) > 10000):
+            if (np.abs(FRB) < 5) or  (np.abs(FRB) > 15000):
                 if float(input_values['CMEr']) < 30.:
-                    sys.exit('Flux rope |B| (FRB) must be in [500, 10000] nT') 
+                    sys.exit('Flux rope |B| (FRB) must be in [500, 15000] nT') 
                 
         else:
             KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
@@ -575,7 +599,7 @@ def checkInputs(printNonCrit=False):
 
         if 'FRT' in input_values:
             FRT = float(input_values['FRT'])
-            if (FRT < 5e4) or  (FRT > 3e6):
+            if (FRT < 2e4) or  (FRT > 30e6):
                 sys.exit('Flux rope T (FRT) must be in [5e4, 3e6] nT') 
         else:
             vSheath = 0.129 * v + 376
@@ -1449,7 +1473,7 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         if actualPath:      
             ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
         else:
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol, sheathParams=sheathParams)
             
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!

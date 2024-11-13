@@ -336,7 +336,7 @@ def IVD(vFront, AW, AWp, deltax, deltap, CMElens, alpha, ndotz, fscales):
     return vs
     
 def initCMEparams(deltaAx, deltaCS, AW, AWp, CMElens, Mass, printNow=False):
-    # CME shape
+    # CME shape [CMEnose, rEdge, d, rr, rp, Lr, Lp]
     # alpha * CMElens[3] is the cross sec width in z dir
     CMElens[4] = np.tan(AWp) / (1 + deltaCS * np.tan(AWp)) * CMElens[0]
     CMElens[3] = deltaCS * CMElens[4]
@@ -766,14 +766,14 @@ def getFIDO(axDist, maxDistFR, B0, CMEH, tau, cnm, deltax, deltap, CMElens, this
     return Bvec, vInSitu, vExpCME
 
 # -------------- main function ------------------
-def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1, simYaw=False, SWR=None):
+def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=False, selfsim=False, csTens=True, thermOff=False, csOff=False, axisOff=False, dragOff=False, name='nosave', satfs=None, flagScales=False, tEmpHSS=False, tDepSW=False, doPUP=True, saveForces=False, MEOWHiSS=False, fullContact=False, aFIDOinside=False, CMEH=1, inorout=1, simYaw=False, SWR=None, sheathParams=[None]):
     # testing things
     #satfsIn = [satfs[0], satfs[0], ['sat1', 'sat2']]
     #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]], [Epos[0], Epos[1]-10, (Epos[2]) *7e10, Epos[3]]]
     #satPosIn = [[Epos[0], Epos[1], Epos[2] *7e10, Epos[3]]]
     satfsIn = satfs
     satPosIn = Epos
-       
+
     CMElat     = invec[0]
     CMElon     = invec[1]
     CMEtilt    = invec[2]    
@@ -806,9 +806,15 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
     solRotRate = 360. / (24.47 * 24 )
     
     # sheath properties
-    sheath_mass = 0.
-    sheath_wid  = 0.
-    sheath_dens = 0.
+    if sheathParams[0]:
+        sheath_mass = sheathParams[0]*1e15
+        sheath_wid  = sheathParams[1]
+        sheath_dens = sheathParams[2]
+    else:
+        sheath_mass = 0.
+        sheath_wid  = 0.
+        sheath_dens = 0.
+        
     hitSheath = False
     inint1 = 0
     global Tratio, rratio
@@ -1306,9 +1312,16 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             pdirSAT = np.array(rotz(temp2, CMElon - satPos[satID][1]))
                         
                             # figure out what is most aligned
-                            if np.dot(ndirSAT, np.array([inorout,0,0])) < 0:
+                            SWatsat   = getSWvals(satPos[satID][2], SWfs)
+                            SWBvec = np.array([inorout*SWatsat[2]*1e5, -inorout*SWatsat[3]*1e5, 0])
+                            # Old version
+                            '''if np.dot(ndirSAT, np.array([inorout,0,0])) < 0:
                                 ndirSAT = -ndirSAT
                             if np.dot(pdirSAT, np.array([0, -inorout,0])) < 0:
+                                pdirSAT = -pdirSAT'''
+                            if np.dot(ndirSAT, SWBvec) < 0:
+                                ndirSAT = -ndirSAT
+                            if np.dot(pdirSAT, SWBvec) < 0:
                                 pdirSAT = -pdirSAT
                         
                             BinSitu = Bsh * np.cos(thetaBsh*math.pi/180.) * ndirSAT + Bsh * np.sin(thetaBsh*math.pi/180.) * pdirSAT 
@@ -1443,7 +1456,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                             vsArr[satID] = [8888, 8888, 8888, 8888, 8888, 8888]
                         if len(sats2check)==0:
                             runSim = False
-                    else:
+                    elif aFIDOinside:
                         t2 = outsFIDO[satID][0][-1]
                         # if doing aFIDOinside add SW padding behind the CME
                         t2 = t

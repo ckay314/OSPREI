@@ -278,7 +278,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             try:
                 # vel0 = 300 -> sets min of contours at 300 (defaults to 300)
                 # vel1 = 750 -> sets max of contours at 750 (defaults to nearest 50 over vCME)
-                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors)
+                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors, vel1=500)
             except:
                 print('Error in making Enlilesque frames')
     
