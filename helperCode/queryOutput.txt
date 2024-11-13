@@ -1,0 +1,16 @@
+nRuns:          1   
+satellite:              Earth
+CMEr:			21.5
+CMElat:         5   
+CMElon:         355 
+CMEtilt:                43  
+CMEvr:          800 
+CMEAW:          25  
+CMEAWp:         8.333333333333334
+CMEM:           3.16
+CMEdelAx:               0.75
+CMEdelCS:               1   
+date:           20240412
+time:           21:24
+models:         IP
+suffix:         Christina_Kay_051624_SH_1

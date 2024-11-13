@@ -16,7 +16,7 @@ def preProcessIt(inputs):
     # ------------------------------------------------
     # Need to do this early on bc of inputs that depend on satellite distance
     sat = inputs['satellite'] # can be PSP, STA, STB, Earth, SolO
-    trajDir = myPaths[3,1]
+    trajDir = myPaths[4,1]
     if sat == 'Earth':
         satfile = trajDir + 'planets/earth.lst'
         satName = 'earth'
