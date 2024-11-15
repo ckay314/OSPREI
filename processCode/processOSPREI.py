@@ -108,17 +108,19 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     # e.g. if have PSP, STA then would be [[PSP at PSP time, STA at PSP time], [PSP at STA time, STA at STA time]]
 
     if (OSP.ObsDataFile is not None) or ('satPath' in OSP.input_values):
+        hasObs = True
+        #print (OSP.ObsDataFile)
+        if OSP.ObsDataFile == None:
+            hasObs = False
         try:
-            ObsData, satNames, satLoc0, satLocI, satLocAllI = SP.processObs(ResArr, nSat)  
-            if len(ObsData[0]) != 1:
-                hasObs = True
+            ObsData, satNames, satLoc0, satLocI, satLocAllI, hasObs = SP.processObs(ResArr, nSat, hasObs=hasObs)  
         except:
             print('Error in reading in observations for comparison. Proceeding without them.')
             hasObs = False
             ObsData = [None]
     else:
         hasObs = False
-        ObsData, satNames, satLoc0, satLocI, satLocAllI = SP.processObs(ResArr, nSat, hasObs=hasObs)
+        ObsData, satNames, satLoc0, satLocI, satLocAllI, hasObs = SP.processObs(ResArr, nSat, hasObs=hasObs)
 
     # |---------------------------------------------------------------------------------------|
     # |---------------------------------------------------------------------------------------|

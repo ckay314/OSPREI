@@ -615,6 +615,7 @@ def processObs(ResArr, nSat, hasObs=True):
                 if len(temp[0]) >= 6:
                     ObsData[i] = readInData(temp[i][5])
                     hasObs = True
+                    
                 # |----- Pull in boundary times -----|    
                 if len(temp[0]) == 9:
                     OSP.obsFRstart[i] = float(temp[i][7])
@@ -643,6 +644,5 @@ def processObs(ResArr, nSat, hasObs=True):
                         satLocAllI[i].append([float(satPaths[j][0]), float(satPaths[j][1]+satPaths[j][3]*myt*60), float(satPaths[j][2])])
                     else:
                         satLocAllI[i].append([float(satPaths[j][0](myt*60)), float(satPaths[j][1](myt*60)), float(satPaths[j][2](myt*60))])
-        
-    return ObsData, satNames, satLoc0, satLocI, satLocAllI
+    return ObsData, satNames, satLoc0, satLocI, satLocAllI, hasObs
     
