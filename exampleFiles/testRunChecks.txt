@@ -238,15 +238,15 @@ Kp              3.638      0.238      3.179      4.193
 | ------------------------------------------------ | 
 | ------------------------------------------------ | 
 Satellite:         sat1
-Transit Time:      79.26666666666667
-Final Velocity:    343.0130352889003 25.384290525477446
-CME nose dist:     163.98269473567674
-Sat. longitude:    365.0869899998659
-Est. Duration:     3.2666666666666657
+Transit Time:      58.03333333333333
+Final Velocity:    343.04422956950077 29.11559167464152
+CME nose dist:     126.5213113798685
+Sat. longitude:    351.6
+Est. Duration:     20.35000000000001
 
-0 Contact after 3.87 days with front velocity 379.71 km/s (expansion velocity 91.72 km/s) when nose reaches 164.01 Rsun and angular width 39 deg and estimated duration 3 hr
-   Impact at 2021 Sep 27 01:16 
-   Density:  23.043196825832307   Temp:   15003.459684423342  
+0 Contact after 2.99 days with front velocity 335.40 km/s (expansion velocity 17.99 km/s) when nose reaches 127.02 Rsun and angular width 39 deg and estimated duration 20 hr
+   Impact at 2021 Sep 26 04:18 
+   Density:  50.59647977035288   Temp:   19449.660034734094 
    
    
    

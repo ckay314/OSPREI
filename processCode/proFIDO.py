@@ -732,7 +732,7 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
     allPerc = allArr/float(counter)*100
     
     # |------------- Set up color map and masking --------------| 
-    cmap1 = plt.get_cmap("turbo",lut=10)
+    cmap1 = plt.get_cmap("plasma",lut=10)
     cmap1.set_bad("w")
     allMasked = np.ma.masked_less(allPerc,0.01)
              
@@ -745,7 +745,11 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
         # draw a grid because mask away a lot of it
         for x in gridtimes: axes[i].plot([x,x],[ys[0],ys[-1]], c='LightGrey')
         for y in ys: axes[i].plot([gridtimes[0],gridtimes[-1]],[y,y], c='LightGrey')
-        c = axes[i].pcolormesh(XX,YY,allMasked[i,:,:], cmap=cmap1, edgecolors='k', vmin=0, vmax=100)
+        subVals = allMasked[i,:,:]
+        subIdx = np.where(subVals < 100.)[0]
+        myMax = 10*int(np.max(subVals[subIdx])/10 - 1)
+        if myMax < 20: myMax = 20
+        c = axes[i].pcolormesh(XX,YY,allMasked[i,:,:], cmap=cmap1, edgecolors='k', vmin=0, vmax=myMax)
         
     # |------------- Add observations to the figure --------------| 
     if ObsData[satID] is not None:

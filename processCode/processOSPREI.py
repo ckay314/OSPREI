@@ -139,7 +139,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     metFail   = False
     try:
         if hasObs:
-            allScores, BFbySat, BFall, friends = met.setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, silent=True)    
+            allScores, BFbySat, BFall, friends = met.setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, silent=False)    
         if nEns > 1:
             comboBFs = np.append(BFbySat, BFall)
         else:
@@ -280,7 +280,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             try:
                 # vel0 = 300 -> sets min of contours at 300 (defaults to 300)
                 # vel1 = 750 -> sets max of contours at 750 (defaults to nearest 50 over vCME)
-                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors, vel1=500)
+                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors)
             except:
                 print('Error in making Enlilesque frames')
     

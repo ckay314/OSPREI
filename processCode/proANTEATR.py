@@ -35,6 +35,7 @@ from ANT_PUP import lenFun, getvCMEframe, whereAmI
 
 import processOSPREI as pO
 import setupPro as sP
+import empHSS as emp
 
 # |------------------------------------------------------------|
 # |---------------------- J map plot --------------------------|    
@@ -175,7 +176,9 @@ def makeJmap(CMEarr, satLoc_unswap, startTimes, arrivals=None, satName=''):
     else:
         ax.set_xlabel('Time (days)')
     ax.set_ylabel('Distance (R$_S$)')
-    plt.savefig(OSP.Dir+'/fig_'+str(CMEarr[0].name)+'_Jmap_'+satName+'.'+pO.figtag)
+    if not satName == '':
+        satName = '_'+satName
+    plt.savefig(OSP.Dir+'/fig_'+str(CMEarr[0].name)+'_Jmap'+satName+'.'+pO.figtag)
 
 
 
@@ -547,20 +550,20 @@ def makeDragless(ResArr, nEns, BFs=[None], satCols=None, satNames=None):
             if OSP.simYaw:
                 axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(fityaws[0])+'$\\pm$'+'{:3.1f}'.format(fityaws[1])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color=col3)
                   
-        # Single run version
-        else:
-            thisIdx = ResArr[0].ANTFRidx[0]
-            if thisIdx:
-                axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes, color=col1)
-                axes[1].text(0.97, 0.9,  'AW$_{\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color=col2)
-                axes[2].text(0.97, 0.96, '$\\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes, color=col1)
-                axes[3].text(0.97, 0.9, '$\\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color=col2)
-                axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color=col1)
-                axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color=col2)
-                axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color=col1)
-                axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color=col2) 
-                if OSP.simYaw:
-                    axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color=col3) 
+    # Single run version
+    else:
+        thisIdx = ResArr[0].ANTFRidx[0]
+        if thisIdx:
+            axes[0].text(0.97, 0.96, 'AW: '+'{:4.1f}'.format(ResArr[0].ANTAWs[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[0].transAxes, color=col1)
+            axes[1].text(0.97, 0.9,  'AW$_{\\perp}$: '+'{:4.1f}'.format(ResArr[0].ANTAWps[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[1].transAxes, color=col2)
+            axes[2].text(0.97, 0.96, '$\\delta_{Ax}$: '+'{:4.2f}'.format(ResArr[0].ANTdelAxs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[2].transAxes, color=col1)
+            axes[3].text(0.97, 0.9, '$\\delta_{CS}$: '+'{:4.2f}'.format(ResArr[0].ANTdelCSs[thisIdx]), horizontalalignment='right', verticalalignment='center', transform=axes[3].transAxes, color=col2)
+            axes[4].text(0.97, 0.96, 'v$_F$: '+'{:4.0f}'.format(ResArr[0].ANTvFs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[4].transAxes, color=col1)
+            axes[5].text(0.97, 0.9, 'v$_{Exp}$: '+'{:4.0f}'.format(ResArr[0].ANTvCSrs[thisIdx])+' km/s', horizontalalignment='right', verticalalignment='center', transform=axes[5].transAxes, color=col2)
+            axes[6].text(0.97, 0.96, 'B$_{t}$: '+'{:4.1f}'.format(ResArr[0].ANTBtors[thisIdx])+' nT', horizontalalignment='right', verticalalignment='center', transform=axes[6].transAxes, color=col1)
+            axes[7].text(0.97, 0.9,  'log(T): '+'{:4.1f}'.format(ResArr[0].ANTlogTs[thisIdx])+' K', horizontalalignment='right', verticalalignment='center', transform=axes[7].transAxes, color=col2) 
+            if OSP.simYaw:
+                axes[8].text(0.97, 0.84,  'yaw: '+'{:4.1f}'.format(ResArr[0].ANTyaws[thisIdx])+degree, horizontalalignment='right', verticalalignment='center', transform=axes[8].transAxes, color=col3) 
     
     # |----------- Expand AW axis to add room for text -----------|
     yl = axes[0].get_ylim()
@@ -1437,7 +1440,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
     # |----------- Pick an educated upper contour limit if not given one -----------|
     if vel1 == None:
         maxvF = np.max(thisCME.ANTvFs)
-        vel1 = (int(maxvF/50) + 1) * 50
+        vel1 = (int(maxvF/50) + 2) * 50
         print ('Setting upper contour at ', vel1, ' km/s')
     
     # |----------- Check if doing equatorial, meridional, or both -----------|
