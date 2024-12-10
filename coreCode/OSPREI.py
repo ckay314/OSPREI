@@ -48,22 +48,6 @@ allSilent = False
 global sheathParams
 # hack for adding in sheath on combo 
 sheathParams = [0.,0.,0.]
-#sheathParams = [0.066, 1.791, 598.889] # M1
-#sheathParams = [1.477, 21.485, 32.977] # M2
-#sheathParams = [2.009, 24.706, 33.64] # M3
-#sheathParams = [0.226, 1.523, 1317.208] # M4
-#sheathParams = [2.989, 30.109, 23.425] # M5
-#sheathParams = [7.931, 47.009, 10.581] # M6
-#sheathParams = [14.555, 69.174, 6.082] # M7
-#sheathParams = [2.009, 24.706, 33.64] # M8
-
-# including axis forces
-#sheathParams = [1.344, 21.921, 27.463] # M2
-#sheathParams = [1.974, 26.937, 32.961] # M3
-#sheathParams = [0.181, 1.308, 1358.737] # M4
-#sheathParams = [2.257, 29.671, 36.728] # M5
-#sheathParams = [3.817, 39.217, 15.047] # M6
-#sheathParams = [6.577, 54.721, 8.467] # M7
 
 
 def setupOSPREI(logInputs=False, inputPassed='noFile'):

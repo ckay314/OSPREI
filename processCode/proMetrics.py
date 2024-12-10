@@ -325,6 +325,7 @@ def analyzeMetrics(ResArr, allScores, timingErr, meanVals, betterKeys, haveObsid
     bestScore = np.min(oneScores)
     bestidx = np.where(oneScores == bestScore)[0]
     if not silent:
+        print ('')
         print ('Seed has total score of ', oneScores[0])
         print ('Best total score of ', bestScore, 'for ensemble member ', betterKeys[bestidx][0])
         print ('')
@@ -832,10 +833,10 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
                         bestS, worstS = np.min(oneScore), np.max(oneScore)
                         rngS = worstS - bestS
                         allFriends[i] = goodKeys[np.where((oneScore - bestS) <= 0.1 * rngS)[0]]
-                        if not silent: 
+                        '''if not silent: 
                             print ('Best fit for ensemble member: ', bestID)
                             print ('')
-                            print('')
+                            print('')'''
                         # Pull out the good scores    
                         newScores = np.ones(len(ResArr.keys())) * 9999
                         newScores[goodKeys] = oneScore
@@ -883,15 +884,15 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
         # |---------- Sum over all satellites ----------|   
         minSumScore = np.min(sumScore)
         bestID = np.where(sumScore == minSumScore)[0]       
-        maxSumScore = np.max(sumScore[np.where(sumScore < 9999)])      
+        maxSumScore = np.max(sumScore[np.where(sumScore < np.percentile(sumScore,95))])      
         worstID = np.where(sumScore == maxSumScore)[0]
         scoreRng = maxSumScore - minSumScore
+        
         sumFriends = np.where(sumScore <= minSumScore + 0.1*scoreRng)[0]
         nClose = len(sumFriends)
         allFriends[-1] = sumFriends
         # Print to screen
         if not silent: 
-            print ('Best total score over all satellites: ', minSumScore, 'for run number ', bestID[0])
             print ('Best total score over all satellites: ', '{:5.2f}'.format(minSumScore), 'for run number ', str(bestID[0]))
             print (str(nClose)+' members with a score within 10 percent of range (' '{:3.2f}'.format(0.1*scoreRng)+') of min score')
             outstr = ''
