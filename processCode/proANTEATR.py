@@ -35,6 +35,7 @@ from ANT_PUP import lenFun, getvCMEframe, whereAmI
 
 import processOSPREI as pO
 import setupPro as sP
+import empHSS as emp
 
 # |------------------------------------------------------------|
 # |---------------------- J map plot --------------------------|    
@@ -1642,6 +1643,7 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         axLons = np.arctan2(xyzpos[1], xyzpos[0]) / dtor
         if axLons[0] > axLons[-1]: axLons = axLons[::-1]
         axRs = np.sqrt(xyzpos[0]**2 + xyzpos[1]**2 + xyzpos[2]**2)
+        if axLats[0] > axLats[-1]: axLats = axLats[::-1]
         Lon2R = CubicSpline(axLons,axRs,bc_type='natural')
         Lat2R = CubicSpline(axLats,axRs,bc_type='natural')
  
@@ -1769,11 +1771,11 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
         levels = np.linspace(vel0, vel1, 30)    
         if doMer:
             CS = ax[0].contourf(theta, r, valuesMer, levels=levels, cmap=cm.inferno, extend='both' )
-            ax[0].contour(theta, r, isCMEMer, [0.1,1], colors='w')
+            ax[0].contour(theta, r, isCMEMer, [0.1,1], colors='r')
             ax[0].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
         if doEq:
             CS = ax[1].contourf(theta, r, valuesEq, levels=levels, cmap=cm.inferno, extend='both')
-            ax[1].contour(theta, r, isCMEEq, [0.1,1], colors='w')
+            ax[1].contour(theta, r, isCMEEq, [0.1,1], colors='r')
             ax[1].fill_between(2*angs, np.zeros(len(angs)), np.zeros(len(angs))+0.1, color='yellow', zorder=10)
             
         # |----------- Add in satellite(s)  -----------|     
@@ -1827,7 +1829,9 @@ def enlilesque(ResArr, key=0, doColorbar=True, doSat=True, bonusTime=0, merLon=0
             cbar = fig.colorbar(CS, cax=cbar_ax, orientation='horizontal')
             cbar.set_label('v (km/s)')
             dv = 100
-            if vel1-vel0 > 400:
+            if  vel1-vel0 > 100:
+                dv = 400
+            elif vel1-vel0 > 400:
                 dv=200
             cbar.set_ticks(np.arange(vel0,vel1+1,dv))
         

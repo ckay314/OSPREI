@@ -265,9 +265,6 @@ def checkInputs(printNonCrit=False):
     # Run through all the input parameters and check that everything is in appropriate range
     # Set to defaults if not provided or exit if must be explicitly provided
     
-    # CK 11/2024 - a lot of cutoff values were change to allow for blob-moding multiple
-    # CMEs for the May events study. Leaving the boundaries as working for that
-    
     global models
     if 'models' in input_values:
         models = input_values['models']
@@ -590,7 +587,7 @@ def checkInputs(printNonCrit=False):
             phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
             B0 = phiflux * Cnm * (delCS**2 + 1) / avgR / Ltot / delCS**2 *1e5
             Bcent = delCS * tau * B0 
-            if (Bcent < 500) or  (Bcent > 10000):
+            if (Bcent < 500) or  (Bcent > 20000):
                 sys.exit('Cannot calculate a reasonable default flux rope B using empirical scaling. Please provide FRB')
             else:
                 if not allSilent:
@@ -607,7 +604,7 @@ def checkInputs(printNonCrit=False):
             vExp = 0.175 * vIS -51.73
             logTIS = 3.07e-3 * vIS +3.65
             FRT = np.power(10, logTIS) * np.power(215*7e10/rFront, 0.7)
-            if (FRT < 5e4) or  (FRT > 2e6):
+            if (FRT < 5e4) or  (FRT > 3e6):
                 sys.exit('Cannot calculate a reasonable default flux rope T using empirical scaling. Please provide FR T')
             else:
                 if not allSilent:

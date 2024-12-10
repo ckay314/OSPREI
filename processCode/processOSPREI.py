@@ -277,12 +277,13 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     # |------------- Make tne Enlil-like movie figures ------------|    
     # |------------------------------------------------------------| 
         if doMovie:
-            try:
+            #try:
                 # vel0 = 300 -> sets min of contours at 300 (defaults to 300)
                 # vel1 = 750 -> sets max of contours at 750 (defaults to nearest 50 over vCME)
-                proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors, vel1=500)
-            except:
-                print('Error in making Enlilesque frames')
+                #proANT.enlilesque(ResArr, bonusTime=0, doSat=True, planes='both', satNames=satNames, satCols=satColors, vel1=500)
+                proANT.enlilesque(ResArr, bonusTime=0, doSat=False, planes='both', satNames=satNames, satCols=satColors, vel0=300, vel1=700)
+            #except:
+            #    print('Error in making Enlilesque frames')
     
 
 
