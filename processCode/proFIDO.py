@@ -505,7 +505,7 @@ def makeFIDOhistos(ResArr, dObj, DoY, satID=0, satNames=[''], BFs=[None], satCol
     # |------------- Collect the results into holders --------------| 
     for key in ResArr.keys(): 
         if not ResArr[key].FIDOmiss[satID]:
-            if ResArr[key].sheathOnly:
+            if ResArr[key].sheathOnly[satID]:
                 all_AT.append(ResArr[key].FIDOtimes[satID][ResArr[key].FIDO_shidx[satID][0]])
                 all_vF.append(ResArr[key].FIDOvs[satID][ResArr[key].FIDO_shidx[satID][0]])                
             else:

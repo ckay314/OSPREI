@@ -7,11 +7,11 @@ import datetime
 from scipy.interpolate import CubicSpline
 
 # Import path names from file
-myPaths = np.genfromtxt('myPaths.txt', dtype=str)
-mainpath = myPaths[0,1]
-codepath = myPaths[1,1]
-magpath  = myPaths[2,1]
-propath  = myPaths[3,1]
+myPaths = dict(np.genfromtxt('myPaths.txt', dtype=str))
+mainpath = myPaths['mainpath:']
+codepath = myPaths['codepath:']
+magpath  = myPaths['magpath:']
+propath  = myPaths['processpath:']
 
 # Previous hardcoded version
 # Import all the OSPREI files, make this match your system
@@ -48,6 +48,7 @@ allSilent = False
 global sheathParams
 # hack for adding in sheath on combo 
 sheathParams = [0.,0.,0.]
+
 
 
 def setupOSPREI(logInputs=False, inputPassed='noFile'):
@@ -1086,7 +1087,7 @@ def makeSatPaths(fname, tzero, Clon0=0):
     satlats = np.array(data[:,3]).astype(float)
     satlons = np.array(data[:,4]).astype(float) % 360.
     idx = np.where(np.abs(delts) == np.min(np.abs(delts)))[0]
-    lon0 = satlons[idx]
+    lon0 = satlons[idx[0]]
     satlons -= lon0 # sat lons now shifted to movement in lon from t0
     satlons += Clon0 # sat lons now relative to Clon at t0
     fR = CubicSpline(delts, satrs)

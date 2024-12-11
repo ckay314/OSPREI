@@ -151,12 +151,11 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         print('Error in calculating metrics. Proceeding without score analysis')
         metFail = True
         
-
     # |------------------------------------------------------------|
     # |--------- Make the ensemble score scatter plots ------------|    
     # |------------------------------------------------------------|  
     # These plots are pretty slow for larger ensembles
-    if plotAll and (nEns > 1) and not metFail: 
+    if plotAll and (nEns > 1) and not metFail and hasObs: 
         for i in range(nSat):
             # friends at -1 will plot values from combined score
             # switch -1 to i (satID) to use friends for that satellite
@@ -182,10 +181,13 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
             # friends at -1 will plot values from combined score
             # switch -1 to i (satID) to use friends for that satellite
             try:
-                met.makeEnsplot(ResArr, nEns, critCorr=0.5, satID=i, satNames=satNamesL, BFs=comboBFs, BFcols=satColors, friends=friends[-1])
+                if hasObs:
+                    met.makeEnsplot(ResArr, nEns, critCorr=0.5, satID=i, satNames=satNamesL, BFs=comboBFs, BFcols=satColors, friends=friends[-1])
+                else:
+                    met.makeEnsplot(ResArr, nEns, critCorr=0.5, satID=i, satNames=satNamesL)
             except:
                 print('Error in making ensemble input/output scatter plot')
-
+                
 
     # |---------------------------------------------------------------------------------------|
     # |---------------------------------------------------------------------------------------|

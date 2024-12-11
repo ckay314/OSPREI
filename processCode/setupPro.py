@@ -566,7 +566,7 @@ def readInData(thisfile):
     elif nGiven ==8:
         # no v T or Kp
         dataOut = np.array([obsDTs, dataIn[:,3],  dataIn[:,4], dataIn[:,5], dataIn[:,6], dataIn[:,7]])
-        hasv, hasKp, hasT = False, False, False       
+        hasv, hasKp, hasT = False, False, False 
     return dataOut
 
 
@@ -589,6 +589,7 @@ def processObs(ResArr, nSat, hasObs=True):
             OSP.obsFRstart, OSP.obsFRend, OSP.obsShstart = [OSP.obsFRstart], [OSP.obsFRend], [OSP.obsShstart]
         satLoc0 = [OSP.satPos]
         satLocI = [OSP.satPos] # this assuming not moving, need to fix
+        satLocAllI = [satLocI]
     
     # |------- Pull in details for the fancy case ----------|
     # |------- Either traj path or multi sat (or both) -----|    

@@ -60,7 +60,6 @@ def hourify(tARR, vecin):
 # |----------------- Pull OSPREI data and compare to observations ------------------|        
 # |---------------------------------------------------------------------------------|        
 def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, silent=False):
-    
     # |----- Check if we have an observed sheath and if we actually want to ----|
     # |----- include it when calculating the metrics ---------------------------|
     global hasSheath
@@ -75,7 +74,7 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
     deltat = ObsData[satID][0,:]-day1
     # need the days since jan 1 = 0 days
     obst = np.array([1+deltat[i].days + deltat[i].seconds/(3600*24)for i in range(len(deltat))])
-    
+ 
     # |----- Pull out keys for ensemble members that impact -----|
     goodKeys = []
     for key in ResArr.keys():
@@ -100,7 +99,7 @@ def getISmetrics(ResArr, ObsData, DoY, satNames, satID=0, ignoreSheath=False, si
             
     # |----- Grab obs data that extends slightly past transient time -----|
     mintsim, maxtsim = mindate+DoY+1, maxdate+DoY+1
-    pad = 12/24.
+    pad = 48/24.
     mintobs = np.max([mintsim - pad, obst[0]])
     maxtobs = np.min([maxtsim + pad, obst[-1]])
     
@@ -805,7 +804,6 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
     # Option to unevenly weight sats if desired (e.g. satScoreWeights = [1,1,2,1])
     # The sat order is the same as in satNames/.sat file
     satScoreWeights = np.ones(nSat)
-    
     # |---- Make a file to hold combined metrics ----|
     if nEns > 1:
         fAll = open(OSP.Dir+'/metricsCombined'+str(ResArr[0].name)+'.dat', 'w')  
@@ -882,33 +880,35 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
                 fAll.write(str(i).rjust(4) + ' '+outline +'\n')
              
         # |---------- Sum over all satellites ----------|   
-        minSumScore = np.min(sumScore)
-        bestID = np.where(sumScore == minSumScore)[0]       
-        maxSumScore = np.max(sumScore[np.where(sumScore < np.percentile(sumScore,95))])      
-        worstID = np.where(sumScore == maxSumScore)[0]
-        scoreRng = maxSumScore - minSumScore
+        if nEns > 1:
+            minSumScore = np.min(sumScore)
+            bestID = np.where(sumScore == minSumScore)[0]    
+            maxSumScore = np.max(sumScore[np.where(sumScore < np.percentile(sumScore,95))])      
+            worstID = np.where(sumScore == maxSumScore)[0]
+            scoreRng = maxSumScore - minSumScore
         
-        sumFriends = np.where(sumScore <= minSumScore + 0.1*scoreRng)[0]
-        nClose = len(sumFriends)
-        allFriends[-1] = sumFriends
-        # Print to screen
-        if not silent: 
-            print ('Best total score over all satellites: ', '{:5.2f}'.format(minSumScore), 'for run number ', str(bestID[0]))
-            print (str(nClose)+' members with a score within 10 percent of range (' '{:3.2f}'.format(0.1*scoreRng)+') of min score')
-            outstr = ''
-            for idx in np.where(sumScore <= minSumScore + 0.1*scoreRng)[0]:
-                outstr += str(idx) + ' '
-            print('   members: ' + outstr + '\n')
-        # Printe to file
-        if fAll:
-            fAll.write('\n')
-            fAll.write('Best total score over all satellites: '+ '{:5.2f}'.format(minSumScore) + ' for run number ' + str(bestID[0])+'\n')
-            fAll.write('Highest score for a non-fail case: ' + '{:5.2f}'.format(maxSumScore) + ' for run number ' + str(worstID[0])+'\n')
-            fAll.write(str(nClose)+' members with a score within 10 percent of range (' '{:3.2f}'.format(0.1*scoreRng)+') of min score'+'\n')
-            outstr = ''
-            for idx in sumFriends:
-                outstr += str(idx) + ' '
-            fAll.write('   members: ' + outstr + '\n')
+            sumFriends = np.where(sumScore <= minSumScore + 0.1*scoreRng)[0]
+            nClose = len(sumFriends)
+            allFriends[-1] = sumFriends
+            # Print to screen
+            if not silent: 
+                print ('Best total score over all satellites: ', '{:5.2f}'.format(minSumScore), 'for run number ', str(bestID[0]))
+                print (str(nClose)+' members with a score within 10 percent of range (' '{:3.2f}'.format(0.1*scoreRng)+') of min score')
+                outstr = ''
+                for idx in np.where(sumScore <= minSumScore + 0.1*scoreRng)[0]:
+                    outstr += str(idx) + ' '
+                print('   members: ' + outstr + '\n')
+            # Printe to file
+            if fAll:
+                fAll.write('\n')
+                fAll.write('Best total score over all satellites: '+ '{:5.2f}'.format(minSumScore) + ' for run number ' + str(bestID[0])+'\n')
+                fAll.write('Highest score for a non-fail case: ' + '{:5.2f}'.format(maxSumScore) + ' for run number ' + str(worstID[0])+'\n')
+                fAll.write(str(nClose)+' members with a score within 10 percent of range (' '{:3.2f}'.format(0.1*scoreRng)+') of min score'+'\n')
+                outstr = ''
+                for idx in sumFriends:
+                    outstr += str(idx) + ' '
+                fAll.write('   members: ' + outstr + '\n')
             
-        
+    if fAll:
+        fAll.close()    
     return storeScores, winners, bestID, allFriends
