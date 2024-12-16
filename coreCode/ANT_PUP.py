@@ -1297,6 +1297,7 @@ def getAT(invec, Epos, SWparams, SWidx=None, silent=False, fscales=None, pan=Fal
                                 if writeFile:
                                     print2file(fullCMEstuff, f1, '{:8.5f}')
                                     print2file([t/3600./24., CMElens[0]/rsun]+PUPstuff, f2, '{:8.5f}')
+                                printNow = True
                         # print sheath info to FIDO output file
                         if (axDist > maxDistFR) and (satPos[satID][2] > CMElens[0]) and printNow and aFIDOinside:
                             tdir, pdir = getBvector(CMElens, axDist, thisPsi, thisParat, deltax, deltap)
