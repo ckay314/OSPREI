@@ -15,6 +15,14 @@ def preProcessIt(inputs):
     # ----- Make satellite path and get init pos -----
     # ------------------------------------------------
     # Need to do this early on bc of inputs that depend on satellite distance
+    if 'satellite' not in inputs.keys():
+        if inputs['models'] != 'FC':
+            sys.exit('Missing satellite and not running only ForeCAT') 
+        else:
+            # Set satellite to Earth just to make it happy. Shouldn't affect
+            # calculation at all
+            inputs['satellite'] = 'Earth'
+            
     sat = inputs['satellite'] # can be PSP, STA, STB, Earth, SolO
     trajDir = myPaths[4,1]
     if sat == 'Earth':
