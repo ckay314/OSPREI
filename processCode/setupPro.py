@@ -515,7 +515,9 @@ def txt2obj(GCStime=0):
         # sort varied according to a nice order
         myOrder = ['CMElat', 'CMElon', 'CMEtilt', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEdelCSAx', 'CMEr', 'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'FRB',  'SWCd', 'SWCdp', 'SWn', 'SWv', 'SWB', 'SWT', 'SWcs', 'SWvA', 'FRB', 'FRtau', 'FRCnm', 'FRT', 'Gamma', 'IVDf', 'IVDf1', 'IVDf2', 'MHarea', 'MHdist']  
         varied = sorted(varied, key=lambda x: myOrder.index(x))    
-           
+    
+    if OSP.doFC and not OSP.doANT:
+        nSat, hitsSat = 0, False      
     return ResArr, nSat, hitsSat, nFails, DoY, dObj
     
 # |----- Mini script to determine Kp from other params -----|
