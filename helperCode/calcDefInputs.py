@@ -14,8 +14,7 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     
     AW = AW * dtor
     AWp = AWp *dtor
-    
-    
+        
     lenCoeffs = [0.61618, 0.47539022, 1.95157615]
     lenFun = np.poly1d(lenCoeffs)
     
@@ -35,12 +34,10 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     #mass = 0.005756*v -0.84
     # LLAMAICE 1.0 relation
     mass = 0.010 * v + 0.16
-    #mass = mass * 2
     
-    
-    # Karin
+    # Dissauer relation, not using now
     #phiflux = (0.2082 * mass +2.244) * 1e21
-    # Gopal
+    # Gopal version
     KE = 0.5 * mass*1e15 * (v*1e5)**2 /1e31
     phiflux = np.power(10, np.log10(KE / 0.19) / 1.87)*1e21
     B0 = phiflux * Cnm * (delCS**2 + 1) / avgR / Ltot / delCS**2 *1e5
@@ -55,5 +52,5 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     return AW/dtor, AWp/dtor, mass, TIP, Bcent
     
 #outs = getProps(21.5, 677, 60, 20, 0.75, 1)
-outs = getProps(21.5, 1613, 41, 14, 0.75, 1)
+outs = getProps(21.5, 1613, 41, 41/3., 0.75, 1)
 print (outs)
