@@ -137,6 +137,8 @@ def setupOSPREI(logInputs=False, inputPassed='noFile'):
         elif temp[0][:-1] == 'isSat':
             if temp[1] == 'True':
                 isSat = True
+            if temp[1] == 'False':
+                isSat = False
         # Needed for processOSP metrics
         elif temp[0][:-1] == 'obsFRstart':
             obsFRstart = float(temp[1])
@@ -157,7 +159,7 @@ def setupOSPREI(logInputs=False, inputPassed='noFile'):
         # dunno why this was missing
         elif temp[0][:-1] == 'FRpol':
              FRpol = int(temp[1])
-    
+
     # check if we have a magnetogram name for ForeCAT or if passed only the date
     global pickleName
     if models in ['FC', 'ALL', 'All']:
@@ -1497,6 +1499,10 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                         regs = FIDOresults[sat][7]
                         hitTime = FIDOresults[sat][0][np.min(np.where(regs == 1))]/24
                         hitIdx = np.min(np.where(ATresults[0] >= hitTime))
+                        if CME.hasSheath:
+                            shTime = FIDOresults[sat][0][np.min(np.where(regs == 0))]/24 
+                            shIdx = np.min(np.where(ATresults[0] >= shTime))
+                            shTotTime = ATresults[0][shIdx]+FCATtime
                     TotTime  = ATresults[0][hitIdx]+FCATtime
                     rCME     = ATresults[1][hitIdx]
                     CMEAW    = ATresults[3][hitIdx]
@@ -1504,12 +1510,18 @@ def goANTEATR(makeRestart=False, satPathIn=False):
                     logT     = ATresults[11][hitIdx]
                     
                     if not allSilent:
+                        if CME.hasSheath:
+                            print (str(i)+' Sheath/shock contact after '+ "{:.2f}".format(shTotTime)+' days')
                         print (str(i)+' Contact after '+"{:.2f}".format(TotTime)+' days with front velocity '+"{:.2f}".format(vF)+' km/s (expansion velocity ' +"{:.2f}".format(vEx)+' km/s) when nose reaches '+"{:.2f}".format(rCME) + ' Rsun and angular width '+"{:.0f}".format(CMEAW)+' deg and estimated duration '+"{:.0f}".format(thisSum[5])+' hr')
                     
                     if not allSilent:
                         if not noDate:
-                            dImp = dObj + datetime.timedelta(days=TotTime)
-                            print ('   Impact at '+dImp.strftime('%Y %b %d %H:%M '))
+                            
+                            if CME.hasSheath:
+                                dImpSh = dObj + datetime.timedelta(days=shTotTime)
+                                print ('   Sheath Impact at '+dImpSh.strftime('%Y %b %d %H:%M '))
+                            dImp = dObj + datetime.timedelta(days=TotTime)    
+                            print ('   FR Impact at '+dImp.strftime('%Y %b %d %H:%M '))
                         print ('   Density: ', CMEn, '  Temp:  ', np.power(10,logT))
                         
                 # Only sheath impact
@@ -1900,7 +1912,7 @@ def satPathWrapper(satPath, checkSatlen=True):
     satfiles = []
     #havePaths = True
     if satPath[-5:] == '.sats':
-        satFile = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+        satFile = np.genfromtxt(satPath, dtype=str)
         nSats = len(satFile)
         if (nSats > 10) and checkSatlen:
             sys.exit('Can only run 10 or fewer satellites')
@@ -1911,11 +1923,16 @@ def satPathWrapper(satPath, checkSatlen=True):
             satFile = [satFile] # nest to make looping over Sats happy
         if nItems not in [5,6,9]:
             sys.exit('.sats file should be SatName Lat0 Lon0 R0 Orbit/PathFile [ObsData SheathStart FRStart FRend (Optional)]')
-            
-        if '.' in satFile[0][4]:
+        
+        havePaths = False
+        try:
+            temp = float(satFile[0][4])  
+        except:
+            havePaths = True  
+        '''if '.' in satFile[0][4]:
             havePaths = True
         else:
-            havePaths = False
+            havePaths = False'''
              
         if havePaths:
             for i in range(nSats):
@@ -1959,7 +1976,7 @@ def runOSPREI(inputPassed='noFile'):
     global currentInps
     currentInps = {}
     for key in input_values: currentInps[key] = input_values[key]
-    
+
     global doSatPath
     doSatPath = False
     

@@ -30,8 +30,11 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     Ltot = Ltorus + 2 * Lleg 
     
     avgR = (0.5*rCSp * Lleg * 2 + rCSp * Ltorus) / (Lleg*2 + Ltorus)
-        
-    mass = 0.005756*v -0.84
+    
+    # Old version    
+    #mass = 0.005756*v -0.84
+    # LLAMAICE 1.0 relation
+    mass = 0.010 * v + 0.16
     #mass = mass * 2
     
     
@@ -51,5 +54,6 @@ def getProps(rfront, v, AW, AWp, delAx, delCS, Cnm=1.927, tau=1, kappa=0):
     
     return AW/dtor, AWp/dtor, mass, TIP, Bcent
     
-outs = getProps(21.5, 677, 60, 20, 0.75, 1)
+#outs = getProps(21.5, 677, 60, 20, 0.75, 1)
+outs = getProps(21.5, 1613, 41, 14, 0.75, 1)
 print (outs)
