@@ -10,7 +10,8 @@ CMEAWp:         8.333333333333334
 CMEM:           3.16
 CMEdelAx:               0.75
 CMEdelCS:               1   
+FRafs:			-1
 date:           20240412
 time:           21:24
 models:         IP
-suffix:         Christina_Kay_051624_SH_1
+suffix:         Christina_Kay_051624_SH_1b
