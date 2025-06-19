@@ -602,7 +602,7 @@ def processObs(ResArr, nSat, hasObs=True):
         if (satPath[-4:] == 'sats'):
             satNames = []
             ObsData = [[None] for i in range(nSat)]
-            temp = np.genfromtxt(satPath, dtype='unicode', delimiter=' ')
+            temp = np.genfromtxt(satPath, dtype='unicode')
             # |----- Prep single sat using multi sat format -----|
             if nSat == 1:
                 temp = [temp] #package in array to make loop happy

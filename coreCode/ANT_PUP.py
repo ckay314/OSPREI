@@ -516,7 +516,7 @@ def getr(rmin, dr, nr, beta, theta, gam, vCME, vSW, vA):
             diffs.append(9999)
     idx = np.where(np.abs(diffs) == np.min(np.abs(diffs)))
     if diffs[idx[0][0]] == 9999:
-        if ((vCME-vSW)/vA) > 10 and (rmin==1):
+        if ((vCME-vSW)/vA) > 2 and (rmin==1):
            r = getr(3.7, 0.01, 29, beta, theta, gam, vCME, vSW, vA)
         elif ((vCME-vSW)/vA) > 10 and (rmin==1):
             return 9999

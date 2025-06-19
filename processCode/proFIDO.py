@@ -121,6 +121,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
                 axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
+                axes[0].text(0.99, 0.7, 'FR: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
                 # Option to plot either n or Kp
                 if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
@@ -145,6 +146,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, '--', linewidth=lw, color=co, zorder=zord)
+                axes[0].text(0.99, 0.85, 'Sheath: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
                 if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:

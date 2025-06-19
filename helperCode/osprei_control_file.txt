@@ -1,0 +1,25 @@
+
+nRuns:		1
+satellite:		Earth
+CMEr:		21.5
+CMElat:		22
+CMElon:		2
+CMEtilt:		80
+CMEvr:		1613
+CMEAW:		41
+CMEAWp:		13.666666666666666
+CMEM:		16.29
+CMEdelAx:		0.75
+CMEdelCS:		1
+FRpol:		+1
+FRafs:		-1
+doPUP:		True
+SWn:		7.5
+SWv:		350
+SWB:		6
+SWT:		75000
+SWCd:		1
+date:		20240323
+time:		03:19
+models:		IP
+suffix:		C_Kay_061825_SH_2

@@ -28,6 +28,7 @@ def preProcessIt(inputs):
     if sat == 'Earth':
         satfile = trajDir + 'planets/earth.lst'
         satName = 'earth'
+        inputs['isSat'] = 'False'
     elif sat == 'PSP':
         satfile = trajDir + 'spacecraft/psp.lst'
         satName = 'psp'
@@ -82,12 +83,12 @@ def preProcessIt(inputs):
     # ------------------------------------------------
     # Check that all inputs are explicity listed whether defaults or not
     # Took out FCmagname, satPath/satLon, bc not query output, will be derived below
-    allInNames = ['date', 'time', 'suffix', 'nRuns', 'models', 'CMElat', 'CMElon', 'CMEtilt', 'CMEyaw', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr',  'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunRss', 'PFSSscale', 'IVDf', 'SWCd', 'SWCdp', 'SWR', 'SWn', 'SWv', 'SWB', 'SWT', 'FRtau', 'FRCnm', 'FRpol', 'Gamma', 'doPUP',  'doMH', 'MHarea', 'MHdist', 'obsFRstart', 'obsFRend', 'obsShstart', 'simYaw', 'FRB', 'FRT', 'FRafs']
+    allInNames = ['date', 'time', 'suffix', 'nRuns', 'models', 'CMElat', 'CMElon', 'CMEtilt', 'CMEyaw', 'CMEvr', 'CMEAW', 'CMEAWp', 'CMEdelAx', 'CMEdelCS', 'CMEr',  'FCrmax', 'FCraccel1', 'FCraccel2', 'FCvrmin', 'FCAWmin', 'FCAWr', 'CMEM', 'FCrmaxM', 'SunRss', 'PFSSscale', 'IVDf', 'SWCd', 'SWCdp', 'SWR', 'SWn', 'SWv', 'SWB', 'SWT', 'FRtau', 'FRCnm', 'FRpol', 'Gamma', 'doPUP',  'doMH', 'MHarea', 'MHdist', 'obsFRstart', 'obsFRend', 'obsShstart', 'simYaw', 'FRB', 'FRT', 'FRafs', 'isSat']
 
     # Dictionary with defaults for the simple parameters
     # Some of these aren't accesible by query form, but might want
     # available in special custom cases?
-    defaults = {'nRuns':'1', 'CMEyaw':'0', 'CMEdelAx':'0.75', 'CMEdelCS':'1.', 'FCrmax':'21.5', 'FCraccel1':'1.3', 'FCraccel2':'10', 'FCvrmin':'50', 'FCAWmin':'5', 'FCAWr':'1',  'SunRss':'2.5', 'PFSSscale':'1.0', 'IVDf':'0.5',  'SWCd':'1.', 'SWCdp':'1.', 'FRtau':'1.', 'FRCnm':'1.927', 'Gamma':'1.33', 'doPUP':'False', 'doMH':'False','simYaw':'False', 'FRafs':'1'}
+    defaults = {'nRuns':'1', 'CMEyaw':'0', 'CMEdelAx':'0.75', 'CMEdelCS':'1.', 'FCrmax':'21.5', 'FCraccel1':'1.3', 'FCraccel2':'10', 'FCvrmin':'50', 'FCAWmin':'5', 'FCAWr':'1',  'SunRss':'2.5', 'PFSSscale':'1.0', 'IVDf':'0.5',  'SWCd':'1.', 'SWCdp':'1.', 'FRtau':'1.', 'FRCnm':'1.927', 'Gamma':'1.33', 'doPUP':'False', 'doMH':'False','simYaw':'False', 'FRafs':'1', 'isSat':'True'}
     SW1AUdefaults = {'SWn':'7.5', 'SWv':'350', 'SWB':'6.9', 'SWT':'75000'}
 
     # List of parameters that have no default - must be specified in query
