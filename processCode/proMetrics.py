@@ -521,6 +521,7 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
     i = 0
     goodIDs = []
     failIDs = []
+    sheathOnly = []
     for key in ResArr.keys():
         if (not ResArr[key].FIDOmiss[satID]):
             if not ResArr[key].fail:
@@ -528,11 +529,13 @@ def makeEnsplot(ResArr, nEns, critCorr=0.5, satID=0, satNames='', BFs=[None], BF
                 if len(FIDOidx) > 0:
                     goodIDs.append(key)
                     ANTidx  = np.min(np.where(ResArr[key].ANTtimes >= ResArr[key].FIDOtimes[satID][FIDOidx][0]))
+                elif (len(FIDOidx) == 0) & (len(ResArr[key].FIDO_shidx[satID]) > 0):
+                    sheathOnly.append(key)
             else:
                 failIDs.append(key)
         elif configID == 100: goodIDs.append(key)
         # |---------- Loop through the potential outputs for the setup ----------| 
-        if (not ResArr[key].FIDOmiss[satID]):
+        if (not ResArr[key].FIDOmiss[satID]) & (key not in sheathOnly):
             for item in outDict[configID]:
                 if item == 'CMElat':
                     OSPres[item].append(ResArr[key].FClats[-1])

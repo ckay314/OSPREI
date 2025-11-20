@@ -976,10 +976,10 @@ def makeSummary(ResArr, dObj, nEns, nSat, hitsSat, satNames, DoY, silent=False):
         nhit = ntot-misses
         fSum.write('Impacts for '+str(nhit)+' out of ' +str(ntot) +' ensemble members \n')
         fSum.write('  (' + '{:.1f}'.format(100*nhit/ntot)+' percent) \n')
-        if nhit != justfrs:
-            fSum.write(str(justfrs) + 'impacts with no sheath \n')
         if justshs > 0:
-            fSum.write(str(justshs) + 'impacts with only sheath impact \n')
+            fSum.write(str(justshs) + ' members with only sheath impact \n')
+        if (justfrs != frs) & (justfrs !=0):
+            fSum.write(str(justfrs) + ' members with no sheath \n')
         fSum.write('\n')
         
         # Parameter values
