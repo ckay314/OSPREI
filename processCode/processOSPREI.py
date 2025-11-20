@@ -122,6 +122,12 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         hasObs = False
         ObsData, satNames, satLoc0, satLocI, satLocAllI, hasObs = SP.processObs(ResArr, nSat, hasObs=hasObs)
 
+    # |----------------------------------------|
+    # |------ Make run summary text file ------|    
+    # |----------------------------------------|
+    proFIDO.makeSummary(ResArr, dObj, nEns, nSat, hitsSat, satNames, DoY, silent=False)    
+
+
     # |---------------------------------------------------------------------------------------|
     # |---------------------------------------------------------------------------------------|
     # |----------------------------------- Ensemble Figures ----------------------------------|
@@ -302,6 +308,8 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
         if plotAll:
             for i in range(nSat):
                 if hitsSat[i]:
+                    if nEns == 1:
+                        comboBFs = [None]
                     try:
                         proFIDO.makeISplot(ResArr, dObj, DoY, satID=i, SWpadF=12, SWpadB=12, BFs=comboBFs, satCols=satColors, satNames=satNamesL, hasObs=hasObs, ObsData=ObsData)
                     except:

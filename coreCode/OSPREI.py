@@ -1268,7 +1268,7 @@ def move2corona(CME, rmax):
     CME.calc_points()
     return CME
     
-def goANTEATR(makeRestart=False, satPathIn=False):
+def goANTEATR(makeRestart=False, satPathIn=False, silent=True):
     # ANTEATR portion --------------------------------------------------|
     # ------------------------------------------------------------------|
     # ------------------------------------------------------------------|
@@ -1452,12 +1452,12 @@ def goANTEATR(makeRestart=False, satPathIn=False):
         # SW polarity in or out - THINK THIS WAS FLIPPED FOR ISSI/PROPOSAL CASE?
         inorout = np.sign(CME.BSW) 
         # high fscales = more convective like
-        isSilent = allSilent
+        #isSilent = allSilent
         
         if actualPath:      
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=silent, satfs=satfs, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol)
         else:
-            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=isSilent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol, sheathParams=sheathParams)
+            ATresults, outSum, vsArr, angArr, SWparams, PUPresults, FIDOresults = getAT(invec, myParams, SWvec, fscales=IVDfs, silent=silent, flagScales=flagScales, doPUP=doPUP, MEOWHiSS=MHin, aFIDOinside=doFIDO, inorout=inorout, simYaw=simYaw, SWR=SWR, CMEH=FRpol, sheathParams=sheathParams)
             
         # Check if miss or hit  
         # Need to account for mix of hits and misses with multi TO DO!!
@@ -1965,7 +1965,7 @@ def satPathWrapper(satPath, checkSatlen=True):
     
     return satPaths
 
-def runOSPREI(inputPassed='noFile'):
+def runOSPREI(inputPassed='noFile', silent=True):
     setupOSPREI(logInputs=True, inputPassed=inputPassed)
     
     if nRuns > 1: setupEns()
@@ -1992,9 +1992,9 @@ def runOSPREI(inputPassed='noFile'):
 
     if doANT: 
         if 'satPath' in input_values:
-            goANTEATR(makeRestart=False, satPathIn=satPaths)
+            goANTEATR(makeRestart=False, satPathIn=satPaths, silent=silent)
         else:
-            goANTEATR(makeRestart=False)
+            goANTEATR(makeRestart=False, silent=silent)
             
     # Option for FIDO only when not running ANTEATR
     # (actually just run ANTEATR w/no forces near arrival)

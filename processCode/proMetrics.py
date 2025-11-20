@@ -912,3 +912,5 @@ def setupMetrics(ResArr, ObsData, nEns, nSat, hasObs, hitsSat, satNames, DoY, si
     if fAll:
         fAll.close()    
     return storeScores, winners, bestID, allFriends
+    
+

@@ -121,7 +121,8 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
                 axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, linewidth=lw, color=co, zorder=zord)
-                axes[0].text(0.99, 0.7, 'FR: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
+                if key == 0:
+                    axes[0].text(0.99, 0.7, 'FR: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
                 # Option to plot either n or Kp
                 if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], linewidth=lw, color=co, zorder=zord)
@@ -146,7 +147,8 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 axes[3].plot(dates[nowIdx], ResArr[key].FIDOBzs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[4].plot(dates[nowIdx], ResArr[key].FIDOvs[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 axes[5].plot(dates[nowIdx], ResArr[key].FIDOtems[satID][nowIdx]/1e6, '--', linewidth=lw, color=co, zorder=zord)
-                axes[0].text(0.99, 0.85, 'Sheath: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
+                if key == 0:
+                    axes[0].text(0.99, 0.85, 'Sheath: '+dates[nowIdx[0]].strftime('%Y-%m-%dT%H:%M'), ha='right',transform=axes[0].transAxes)
                 if OSP.isSat or plotn:
                     axes[6].plot(dates[nowIdx], ResArr[key].FIDOns[satID][nowIdx], '--', linewidth=lw, color=co, zorder=zord)
                 else:
@@ -888,3 +890,114 @@ def makeAllprob(ResArr, dObj, DoY, pad=6, plotn=False, satID=0, silent=True, sat
     cbar.ax.set_title('Percentage Chance')        
     plt.savefig(OSP.Dir+'/fig_'+str(ResArr[0].name)+'_allPerc'+satName+'.'+pO.figtag)   
     plt.close()
+
+# |---------------------------------------------------------------------------------|        
+# |------------------ Overall summary file (useful for forecasts) ------------------|        
+# |---------------------------------------------------------------------------------|        
+def makeSummary(ResArr, dObj, nEns, nSat, hitsSat, satNames, DoY, silent=False):
+    fSum = open(OSP.Dir+'/summaryFile_'+str(ResArr[0].name)+'.txt', 'w')  
+    
+    if dObj:    
+        yr = dObj.year
+        base = datetime.datetime(yr, 1, 1, 0, 0) + datetime.timedelta(days=DoY)
+    else:
+        yr = -9999 # make it a flag for no date case
+        
+    for satID in range(nSat):
+        TTs = [[],[]]
+        durs = [[],[]]
+        Bs = [[],[]]
+        Bzs = [[],[]]
+        ns = [[],[]]
+        vs = [[],[]]
+        Kps = [[],[]]
+        misses = 0
+        shs = 0
+        frs = 0
+        justshs = 0
+        justfrs = 0
+        if hitsSat[satID]:
+           if satNames[satID] != '':
+               fSum.write('Summary results for '+satNames[satID])
+           for key in ResArr.keys():
+               hasFR = len(ResArr[key].FIDO_FRidx[satID]) > 0
+               hasSh = len(ResArr[key].FIDO_shidx[satID]) > 0
+               if (not hasFR) and (not hasSh):
+                   misses += 1
+               else:
+                   # Flux rope indices
+                   if hasFR: 
+                       frs += 1
+                       if not hasSh:
+                           justfrs +=1
+                       FRidx = ResArr[key].FIDO_FRidx[satID]
+                       TTs[0].append(ResArr[key].FIDOtimes[satID][FRidx[0]])
+                       durs[0].append(ResArr[key].FIDO_FRdur[satID])
+                       Bs[0].append(np.max(ResArr[key].FIDOBs[satID][FRidx]))
+                       Bzs[0].append(np.min(ResArr[key].FIDOBzs[satID][FRidx]))
+                       ns[0].append(np.max(ResArr[key].FIDOns[satID][FRidx]))
+                       vs[0].append(np.max(ResArr[key].FIDOvs[satID][FRidx]))
+                       Kps[0].append(np.max(ResArr[key].FIDOKps[satID][FRidx]))
+
+                   # Sheath indices
+                   if hasSh:
+                       shs += 1
+                       if not hasFR:
+                           justshs +=1
+                       shidx = ResArr[key].FIDO_shidx[satID]   
+                       TTs[1].append(ResArr[key].FIDOtimes[satID][shidx[0]])
+                       durs[1].append(ResArr[key].FIDO_shdur[satID])
+                       Bs[1].append(np.max(ResArr[key].FIDOBs[satID][shidx]))
+                       Bzs[1].append(np.min(ResArr[key].FIDOBzs[satID][shidx]))
+                       ns[1].append(np.max(ResArr[key].FIDOns[satID][shidx]))
+                       vs[1].append(np.max(ResArr[key].FIDOvs[satID][shidx]))
+                       Kps[1].append(np.max(ResArr[key].FIDOKps[satID][shidx]))
+
+
+        # Transit time
+        if len(TTs[1]) != 0:
+            fSum.write('Mean Shock Arrival:     '+(base + datetime.timedelta(days=np.mean(TTs[1]))).strftime('%Y %b %d %H:%M')+'\n')
+            fSum.write('Median Shock Arrival:   '+(base + datetime.timedelta(days=np.median(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
+            fSum.write('Earliest Shock Arrival: '+(base + datetime.timedelta(days=np.min(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
+            fSum.write('Latest Shock Arrival:   '+(base + datetime.timedelta(days=np.max(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
+            fSum.write('STD in Shock AT (hr)' + '{:8.2f}'.format(24*np.std(TTs[1])) +'\n')
+            fSum.write('\n')
+        
+        fSum.write('Mean FR Arrival:     '+(base + datetime.timedelta(days=np.mean(TTs[0]))).strftime('%Y %b %d %H:%M')+'\n')
+        fSum.write('Median FR Arrival:   '+(base + datetime.timedelta(days=np.median(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
+        fSum.write('Earliest FR Arrival: '+(base + datetime.timedelta(days=np.min(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
+        fSum.write('Latest FR Arrival:   '+(base + datetime.timedelta(days=np.max(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
+        fSum.write('STD in FR AT (hr)' + '{:8.2f}'.format(24*np.std(TTs[0])) +'\n')
+        fSum.write('\n')
+        
+        
+        # Hit miss stats
+        ntot = len(ResArr)
+        nhit = ntot-misses
+        fSum.write('Impacts for '+str(nhit)+' out of ' +str(ntot) +' ensemble members \n')
+        fSum.write('  (' + '{:.1f}'.format(100*nhit/ntot)+' percent) \n')
+        if nhit != justfrs:
+            fSum.write(str(justfrs) + 'impacts with no sheath \n')
+        if justshs > 0:
+            fSum.write(str(justshs) + 'impacts with only sheath impact \n')
+        fSum.write('\n')
+        
+        # Parameter values
+        fSum.write('Ensemble Stats \n')
+        for i in [1,0]:
+            if len(TTs[i]) != 0:
+                if i == 1:
+                    fSum.write('Sheath Profile Maximum Vals \n')
+                    fSum.write('(most negative for Bz) \n')
+                elif i ==0:
+                    fSum.write('FR Profile Maximum Values \n')
+                    fSum.write('(most negative for Bz) \n')
+                fSum.write('Parameter   Median       STD       Min        Q1        Q2        Q3       Max \n') 
+                fSum.write('Dur (hr)' + '{:10.2f}'.format(np.median(durs[i])) + '{:10.2f}'.format(np.std(durs[i])) + '{:10.2f}'.format(np.min(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 25)) + '{:10.2f}'.format(np.mean(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 75)) + '{:10.2f}'.format(np.max(durs[i]))+'\n')
+                fSum.write('|B| (nT)' + '{:10.2f}'.format(np.median(Bs[i])) + '{:10.2f}'.format(np.std(Bs[i])) + '{:10.2f}'.format(np.min(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 25)) + '{:10.2f}'.format(np.mean(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 75)) + '{:10.2f}'.format(np.max(Bs[i]))+'\n')
+                fSum.write('Bz (nT) ' + '{:10.2f}'.format(np.median(Bzs[i])) + '{:10.2f}'.format(np.std(Bzs[i])) + '{:10.2f}'.format(np.min(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 25)) + '{:10.2f}'.format(np.mean(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 75)) + '{:10.2f}'.format(np.max(Bzs[i]))+'\n')
+                fSum.write('n (cm-3)' + '{:10.2f}'.format(np.median(ns[i]))  + '{:10.2f}'.format(np.std(ns[i])) + '{:10.2f}'.format(np.min(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 25)) + '{:10.2f}'.format(np.mean(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 75)) + '{:10.2f}'.format(np.max(ns[i]))+'\n')
+                fSum.write('v (km/s)' + '{:10.2f}'.format(np.median(vs[i])) + '{:10.2f}'.format(np.std(vs[i])) + '{:10.2f}'.format(np.min(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 25)) + '{:10.2f}'.format(np.mean(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 75)) + '{:10.2f}'.format(np.max(vs[i]))+'\n')
+                fSum.write('Kp      ' + '{:10.2f}'.format(np.median(Kps[i])) + '{:10.2f}'.format(np.std(Kps[i])) + '{:10.2f}'.format(np.min(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 25)) + '{:10.2f}'.format(np.mean(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 75)) + '{:10.2f}'.format(np.max(Kps[i]))+'\n')
+                fSum.write('\n')
+    fSum.close()
