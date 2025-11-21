@@ -955,49 +955,88 @@ def makeSummary(ResArr, dObj, nEns, nSat, hitsSat, satNames, DoY, silent=False):
 
 
         # Transit time
-        if len(TTs[1]) != 0:
-            fSum.write('Mean Shock Arrival:     '+(base + datetime.timedelta(days=np.mean(TTs[1]))).strftime('%Y %b %d %H:%M')+'\n')
-            fSum.write('Median Shock Arrival:   '+(base + datetime.timedelta(days=np.median(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
-            fSum.write('Earliest Shock Arrival: '+(base + datetime.timedelta(days=np.min(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
-            fSum.write('Latest Shock Arrival:   '+(base + datetime.timedelta(days=np.max(TTs[1]))).strftime('%Y %b %d %H:%M'+'\n'))
-            fSum.write('STD in Shock AT (hr)' + '{:8.2f}'.format(24*np.std(TTs[1])) +'\n')
+        # Shock Ensemble
+        if len(TTs[1]) > 1:
+            meanTT = np.mean(TTs[1]) 
+            fSum.write('Mean Shock Arrival:      '+(base + datetime.timedelta(days=meanTT)).strftime('%Y-%m-%dT%H:%M')+'\n')
+            fSum.write('Median Shock Arrival:    '+(base + datetime.timedelta(days=np.median(TTs[1]))).strftime('%Y-%m-%dT%H:%M' +'\n'))
+            fSum.write('Earliest Shock Arrival:  '+(base + datetime.timedelta(days=np.min(TTs[1]))).strftime('%Y-%m-%dT%H:%M' +'\n'))
+            fSum.write('Latest Shock Arrival:    '+(base + datetime.timedelta(days=np.max(TTs[1]))).strftime('%Y-%m-%dT%H:%M' +'\n'))
+            m1sig, p1sig =  np.percentile(TTs[1], 50 - 34.1), np.percentile(TTs[1], 50 + 34.1) 
+            fSum.write('Shock 1Sig range (hr):   ' + '{:8.2f}'.format(24*(m1sig - meanTT)) + '{:8.2f}'.format(24*(p1sig - meanTT))  +'\n')
+            fSum.write('\n')
+        # Single Shock
+        elif len(TTs[1]) == 1:
+            fSum.write('Shock Arrival:      '+(base + datetime.timedelta(days=TTs[1][0])).strftime('%Y-%m-%dT%H:%M')+'\n')
             fSum.write('\n')
         
-        fSum.write('Mean FR Arrival:     '+(base + datetime.timedelta(days=np.mean(TTs[0]))).strftime('%Y %b %d %H:%M')+'\n')
-        fSum.write('Median FR Arrival:   '+(base + datetime.timedelta(days=np.median(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
-        fSum.write('Earliest FR Arrival: '+(base + datetime.timedelta(days=np.min(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
-        fSum.write('Latest FR Arrival:   '+(base + datetime.timedelta(days=np.max(TTs[0]))).strftime('%Y %b %d %H:%M'+'\n'))
-        fSum.write('STD in FR AT (hr)' + '{:8.2f}'.format(24*np.std(TTs[0])) +'\n')
-        fSum.write('\n')
+        # FR Ensemble    
+        if len(TTs[0]) > 1:
+            meanTT = np.mean(TTs[0]) 
+            fSum.write('Mean FR Arrival:         '+(base + datetime.timedelta(days=meanTT)).strftime('%Y-%m-%dT%H:%M')+'\n')
+            fSum.write('Median FR Arrival:       '+(base + datetime.timedelta(days=np.median(TTs[0]))).strftime('%Y-%m-%dT%H:%M' +'\n'))
+            fSum.write('Earliest FR Arrival:     '+(base + datetime.timedelta(days=np.min(TTs[0]))).strftime('%Y-%m-%dT%H:%M'+'\n'))
+            fSum.write('Latest FR Arrival:       '+(base + datetime.timedelta(days=np.max(TTs[0]))).strftime('%Y-%m-%dT%H:%M'+'\n'))
+            m1sig, p1sig =  np.percentile(TTs[0], 50 - 34.1), np.percentile(TTs[0], 50 + 34.1) 
+            fSum.write('FR 1Sig range (hr):      ' + '{:8.2f}'.format(24*(m1sig - meanTT)) + '{:8.2f}'.format(24*(p1sig - meanTT))  +'\n')
+            fSum.write('\n')
+        elif len(TTs[0]) == 1:
+            fSum.write('FR Arrival:         '+(base + datetime.timedelta(days=TTs[0][0])).strftime('%Y-%m-%dT%H:%M')+'\n')
+            fSum.write('\n')
         
         
         # Hit miss stats
         ntot = len(ResArr)
-        nhit = ntot-misses
-        fSum.write('Impacts for '+str(nhit)+' out of ' +str(ntot) +' ensemble members \n')
-        fSum.write('  (' + '{:.1f}'.format(100*nhit/ntot)+' percent) \n')
-        if justshs > 0:
-            fSum.write(str(justshs) + ' members with only sheath impact \n')
-        if (justfrs != frs) & (justfrs !=0):
-            fSum.write(str(justfrs) + ' members with no sheath \n')
-        fSum.write('\n')
+        if ntot > 1 :
+            nhit = ntot-misses
+            fSum.write('Impacts for '+str(nhit)+' out of ' +str(ntot) +' ensemble members \n')
+            fSum.write('  (' + '{:.1f}'.format(100*nhit/ntot)+' percent) \n')
+            if justshs > 0:
+                fSum.write(str(justshs) + ' members with only sheath impact \n')
+            if (justfrs != frs) & (justfrs !=0):
+                fSum.write(str(justfrs) + ' members with no sheath \n')
+            fSum.write('\n')
         
         # Parameter values
-        fSum.write('Ensemble Stats \n')
-        for i in [1,0]:
-            if len(TTs[i]) != 0:
-                if i == 1:
-                    fSum.write('Sheath Profile Maximum Vals \n')
-                    fSum.write('(most negative for Bz) \n')
-                elif i ==0:
-                    fSum.write('FR Profile Maximum Values \n')
-                    fSum.write('(most negative for Bz) \n')
-                fSum.write('Parameter   Median       STD       Min        Q1        Q2        Q3       Max \n') 
-                fSum.write('Dur (hr)' + '{:10.2f}'.format(np.median(durs[i])) + '{:10.2f}'.format(np.std(durs[i])) + '{:10.2f}'.format(np.min(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 25)) + '{:10.2f}'.format(np.mean(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 75)) + '{:10.2f}'.format(np.max(durs[i]))+'\n')
-                fSum.write('|B| (nT)' + '{:10.2f}'.format(np.median(Bs[i])) + '{:10.2f}'.format(np.std(Bs[i])) + '{:10.2f}'.format(np.min(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 25)) + '{:10.2f}'.format(np.mean(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 75)) + '{:10.2f}'.format(np.max(Bs[i]))+'\n')
-                fSum.write('Bz (nT) ' + '{:10.2f}'.format(np.median(Bzs[i])) + '{:10.2f}'.format(np.std(Bzs[i])) + '{:10.2f}'.format(np.min(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 25)) + '{:10.2f}'.format(np.mean(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 75)) + '{:10.2f}'.format(np.max(Bzs[i]))+'\n')
-                fSum.write('n (cm-3)' + '{:10.2f}'.format(np.median(ns[i]))  + '{:10.2f}'.format(np.std(ns[i])) + '{:10.2f}'.format(np.min(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 25)) + '{:10.2f}'.format(np.mean(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 75)) + '{:10.2f}'.format(np.max(ns[i]))+'\n')
-                fSum.write('v (km/s)' + '{:10.2f}'.format(np.median(vs[i])) + '{:10.2f}'.format(np.std(vs[i])) + '{:10.2f}'.format(np.min(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 25)) + '{:10.2f}'.format(np.mean(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 75)) + '{:10.2f}'.format(np.max(vs[i]))+'\n')
-                fSum.write('Kp      ' + '{:10.2f}'.format(np.median(Kps[i])) + '{:10.2f}'.format(np.std(Kps[i])) + '{:10.2f}'.format(np.min(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 25)) + '{:10.2f}'.format(np.mean(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 75)) + '{:10.2f}'.format(np.max(Kps[i]))+'\n')
-                fSum.write('\n')
+        if ntot > 1:
+            fSum.write('Ensemble Stats \n')
+            for i in [1,0]:
+                if len(TTs[i]) != 0:
+                    # Print headers
+                    if i == 1:
+                        fSum.write('Sheath Profile Maximum Vals \n')
+                        fSum.write('(most negative for Bz) \n')
+                    elif i ==0:
+                        fSum.write('FR Profile Maximum Values \n')
+                        fSum.write('(most negative for Bz) \n')
+                    # Main body    
+                    fSum.write('Parameter   Median       STD       Min        Q1        Q2        Q3       Max \n') 
+                    fSum.write('Dur (hr)' + '{:10.2f}'.format(np.median(durs[i])) + '{:10.2f}'.format(np.std(durs[i])) + '{:10.2f}'.format(np.min(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 25)) + '{:10.2f}'.format(np.mean(durs[i])) + '{:10.2f}'.format(np.percentile(durs[i], 75)) + '{:10.2f}'.format(np.max(durs[i]))+'\n')
+                    fSum.write('|B| (nT)' + '{:10.2f}'.format(np.median(Bs[i])) + '{:10.2f}'.format(np.std(Bs[i])) + '{:10.2f}'.format(np.min(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 25)) + '{:10.2f}'.format(np.mean(Bs[i])) + '{:10.2f}'.format(np.percentile(Bs[i], 75)) + '{:10.2f}'.format(np.max(Bs[i]))+'\n')
+                    fSum.write('Bz (nT) ' + '{:10.2f}'.format(np.median(Bzs[i])) + '{:10.2f}'.format(np.std(Bzs[i])) + '{:10.2f}'.format(np.min(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 25)) + '{:10.2f}'.format(np.mean(Bzs[i])) + '{:10.2f}'.format(np.percentile(Bzs[i], 75)) + '{:10.2f}'.format(np.max(Bzs[i]))+'\n')
+                    fSum.write('n (cm-3)' + '{:10.2f}'.format(np.median(ns[i]))  + '{:10.2f}'.format(np.std(ns[i])) + '{:10.2f}'.format(np.min(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 25)) + '{:10.2f}'.format(np.mean(ns[i])) + '{:10.2f}'.format(np.percentile(ns[i], 75)) + '{:10.2f}'.format(np.max(ns[i]))+'\n')
+                    fSum.write('v (km/s)' + '{:10.2f}'.format(np.median(vs[i])) + '{:10.2f}'.format(np.std(vs[i])) + '{:10.2f}'.format(np.min(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 25)) + '{:10.2f}'.format(np.mean(vs[i])) + '{:10.2f}'.format(np.percentile(vs[i], 75)) + '{:10.2f}'.format(np.max(vs[i]))+'\n')
+                    fSum.write('Kp      ' + '{:10.2f}'.format(np.median(Kps[i])) + '{:10.2f}'.format(np.std(Kps[i])) + '{:10.2f}'.format(np.min(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 25)) + '{:10.2f}'.format(np.mean(Kps[i])) + '{:10.2f}'.format(np.percentile(Kps[i], 75)) + '{:10.2f}'.format(np.max(Kps[i]))+'\n')
+                    fSum.write('\n')
+        else:
+            fSum.write('Ensemble Stats \n')
+            for i in [1,0]:
+                if len(TTs[i]) != 0:
+                    if i == 1:
+                        fSum.write('Sheath Profile Maximum Vals \n')
+                        fSum.write('(most negative for Bz) \n')
+                    elif i ==0:
+                        fSum.write('FR Profile Maximum Values \n')
+                        fSum.write('(most negative for Bz) \n')
+                    fSum.write('Dur (hr)' + '{:10.2f}'.format(durs[i][0]) + '\n')
+                    fSum.write('|B| (nT)' + '{:10.2f}'.format(Bs[i][0]) + '\n')
+                    fSum.write('Bz (nT) ' + '{:10.2f}'.format(Bzs[i][0]) + '\n')
+                    fSum.write('n (cm-3)' + '{:10.2f}'.format(ns[i][0]) + '\n')
+                    fSum.write('v (km/s)' + '{:10.2f}'.format(vs[i][0]) + '\n')
+                    fSum.write('Kp      ' + '{:10.2f}'.format(Kps[i][0]) + '\n')
+                    
+                    fSum.write('\n')
+            
+            
+            
     fSum.close()
