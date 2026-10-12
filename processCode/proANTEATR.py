@@ -131,7 +131,10 @@ def makeJmap(CMEarr, satLoc_unswap, startTimes, arrivals=None, satName=''):
             cosAng = np.abs(np.dot(rhat, norm))
             newWid = CMElens[3] / cosAng
             if OSP.doPUP:
-                mySheath.append(rAx+newWid + myCME.PUPwids[i])
+                if type(myCME.PUPwids) != type(None):
+                    mySheath.append(rAx+newWid + myCME.PUPwids[i])
+                else:
+                    mySheath.append(rAx+newWid)
             myFRstart.append(rAx+newWid)
             myFRend.append(rAx-newWid)
             if startt:

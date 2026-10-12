@@ -270,7 +270,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
         axes[5].plot(ObsData[satID][0,:], ObsData[satID][7,:]/1e6, linewidth=4, color=obscol)    
         if OSP.isSat or plotn:
             axes[6].plot(ObsData[satID][0,:], ObsData[satID][5,:], linewidth=4, color=obscol)
-        elif hasKp:
+        elif sP.hasKp:
             axes[6].plot(ObsData[satID][0,:], ObsData[satID][8,:], linewidth=4, color=obscol)
         
         # |------------- Option to set ylim from obs values --------------|    
@@ -300,7 +300,7 @@ def makeISplot(ResArr, dObj, DoY, SWpadF=12, SWpadB = 15, HiLite=None, plotn=Fal
                 if np.count_nonzero(nidx) != 0:
                     nlim = np.max(ObsData[satID][5,nidx])
                     axes[6].set_ylim([0, 1.5*nlim])
-            elif hasKp:
+            elif sP.hasKp:
                 axes[6].set_ylim([0, 1.5*np.max(ObsData[satID][8,:])])
             
         # |------------- Add in observed sheath/FR start/stop --------------|

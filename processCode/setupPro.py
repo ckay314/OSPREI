@@ -97,6 +97,20 @@ class EnsRes:
             self.isSheath   = None
             self.hasSheath  = False 
             
+            # PUP things
+            self.PUPvshocks = None
+            self.PUPcomps = None
+            self.PUPMAs = None
+            self.PUPwids = None
+            self.PUPdurs = None
+            self.PUPMs = None
+            self.PUPns = None
+            self.PUPlogTs = None
+            self.PUPBthetas = None
+            self.PUPBs = None
+            self.PUPvts = None
+            self.PUPinit = None
+            
             # flags for misses and fails-> no ANT/FIDOdata
             self.FIDOmiss = True
             self.fail = False
