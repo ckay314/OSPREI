@@ -354,7 +354,7 @@ def preProcessIt(inputs):
         f1.write('Magnetogram:   '+ inputs['Magnetogram'] + '\n')
     # write everything else to file    
     for key in allIns.keys():
-        f1.write(key+':   '+allIns[key] + '\n')
+        f1.write(key+':   '+str(allIns[key]) + '\n')
     # add in satellite
     f1.write('satellite:   '+ inputs['satellite'] + '\n')
     f1.close()
