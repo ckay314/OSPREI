@@ -243,7 +243,7 @@ def runproOSP(inputPassed='noFile', onlyIS=False):
     # |------------------------------------------------------------| 
         # The sheath profiles don't always look the best if it is a borderline case
         # where some fraction of the cases stop forming a shock halfway through
-        if plotAll and OSP.doPUP:
+        if plotAll and OSP.doPUP and (nEns > 1):
             try:
                 proANT.makePUPplot(ResArr, nEns, BFs=comboBFs, satCols=satColors, satNames=satNamesL)
             except:
